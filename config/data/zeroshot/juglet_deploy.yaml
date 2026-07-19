@@ -1,0 +1,14 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: true
+multi_anchor: false
+
+data_root: ${data_root}
+dataset_names: ["juglet_deploy"]
+
+batch_size: 1
+num_workers: 4
+limit_val_samples: 0
