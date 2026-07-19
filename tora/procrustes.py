@@ -76,3 +76,36 @@ def fit_transformations(
                 translations_pred[b, p] = trans
 
     return rotations_pred, translations_pred
+
+
+def apply_rigid_transformations(
+    pointclouds: torch.Tensor,
+    rotations: torch.Tensor,
+    translations: torch.Tensor,
+    points_per_part: torch.Tensor,
+) -> torch.Tensor:
+    """Apply per-part rigid transforms to a packed multi-part point cloud.
+
+    Matches ``solve_procrustes``: transformed points are ``source @ R.T + t``.
+
+    Args:
+        pointclouds: Packed clouds of shape (B, N, 3).
+        rotations: (B, P, 3, 3) rotation matrices.
+        translations: (B, P, 3) translation vectors.
+        points_per_part: (B, P) point counts per part.
+
+    Returns:
+        Transformed point clouds of shape (B, N, 3).
+    """
+    bs, n_parts = points_per_part.shape
+    out = pointclouds.view(bs, -1, 3).clone()
+    for b in range(bs):
+        offset = 0
+        for p in range(n_parts):
+            n = int(points_per_part[b, p].item())
+            if n == 0:
+                continue
+            sl = slice(offset, offset + n)
+            out[b, sl] = out[b, sl] @ rotations[b, p].t() + translations[b, p]
+            offset += n
+    return out

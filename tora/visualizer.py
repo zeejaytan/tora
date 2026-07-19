@@ -8,10 +8,25 @@ import lightning as L
 import torch
 from lightning.pytorch.callbacks import Callback
 
+from .procrustes import apply_rigid_transformations
 from .utils.render import visualize_point_clouds, img_tensor_to_pil, part_ids_to_colors, probs_to_colors, get_pca_colors, get_similarity_colors
 from .utils.point_clouds import ppp_to_ids
 
 logger = logging.getLogger("Visualizer")
+
+# Datasets whose HDF5/meshes are in scanner/table coordinates (no true assembly GT).
+SCAN_LAYOUT_DATASETS = frozenset({
+    "juglet",
+    "juglet_deploy",
+    "artifact",
+    "tray",
+    "tray_archaeological",
+})
+
+
+def is_scan_layout_dataset(dataset_name: str) -> bool:
+    name = dataset_name.lower().replace("/", "_")
+    return any(tag in name for tag in SCAN_LAYOUT_DATASETS)
 
 
 class VisualizationCallback(Callback):
@@ -81,6 +96,7 @@ class VisualizationCallback(Callback):
         points: torch.Tensor,
         colors: torch.Tensor,
         sample_name: str,
+        vis_kwargs: Optional[dict] = None,
     ) -> None:
         """Save visualization images for a single sample.
 
@@ -88,12 +104,14 @@ class VisualizationCallback(Callback):
             points (torch.Tensor): Point cloud of shape (N, 3).
             colors (torch.Tensor): Colors of shape (N, 3).
             sample_name (str): sample name for filename.
+            vis_kwargs: Optional overrides for visualize_point_clouds kwargs.
         """
         try:
+            kwargs = self._vis_kwargs if vis_kwargs is None else {**self._vis_kwargs, **vis_kwargs}
             image = visualize_point_clouds(
                 points=points,
                 colors=colors,
-                **self._vis_kwargs
+                **kwargs,
             )
             image_pil = img_tensor_to_pil(image)
             sample_name = sample_name.replace('/', '_')
@@ -120,6 +138,7 @@ class FlowVisualizationCallback(VisualizationCallback):
     def __init__(
         self,
         save_trajectory: bool = True,
+        save_procrustes_assembly: bool = False,
         trajectory_gif_fps: int = 25,
         trajectory_gif_pause_last_frame: float = 1.0,
         **kwargs
@@ -128,12 +147,15 @@ class FlowVisualizationCallback(VisualizationCallback):
 
         Args:
             save_trajectory (bool): Whether to save trajectory as GIF. Default: True.
+            save_procrustes_assembly (bool): If True, save PNGs with scattered input
+                parts rigidly transformed by Procrustes poses (paper assembly proposal).
             trajectory_gif_fps (int): Frames per second for the GIF.
             trajectory_gif_pause_last_frame (float): Pause time for the last frame in seconds.
             **kwargs: Additional arguments passed to base class.
         """
         super().__init__(**kwargs)
         self.save_trajectory = save_trajectory
+        self.save_procrustes_assembly = save_procrustes_assembly
         self.trajectory_gif_fps = trajectory_gif_fps
         self.trajectory_gif_pause_last_frame = trajectory_gif_pause_last_frame
 
@@ -142,6 +164,7 @@ class FlowVisualizationCallback(VisualizationCallback):
         trajectory: torch.Tensor,
         colors: torch.Tensor,
         sample_name: str,
+        vis_kwargs: Optional[dict] = None,
     ) -> None:
         """Save trajectory as GIF.
 
@@ -154,10 +177,11 @@ class FlowVisualizationCallback(VisualizationCallback):
             gif_path = self.vis_dir / f"{sample_name}.gif"
 
             # Render trajectory steps
+            kwargs = self._vis_kwargs if vis_kwargs is None else {**self._vis_kwargs, **vis_kwargs}
             rendered_images = visualize_point_clouds(
                 points=trajectory,                                          # (num_steps, N, 3)
                 colors=colors,                                              # (N, 3)
-                **self._vis_kwargs,
+                **kwargs,
             )                                                               # (num_steps, H, W, 3)
             frames = []
             num_steps = trajectory.shape[0]
@@ -197,54 +221,99 @@ class FlowVisualizationCallback(VisualizationCallback):
         points_per_part = batch["points_per_part"]                            # (bs, max_parts)
         B, _ = points_per_part.shape
         part_ids = ppp_to_ids(points_per_part)                                # (bs, N)
-        pts = batch["pointclouds"].view(B, -1, 3)                             # (bs, N, 3)
+        pts_norm = batch["pointclouds"].view(B, -1, 3)                        # (bs, N, 3), dataloader frame
         pts_gt = batch["pointclouds_gt"].view(B, -1, 3)                       # (bs, N, 3)
+        pts = pts_norm
 
         # K generations
         trajectories_list = outputs['trajectories']                           # (K, num_steps, num_points, 3)
         K = len(trajectories_list)
         pointclouds_pred_list = [traj[-1].view(B, -1, 3) for traj in trajectories_list]
 
-        if self.scale_to_original_size:
-            scale = batch["scale"][:, 0]                                      # (bs,)
+        scale_tensor = batch.get("scales", batch.get("scale"))
+        scale = None
+        if self.scale_to_original_size and scale_tensor is not None:
+            scale = scale_tensor[:, 0] if scale_tensor.ndim > 1 else scale_tensor
             pts = pts * scale[:, None, None]                                  # (bs, N, 3)
             pointclouds_pred_list = [pred * scale[:, None, None] for pred in pointclouds_pred_list]
+
+        rotations_list = outputs.get("rotations_pred", [])
+        translations_list = outputs.get("translations_pred", [])
 
         for i in range(B):
             dataset_name = batch["dataset_name"][i]
             sample_name = f"{dataset_name}_sample{int(batch['index'][i]):05d}"
+            scan_layout = is_scan_layout_dataset(dataset_name)
 
             colors = part_ids_to_colors(
                 part_ids[i], colormap=self.colormap, part_order="random"
             )
+            vis_kwargs = dict(self._vis_kwargs)
+            if scan_layout:
+                # Frame the full cloud; scan-layout GT spans more than [-1, 1]^3.
+                vis_kwargs["center_points"] = True
+
             self._save_sample_images(
                 points=pts[i],
                 colors=colors,
                 sample_name=f"{sample_name}_input",
+                vis_kwargs=vis_kwargs,
             )
-            self._save_sample_images(
-                points=pts_gt[i],
-                colors=colors,
-                sample_name=f"{sample_name}_gt",
-            )
+            if scan_layout:
+                # Not a true assembly — dataloader GT is scan/table layout in CoM frame.
+                self._save_sample_images(
+                    points=pts_gt[i],
+                    colors=colors,
+                    sample_name=f"{sample_name}_scan_ref",
+                    vis_kwargs=vis_kwargs,
+                )
+            else:
+                self._save_sample_images(
+                    points=pts_gt[i],
+                    colors=colors,
+                    sample_name=f"{sample_name}_gt",
+                )
             for n in range(K):
                 pointclouds_pred = pointclouds_pred_list[n]
                 self._save_sample_images(
                     points=pointclouds_pred[i],
                     colors=colors,
                     sample_name=f"{sample_name}_generation{n+1:02d}",
+                    vis_kwargs=vis_kwargs,
                 )
+
+                if (
+                    self.save_procrustes_assembly
+                    and n < len(rotations_list)
+                    and n < len(translations_list)
+                ):
+                    proposed = apply_rigid_transformations(
+                        pts_norm,
+                        rotations_list[n],
+                        translations_list[n],
+                        points_per_part,
+                    )
+                    proposed_i = proposed[i]
+                    if self.scale_to_original_size and scale_tensor is not None:
+                        proposed_i = proposed_i * scale[i]
+                    self._save_sample_images(
+                        points=proposed_i,
+                        colors=colors,
+                        sample_name=f"{sample_name}_proposed_assembly{n+1:02d}",
+                        vis_kwargs=vis_kwargs,
+                    )
 
                 if self.save_trajectory:
                     trajectory = trajectories_list[n]
                     num_steps = trajectory.shape[0]
                     trajectory = trajectory.reshape(num_steps, B, -1, 3).permute(1, 0, 2, 3)  # (bs, num_steps, N, 3)
-                    if self.scale_to_original_size:
+                    if self.scale_to_original_size and scale is not None:
                         trajectory = trajectory * scale[:, None, None, None]                  # (bs, num_steps, N, 3)
                     self._save_trajectory_gif(
                         trajectory=trajectory[i],
                         colors=colors,
                         sample_name=f"{sample_name}_generation{n+1:02d}",
+                        vis_kwargs=vis_kwargs,
                     )
 
             if self.max_samples_per_batch is not None and i >= self.max_samples_per_batch:

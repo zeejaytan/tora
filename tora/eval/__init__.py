@@ -5,10 +5,7 @@ from .metrics import (
     compute_transform_errors,
 )
 from .evaluator import Evaluator
-from .spatial import (
-    metric_lds_3d,
-    metric_boundary_contrast,
-    metric_part_silhouette,
-    metric_effective_rank,
-    metric_pose_discrimination,
-)
+# NOTE: upstream `tora.eval.spatial` is referenced in training-time probing
+# callbacks but the module file is not present in this commit. The eval
+# entrypoint (sample.py) does not need it, so the re-exports are disabled
+# here to unblock inference.
