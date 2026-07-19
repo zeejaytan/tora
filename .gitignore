@@ -38,4 +38,23 @@ core_*
 
 # Agent
 .claude
-CLAUDE.md
+
+# --- laptop <-> GitHub <-> Spartan workspace conventions ---
+# Laptop-side rsync landing zone (see scripts/remote/fetch_artifacts.sh)
+artifacts/
+
+# Heavy / HPC-only (live in the outer TORA/ working area on Spartan)
+checkpoints/
+dataset/
+eval_runs/
+raw/
+wandb/
+*.out
+*.err
+*.hdf5
+*.h5
+*.ckpt
+
+# Agent / IDE / graph noise
+.cursor/
+graphify-out/
