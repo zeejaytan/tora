@@ -1,0 +1,19 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# Real fracture (21 train objects: bones/ceramics/egg minus the 6 held out
+# for the pairwise-oracle eval) + synthetic bone-fracture replay (pig/rib)
+# to avoid catastrophic forgetting during fine-tuning, mirroring GARF's
+# Exp 11-15 real:synthetic replay recipe.
+dataset_names: ["real_finetune", "pig", "rib"]
+
+batch_size: 8
+num_workers: 8
+min_dataset_size: 600
+limit_val_samples: 0
