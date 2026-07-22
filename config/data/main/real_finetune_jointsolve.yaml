@@ -1,0 +1,25 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+# JOINT-SOLVE curriculum: min_parts=3 drops every pure-2-piece object so that
+# EVERY training example is a genuine multi-piece joint-assembly problem.
+# Motivation (job 27840720 finding): the robust replay fine-tune improved
+# 2-piece pairwise mating but never lifted multi-piece part_accuracy above
+# anchor-only, and its training data was pair-dominated (13 of 21 real objects
+# were 2-piece). This curriculum removes the pairwise shortcut and forces the
+# flow model to learn joint placement on real fracture surfaces.
+min_parts: 3
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# Real multi-piece (>=3 parts of the 21 held-in objects) + synthetic
+# multi-piece replay (pig/rib, also >=3 parts) to keep the abundant joint-
+# assembly signal and prevent forgetting.
+dataset_names: ["real_finetune", "pig", "rib"]
+
+batch_size: 8
+num_workers: 8
+min_dataset_size: 600
+limit_val_samples: 0
