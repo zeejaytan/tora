@@ -34,6 +34,30 @@
 > The lesson for re-use: `part_accuracy` reading *exactly* `1/n_parts` across
 > every checkpoint, piece count and fine-tune — and `recall@5cm` at exactly
 > 0.000 — was the tell. That constancy was an instrument failure, not a finding.
+>
+> ### ✅ RESOLVED (job 27858648 / 27859890) — the corrected numbers are in
+>
+> **TORA was never bad at real fracture.** Re-evaluated on scale-normalized
+> data, the *shipped synthetic-only baseline* scores **part_accuracy 0.861 avg
+> / 0.928 best-of-n** on the 6 held-out real objects — matching its synthetic
+> performance (0.860). It assembles a 5-piece pot at **3.5° rotation error** and
+> a **10-piece** ceramic at 0.8-0.9 part accuracy. Every "total failure at
+> exactly 1/n" in this document was the broken threshold.
+>
+> **The whole premise of this investigation is therefore void.** There is no
+> real-vs-synthetic capability gap to explain, so the roughness result — while a
+> valid geometric measurement — explains nothing, and the "training-data
+> coverage gap" diagnosis is refuted.
+>
+> **The fine-tuning "remedy" actively harmed the model** (limb3 7.9° -> 26.4-40.5°,
+> blue_pot 3.5° -> 9.6-10.9°, galli_pot 0.9 -> 0.7). Two training runs were spent
+> degrading a competent checkpoint to fix a problem that did not exist. The
+> follow-up joint-solve run (27842479) was cancelled mid-flight once this landed.
+>
+> **The Juglet is a separate, genuinely different problem — a broken benchmark,
+> not a broken model.** See the Juglet section at the end.
+
+
 
 Follow-up to `JUGLET_TORA_ROOTCAUSE.md`, which found that TORA already fails
 at chance on GARF's fresh control ceramics — not just the worn Juglet — and
@@ -45,7 +69,14 @@ piece-count and shape-symmetry effects.
 
 ---
 
-## TL;DR
+## TL;DR — ❌ SUPERSEDED, DO NOT CITE
+
+> **This entire TL;DR is refuted.** Its central claim rests on real-data
+> `part_accuracy` figures produced by the broken absolute-threshold metric
+> described in the banner above. Corrected measurement (job 27858648) shows the
+> baseline scores **0.861** part accuracy on real fracture, not the "0.393 =
+> chance" reported below. Kept verbatim for provenance only. The correct
+> summary is in **§ "Resolution (2026-07-22)"** at the end of this document.
 
 **TORA is good at assembling objects with synthetically-simulated fracture
 surfaces (any mesh, any category, up to ~15-20 pieces before the known piece-
@@ -817,3 +848,119 @@ was correctly discarded for exactly this reason (an auxiliary head firing on
 75-98% of points regardless of input); the same skepticism should have been
 applied here. Validate the instrument on a known-answer case before drawing
 architectural conclusions from it.
+
+---
+
+## Resolution (2026-07-22) — corrected results, and what the investigation actually found
+
+Both corrected evaluations have now run on scale-normalized data. This section
+supersedes the TL;DR and every real-data conclusion above it.
+
+### 1. Real fracture: the baseline already solves it (job 27858648)
+
+6 held-out real objects (`real_heldout_norm`, anchor-based, 3 generations),
+scale-normalized so the absolute `CD<0.01` threshold means the same thing it
+means for synthetic:
+
+| checkpoint | part_acc (avg) | part_acc (best-of-n) | rot_err (avg) | rot_err (best-of-n) | object_chamfer |
+|---|---|---|---|---|---|
+| **baseline** (`bbad_everyday_cka`, synthetic-only) | **0.861** | **0.928** | **28.5°** | **21.2°** | 0.0009 |
+| robust fine-tune (`epoch-59`) | 0.863 | 0.939 | 33.6° | 25.0° | 0.0011 |
+
+Per-object, baseline:
+
+| object | pieces | part_acc (3 seeds) | rot_err |
+|---|---|---|---|
+| blue_pot | 5 | **1.0 / 1.0 / 1.0** | **3.5 / 4.0 / 4.5°** |
+| limb3 | 3 | **1.0 / 1.0 / 1.0** | 12.0 / 7.9 / 11.9° |
+| vert9 | 3 | 1.0 / 0.67 / 1.0 | 28.0 / 47.1 / 20.7° |
+| galli_pot | **10** | 0.9 / 0.8 / 0.8 | 27.2 / 31.5 / 37.3° |
+| coxae | 3 | 0.67 / 0.67 / 1.0 | 71.7 / 38.1 / 60.6° |
+| plate | 6 | 0.67 / 0.67 / 0.67 | 29.9 / 36.1 / 41.0° |
+
+For comparison, the *same objects* under the broken metric read exactly
+0.333 / 0.333 / 0.333 / 0.10 / 0.167 / 0.20 — i.e. "100% total failure."
+
+**TORA is not bad at real fracture.** Its real-fracture part accuracy (0.861)
+is indistinguishable from its synthetic-fracture part accuracy (0.860, top
+table of this doc). The founding contrast of this investigation does not exist.
+
+### 2. Fine-tuning made it worse
+
+The robust fine-tune is flat on part_accuracy (within noise on n=6) and
+**clearly worse on rotation**: avg 28.5° -> 33.6°, best-of-n 21.2° -> 25.0°,
+`recall@10deg` 0.222 -> 0.056. Per object it damaged the two the baseline was
+best at: limb3 7.9-12.0° -> 26.4-40.5°, blue_pot 3.5-4.5° -> 9.6-10.9°.
+
+Fine-tuning on 21 real objects (8 after the `min_parts>=3` filter) overfits and
+degrades a checkpoint that already generalized. The joint-solve run (27842479)
+was cancelled at epoch ~72/120 once this was known; its checkpoints are kept at
+`output/real_finetune_jointsolve_27842479/` but are not expected to be useful.
+
+### 3. The Juglet: a broken benchmark, not a broken model (job 27859890)
+
+Normalized Juglet (9 pieces, anchor-free, 5 generations):
+
+| checkpoint | part_acc | object_chamfer | recall@5cm | rot_err (best-of-n) | recall@10deg |
+|---|---|---|---|---|---|
+| baseline | **1.000** | ~0.0000 | 1.000 | 45.9° | 0.000 |
+| robust | **1.000** | ~0.0000 | 1.000 | 47.3° | 0.000 |
+
+`part_accuracy = 1.0` with `rot_err = 46-61°` is internally contradictory for a
+real reassembly — and the visualizations explain why. **The Juglet's ground
+truth is not an assembled vessel.** `*_scan_ref.png` (the GT) shows a large tan
+blob beside a separate cluster of coloured sherds — the scattered scan/table
+layout. The model's `*_proposed_assembly*.png` reproduces that same blob +
+cluster structure almost exactly, which is why Chamfer ~ 0 and part_acc = 1.0.
+
+So the model is faithfully solving the problem it was given; the problem is
+wrong. The long-observed "anchor blob + separate satellite cluster" failure
+geometry is **the model correctly matching an invalid target**, not a mating
+failure. This independently confirms the invalid-GT finding already flagged in
+`JUGLET_TORA_ROOTCAUSE.md` and `GARF/docs/notes/JUGLET_DEPLOY_INFERENCE_ANALYSIS.md`,
+and it means **no conclusion about any model's Juglet reassembly ability can be
+drawn from this benchmark as shipped** — the metrics reward reproducing a
+non-assembly. Artifacts: `artifacts/juglet_probe/norm_27859890/`.
+
+Whether TORA *could* assemble the Juglet is untested and currently untestable
+here: it would need a genuine assembled ground truth for the object. Given the
+baseline's demonstrated real-fracture ability (§1) — including a 10-piece
+ceramic — the prior should now be that it plausibly can, which is the opposite
+of what this doc previously concluded.
+
+### 4. Corrected status of every claim in this investigation
+
+| Claim | Status |
+|---|---|
+| Baseline solves real fracture (0.861 / 0.928 part_acc) | **Established** (27858648) |
+| Fine-tuning degrades the baseline | **Established** (27858648) |
+| Juglet GT is an invalid scan layout; benchmark cannot measure reassembly | **Established** (27859890 + visuals) |
+| Real fracture surfaces are 1.4-2.5x rougher than synthetic | Valid measurement, but **explains nothing** — there is no failure to explain |
+| "TORA is bad at real fracture / real-vs-synthetic gap is the main factor" | **REFUTED** — metric artifact |
+| "Training-data coverage gap, not architecture" | **REFUTED** — premise void |
+| "Fine-tuning recovers a missing capability (1.03x -> 1.36x)" | **Reinterpreted** — the rot_err separation is a valid number, but it was not recovering a missing capability; end-to-end the fine-tune is net harmful |
+| "The wall is joint-solve, not the 6-piece cliff" | **RETRACTED** — metric artifact |
+| "Needs architectural coarse-shape bootstrap" | **WITHDRAWN** — unevidenced |
+| Overlap head unusable as a probe | Valid (code-path fact) |
+
+### 5. What went wrong, methodologically
+
+Four probes and two GPU training runs were built on an instrument that was
+never validated. The failure signature — `part_accuracy` reading *exactly*
+`1/n_parts` across every checkpoint, every piece count, every training
+variation, with `recall@5cm` at exactly 0.000 while `rotation_error` on the
+same predictions was 29° — was internally inconsistent from the first run.
+Probe 1 was correctly discarded for precisely this class of reason (an
+auxiliary head firing on 75-98% of points regardless of input); the same
+skepticism was not applied to the primary metric.
+
+Rules adopted going forward for this workspace:
+- **Validate the instrument on a known-answer case before drawing conclusions
+  from it.** A metric that cannot distinguish a good model from a bad one will
+  happily report a stable, publishable-looking constant.
+- **Treat a suspiciously constant metric as a bug until proven otherwise.**
+- **Cross-check scale-dependent metrics against scale-invariant ones.** Here
+  `rotation_error` and `part_accuracy` disagreed for weeks; the disagreement
+  was the signal.
+- **Check unit conventions when mixing data sources.** Synthetic was
+  unit-normalized, real was raw scan units; nothing in the pipeline warned.

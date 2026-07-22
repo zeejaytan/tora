@@ -1,0 +1,20 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: true
+multi_anchor: false
+
+data_root: ${data_root}
+# Same 9-piece Juglet as `juglet_deploy_local02`, rescaled to the synthetic
+# unit-scale convention (max|v| = 0.5; source was 10.87 raw scan units, so the
+# evaluator's absolute CD<0.01 part-accuracy threshold was ~22x too strict).
+# Single shared per-object factor => geometry and the assembly problem are
+# exactly preserved; model predictions are unchanged (the dataset normalizes
+# input either way). This changes ONLY metric thresholding.
+dataset_names: ["juglet_norm"]
+
+batch_size: 1
+num_workers: 4
+limit_val_samples: 0

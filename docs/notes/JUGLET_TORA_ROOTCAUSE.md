@@ -17,6 +17,28 @@
 > Full evidence, retraction table and the fix:
 > `TORA_GOOD_VS_BAD_ANALYSIS.md` § "Correction (2026-07-22) — the real-data
 > metrics were measured with a broken ruler". Corrected re-eval: job 27858648.
+>
+> ### ✅ RESOLVED (job 27859890) — the Juglet benchmark cannot measure reassembly
+>
+> Re-run on scale-normalized Juglet data, the baseline scores
+> `part_accuracy = 1.000`, `object_chamfer ~ 0` — while `rotation_error` stays
+> at 46-61° and `recall@10deg` at 0.000. The visualizations resolve the
+> contradiction: **the Juglet's ground truth is not an assembled vessel.**
+> `*_scan_ref.png` (GT) shows a large tan blob beside a separate cluster of
+> coloured sherds — the scattered scan/table layout — and the model's
+> `*_proposed_assembly*.png` reproduces that same structure almost exactly.
+>
+> So the long-documented "anchor blob + separate satellite cluster" failure
+> geometry is **the model correctly matching an invalid target**, not a mating
+> failure. This confirms the invalid-GT finding this doc already flagged, and
+> means **no conclusion about any model's Juglet reassembly ability can be drawn
+> from this benchmark as shipped** — its metrics reward reproducing a
+> non-assembly. Whether TORA could assemble the Juglet is untested and
+> currently untestable: it needs a genuine assembled ground truth.
+>
+> Separately, the premise that TORA is weak on real fracture is **refuted** —
+> the baseline scores 0.861/0.928 part accuracy on real held-out objects,
+> including a 10-piece ceramic. Artifacts: `artifacts/juglet_probe/norm_27859890/`.
 
 Question: why does TORA (checkpoint `bbad_everyday_cka.ckpt`) fail to form a
 good shape on the 9-piece Juglet archaeological scan, what does that failure
