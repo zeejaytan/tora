@@ -290,8 +290,36 @@ whatever residual joint-inference difficulty the cliff reflects is still
 stacked on top), but it is not the explanation for why real ceramics fail at
 all.
 
+## Remedy attempt 2026-07-21 — robust real-fracture fine-tune does NOT reconstruct the Juglet
+
+A robust replay fine-tune (21 real objects + synthetic pig/rib replay, 80
+epochs, job 27793083; full write-up in `TORA_GOOD_VS_BAD_ANALYSIS.md`) was
+trained specifically to see whether real-fracture training lets the Juglet be
+reconstructed. Eval job 27798522, both `epoch-59` (best) and `last`:
+
+- **Real 2-piece pairwise mating: fixed** — separation 1.03× → 1.28-1.33×
+  (crosses gate), true-mate rot_err 27° → ~14.8°, no synthetic forgetting.
+- **Juglet 9-piece: still fails** — best_of_n part_acc 0.11 → 0.22, rot_err
+  still 54-59°, **recall@10° still exactly 0** (no sherd within 10° of true
+  pose). All 3 seeds × both checkpoints show the **identical documented
+  failure geometry**: anchor-piece blob + separate satellite cluster of the
+  other 8 sherds, no vessel. PNGs: `artifacts/juglet_probe/robust_27798522/`.
+
+**Conclusion:** real-fracture fine-tuning closes the *base mating* gap this
+doc identified, but the Juglet needs two further factors closed that a pair-
+level fine-tune does not reach — the **>6-piece assembly cliff** and **wear**
+(the Juglet's abraded rims sit at the roughest tail of the Probe-2 roughness
+distribution, partly outside even the fine-tune's real-training coverage). The
+fix that recovers real-pair reconstruction is necessary but not sufficient for
+the Juglet. Forward directions listed in `TORA_GOOD_VS_BAD_ANALYSIS.md` Next-
+experiments item 5 (real multi-piece curriculum; worn-sherd training coverage;
+coarse-shape-prior/anchor-guided bootstrap stage).
+
+---
+
 ## Artifacts
 
+- Robust-remedy visual QA: `artifacts/juglet_probe/robust_27798522/*.png`.
 - Visual QA: `artifacts/juglet_probe/*.png` (this repo, gitignored) — pulled
   from `TORA/eval_runs/juglet_deploy_local02_25594802/visualizations/` on
   Spartan.

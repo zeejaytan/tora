@@ -1,0 +1,19 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# The 6 real objects held out of the robust fine-tune (bones/vert9,limb3,coxae
+# = 3 pieces; ceramics/blue_pot=5, plate=6, galli_pot=10), kept as WHOLE
+# multi-piece objects (not the 2-piece pairs in pairs_real). Used to test
+# whether the robust fine-tune's pairwise mating gain transfers to real
+# multi-piece assembly, and where the piece-count cliff sits.
+dataset_names: ["real_heldout"]
+
+batch_size: 4
+num_workers: 4
+limit_val_samples: 0

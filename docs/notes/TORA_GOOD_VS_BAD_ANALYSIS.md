@@ -464,6 +464,149 @@ checkpoint: `TORA/output/real_finetune_27792230/epoch-19.ckpt`.
 
 ---
 
+## Addendum 2026-07-21 (same day, continued) — the robust fine-tune (Goal 6): remedy attempt, honest split result
+
+Goal: "train a more robust fine-tune checkpoint so that Juglet and real
+fracture can be reconstructed." This is the properly-powered version of
+Check C's quick fine-tune — the follow-up flagged as open in Next-experiments
+item 2. Recipe (mirroring GARF's real:synthetic replay, Exp 11-15):
+
+- **Data:** 21 held-out real objects (`real_finetune`, bones/ceramics/egg
+  minus the 6 kept for the pairwise oracle) **+ synthetic replay** (`pig`,
+  `rib` from `bone_synthetic`) mixed in to prevent catastrophic forgetting.
+  `min_dataset_size: 600`, `max_parts: 20`, batch 8.
+- **Training:** warm-started from `bbad_everyday_cka.ckpt`, lr 2e-5, 80 epochs,
+  `gpu-a100`, ~2h43m (job 27793083). Two checkpoints kept: `epoch-59.ckpt`
+  (best by val object_chamfer) and `last.ckpt`.
+- **Eval** (job 27798522): pairwise oracle on the 6 held-out real objects +
+  Juglet deploy export, for **both** checkpoints.
+
+### Result — a clean split between the two things "reconstruct" could mean
+
+**Pairwise mating (2-piece) — improved, and this time without forgetting.**
+
+| checkpoint | true-mate rot_err (mean) | non-mate rot_err | separation | gate (>1.25×) |
+|---|---|---|---|---|
+| baseline (synthetic-only) | 27.12° | ~28° | **1.03×** | no |
+| quick fine-tune (no replay) | 19.20° | — | 1.36× | yes |
+| **robust `epoch-59` (best)** | **14.89°** | 19.02° | **1.28×** | **yes** |
+| **robust `last`** | **14.74°** | 19.67° | **1.33×** | **yes** |
+
+Both robust checkpoints cross the discrimination gate, and true-mate rotation
+error nearly **halved** vs. baseline (27° → ~14.8°) — a bigger absolute gain
+than the quick fine-tune, and achieved *with* synthetic replay in the mix, so
+it is not the "forgot synthetic to learn real" degenerate the quick fine-tune
+risked. The separation *ratio* (1.28-1.33×) is marginally below the quick
+run's 1.36× only because the non-mate error also dropped — the network got
+better at *both*, which is the healthy direction. **This half of Goal 6 is
+met: real 2-piece fracture pairs are now discriminated and assembled far more
+accurately than the shipped checkpoint could.**
+
+**Full 9-piece Juglet — NOT fixed. Same failure geometry as baseline.**
+
+| metric (best_of_n) | baseline | robust best | robust last |
+|---|---|---|---|
+| part_accuracy | ~0.11 | 0.222 | 0.222 |
+| rotation_error | ~60-80° | 58.59° | 54.45° |
+| recall@10° | 0 | 0 | 0 |
+
+Numbers nudged (part_acc 0.11 → 0.22, rot_err into the mid-50s°) but recall@10°
+is still exactly **0** — not a single sherd lands within 10° of its true pose.
+The Procrustes proposed-assembly PNGs (all 3 seeds, both checkpoints, pulled to
+`artifacts/juglet_probe/robust_27798522/`) show the **identical documented
+failure pattern**: a large tan anchor-piece blob on one side, and the other 8
+sherds huddled into a separate satellite cluster that does not form a vessel.
+Fine-tuning did not change the qualitative geometry at all.
+
+### Interpretation — why the pairwise win doesn't carry to the Juglet
+
+The two results are consistent, not contradictory. Fine-tuning on real
+fracture surfaces closed the *base perceptual gap* — TORA can now tell a real
+true-mate from a real non-mate at the 2-piece level, which the shipped
+checkpoint fundamentally could not. But full Juglet reconstruction is a
+**9-piece joint assembly of worn, archaeological sherds**, and it stacks two
+compounding factors *on top of* base mating perception that this fine-tune did
+not address:
+
+1. **Piece-count cliff** (documented secondary factor, ~6 pieces): even on
+   synthetic fractures where TORA's mating is near-perfect, joint assembly
+   degrades sharply past 6 pieces. 9 worn pieces is well past it.
+2. **Wear** (the original Juglet-specific angle): the Juglet's sherds are
+   abraded archaeological rims, rougher and less mate-distinct than even the
+   fresh real bones/ceramics the fine-tune trained on — the roughest tail of
+   the Probe-2 distribution (egg-like ~70°), partly outside the fine-tune's
+   own training coverage.
+
+So Goal 6 lands as a **partial success, reported honestly**: the robust
+checkpoint *does* let real fracture pairs be reconstructed (base capability
+recovered, no forgetting), but it does *not* let the Juglet be reconstructed —
+that needs the piece-count and wear factors closed too, which a real-data
+fine-tune alone does not reach. The verdict from Check C stands and is
+strengthened: real-fracture failure is a training-data-coverage problem at the
+mating level (now demonstrably fixable), but the Juglet specifically is
+gated by piece-count × wear compounding beyond it.
+
+**Artifacts:** finetune job 27793083 (`tora_finetune_robust_27793083.log`,
+checkpoints `output/real_finetune_robust_27793083/{epoch-59,last}.ckpt`);
+eval job 27798522 (`tora_eval_robust_27798522.log`); Juglet PNGs
+`artifacts/juglet_probe/robust_27798522/{best,last}_proposed_assembly0{1,2,3}.png`;
+config `config/data/main/real_finetune_replay.yaml`; slurm
+`scripts/hpc/{finetune_real_fracture_robust,eval_robust_checkpoint}.slurm`.
+
+### Follow-up eval (job 27840720) — the wall is joint-solve, not the 6-piece cliff
+
+To locate exactly where the pairwise gain stops transferring, evaluated
+baseline vs `robust_best` on the **6 held-out real objects as WHOLE
+multi-piece problems** (not the 2-piece pairs): bones vert9/limb3/coxae = 3
+pieces, ceramics blue_pot=5, plate=6, galli_pot=10 — deliberately straddling
+the documented 6-piece cliff. Config `config/data/zeroshot/real_heldout.yaml`,
+data `dataset/real_heldout.hdf5` (built by `build_real_heldout.py`).
+
+| object | pieces | part_acc (both ckpts) | best_of_n rot_err: baseline → robust |
+|---|---|---|---|
+| vert9 | 3 | 0.333 (= 1/3, anchor only) | 35.9° → **21.9°** |
+| limb3 | 3 | 0.333 | 27.6° → 23.6° |
+| coxae | 3 | 0.333 | 38.3° → 39.3° |
+| blue_pot | 5 | 0.20 (= 1/5) | 55.5° → **22.7°** |
+| plate | 6 | 0.167 (= 1/6) | 55.0° → 50.1° |
+| galli_pot | 10 | 0.10 (= 1/10) | 53.7° → **20.9°** |
+| **aggregate** | — | **0.244 (identical)** | **44.3° → 29.7°**; chamfer 6468 → 123 |
+
+**Two facts, and they sharpen the whole investigation:**
+
+1. **The robust fine-tune's improvement is real and carries to multi-piece —
+   but only on the *continuous* metrics.** Best-of-n rotation error drops
+   44.3° → 29.7° and object_chamfer collapses 6468 → 123 (40× tighter global
+   placement). The fine-tune measurably improved real-fracture *rotational
+   perception* at the multi-piece level, not just in the isolated 2-piece
+   oracle.
+2. **It never crosses the *placement* threshold.** `part_accuracy` is
+   byte-identical between the two checkpoints and pinned to exactly `1/n_parts`
+   (anchor-only) for **every** object, and recall@10° is 0 everywhere. Not a
+   single non-anchor piece is ever correctly seated — **even at 3 pieces.**
+
+So the "piece-count cliff past ~6" framing is too generous: the fine-tuned
+model fails to seat any non-anchor piece even on a **3-piece** real object.
+The true wall is the jump from **isolated 2-piece pairwise discrimination**
+(where the fine-tune crosses the rot_err gate) to **joint multi-piece
+assembly** (where the improved rotations still don't converge to correct
+placements). This is consistent across every eval in this doc: the fine-tune
+moves continuous rot_err/chamfer everywhere but never lifts discrete
+part_accuracy above anchor-only — pairwise, Juglet, or multi-piece.
+
+**Implication for the next training run (item 5):** a real *multi-piece*
+curriculum is the right direction, but the bar is higher than "better mating
+perception" — the model needs joint-solve placement accuracy, which better
+per-pair rotations demonstrably do not deliver on their own. A coarse-shape /
+anchor-guided bootstrap stage (item 5c) may be necessary, not just optional.
+
+**Artifacts:** eval job 27840720 (`tora_eval_heldout_mp_27840720.log`);
+`dataset/real_heldout.hdf5`, `build_real_heldout.py`;
+`config/data/zeroshot/real_heldout.yaml`;
+`scripts/hpc/eval_real_heldout_multipiece.slurm`.
+
+---
+
 ## Next experiments (would need Slurm sign-off)
 
 1. ~~Overlap-head introspection~~ — **run, inconclusive** (Probe 1 above). The
@@ -478,11 +621,22 @@ checkpoint: `TORA/output/real_finetune_27792230/epoch-19.ckpt`.
    fine-tune, mate/non-mate separation 1.03× → 1.36×. Unlike GARF's Juglet
    remedy arc, this is a positive result on the first, smallest attempt —
    pointing at a training-data gap rather than an architectural ceiling.
-   **Follow-up now open:** a properly powered version of this experiment —
-   synthetic replay mixing (GARF's 1:4 recipe) to avoid forgetting, multiple
-   held-out folds/seeds for statistical confidence, and more real training
-   data if any additional real-fracture source can be sourced (only 27 real
-   objects exist in the shipped Fractura dataset total). Needs sign-off (training run).
+   ~~**Follow-up now open:** a properly powered version — synthetic replay
+   mixing, multiple held-out seeds, more real data.~~ — **run** (Goal-6
+   addendum above): 80-epoch replay fine-tune (job 27793083) lifts real
+   pairwise separation to 1.28-1.33× with true-mate rot_err halved to ~14.8°
+   and **no** synthetic forgetting. But it does **not** fix the 9-piece
+   Juglet (recall@10° still 0, same anchor-blob+satellite geometry). Real
+   *pairwise* fracture is now reconstructable; the Juglet is not.
+5. **NEW — close the piece-count × wear gap the Juglet needs (open).** The
+   robust fine-tune recovered base mating but the Juglet still fails on the
+   two compounding factors above. Candidate directions: (a) fine-tune with a
+   real *multi-piece* curriculum (the current `real_finetune` set is
+   pair-heavy) to attack the >6-piece cliff directly; (b) add worn/abraded
+   real sherds to the training mix so the roughest-tail surfaces are in
+   coverage; (c) test whether an anchor-guided or coarse-shape-prior stage
+   (à la PF++) bootstraps the 9-piece layout the flow model can't reach cold.
+   Needs sign-off (training + eval).
 3. ~~Quantify the geometric difference directly~~ — **run, confirmed** (Probe 2
    above): real fracture surfaces are 1.4-2.5× rougher than synthetic ones
    at matched physical scale and point density.
