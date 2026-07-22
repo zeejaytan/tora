@@ -1,5 +1,23 @@
 # Why TORA fails to assemble the Juglet — probe findings + test plan
 
+> ## ⚠️ CORRECTION (2026-07-22) — `part_accuracy` / `recall@1cm` / `recall@5cm` /
+> ## `object_chamfer` figures for REAL data in this doc are affected by a metric bug
+>
+> Real Fractura meshes are stored in raw scan units (`max|v|` = 21-297) while
+> the shipped synthetic data is unit-normalized (`max|v|` = 0.5). The evaluator
+> rescales predictions back by `scales` and then applies an **absolute**
+> `CD < 0.01` part-accuracy threshold, so real objects are judged against a bar
+> 125-216x stricter than synthetic — making `part_accuracy` structurally
+> incapable of exceeding anchor-only (`1/n_parts`) regardless of model quality.
+> **Training and inference are unaffected** (the dataset normalizes model input
+> either way); this is an evaluation-only bug.
+>
+> The **scale-invariant `rotation_error`** results in this doc remain valid, as
+> does the visual/Procrustes evidence and the invalid-GT scan-layout finding.
+> Full evidence, retraction table and the fix:
+> `TORA_GOOD_VS_BAD_ANALYSIS.md` § "Correction (2026-07-22) — the real-data
+> metrics were measured with a broken ruler". Corrected re-eval: job 27858648.
+
 Question: why does TORA (checkpoint `bbad_everyday_cka.ckpt`) fail to form a
 good shape on the 9-piece Juglet archaeological scan, what does that failure
 have in common with — or differ from — GARF's documented Juglet failure

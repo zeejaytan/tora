@@ -1,0 +1,20 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# Same 6 held-out real objects as `real_heldout`, but rescaled to the
+# synthetic unit-scale convention (max|v| = 0.5) so that the evaluator's
+# ABSOLUTE thresholds (part_acc CD < 0.01, recall@1cm/5cm) are comparable
+# with synthetic. Geometry is untouched -- a single shared per-object factor
+# is applied to all pieces -- so this changes ONLY metric thresholding,
+# not the assembly problem or anything the model sees.
+dataset_names: ["real_heldout_norm"]
+
+batch_size: 4
+num_workers: 4
+limit_val_samples: 0

@@ -1,5 +1,40 @@
 # What TORA is actually good at, what it's bad at, and why
 
+> ## ⚠️ CORRECTION (2026-07-22) — read before trusting any `part_accuracy` /
+> ## `recall@1cm` / `recall@5cm` / `object_chamfer` number for REAL data in this doc
+>
+> **A measurement bug invalidates every absolute-distance metric reported for
+> real-fracture data below.** Details and evidence in the
+> [Metric-scale artifact](#correction-2026-07-22--the-real-data-metrics-were-measured-with-a-broken-ruler)
+> section at the end. Summary:
+>
+> - The shipped synthetic data is pre-normalized to `max|v| = 0.5`. The real
+>   Fractura meshes were ingested in **raw scan units** (`max|v|` = 21-297).
+> - `PointCloudDataset` normalizes model input either way
+>   (`scale = max(|pts_gt|); pts_gt /= scale`), so **training and inference are
+>   NOT affected** — the model never saw a scale discrepancy.
+> - But `Evaluator.compute` multiplies predictions and GT **back** by `scales`
+>   before scoring, and `compute_part_acc` uses an **absolute** `CD < 0.01`
+>   threshold (likewise `recall@{1cm,5cm}`). Real objects were therefore judged
+>   against a bar **125-216x stricter** than synthetic.
+> - Consequence: for real data, `part_accuracy` is **structurally incapable** of
+>   exceeding anchor-only. The anchor is clamped to GT (`x_t[anchor]=x_0[anchor]`,
+>   CD=0, passes trivially); no other part can clear ~0.01% of object size.
+>
+> **Invalidated:** the "joint-solve wall" conclusion, the reading that
+> `part_accuracy` was "identical between checkpoints" (it was identically
+> *broken*, not identically bad), and the architectural coarse-shape-bootstrap
+> recommendation that rested on them.
+>
+> **Still valid:** everything measured with **scale-invariant** `rotation_error`
+> — the pairwise 1.03x -> 1.36x separation (Probe 3 / Check C), the fracture
+> roughness measurement (pure mesh geometry, no model involved), and the
+> rotation gains from fine-tuning. Those were the real signals throughout.
+>
+> The lesson for re-use: `part_accuracy` reading *exactly* `1/n_parts` across
+> every checkpoint, piece count and fine-tune — and `recall@5cm` at exactly
+> 0.000 — was the tell. That constancy was an instrument failure, not a finding.
+
 Follow-up to `JUGLET_TORA_ROOTCAUSE.md`, which found that TORA already fails
 at chance on GARF's fresh control ceramics — not just the worn Juglet — and
 hypothesized a "synthetic-to-real domain generalization gap" as the likely
@@ -553,7 +588,15 @@ eval job 27798522 (`tora_eval_robust_27798522.log`); Juglet PNGs
 config `config/data/main/real_finetune_replay.yaml`; slurm
 `scripts/hpc/{finetune_real_fracture_robust,eval_robust_checkpoint}.slurm`.
 
-### Follow-up eval (job 27840720) — the wall is joint-solve, not the 6-piece cliff
+### Follow-up eval (job 27840720) — ⚠️ RETRACTED: "the wall is joint-solve, not the 6-piece cliff"
+
+> **This section's conclusion is WITHDRAWN.** Its entire argument rests on
+> `part_accuracy` being pinned at anchor-only for real objects, which the
+> 2026-07-22 correction shows is a metric-scale artifact, not model behaviour.
+> The `rotation_error` numbers below (44.3 -> 29.7deg) remain valid and do show
+> a real improvement. The `part_accuracy` / `object_chamfer` columns do not
+> support any conclusion. Kept unedited below for provenance; corrected
+> re-evaluation on scale-normalized data is job 27858648.
 
 To locate exactly where the pairwise gain stops transferring, evaluated
 baseline vs `robust_best` on the **6 held-out real objects as WHOLE
@@ -666,3 +709,111 @@ anchor-guided bootstrap stage (item 5c) may be necessary, not just optional.
   `docs/notes/fractura_followup_24343146.md`,
   `GARF/docs/notes/JUGLET_ROOTCAUSE_FINDINGS.md` (Exp 6/10/11, the pairwise-oracle
   and `bone_synthetic` fine-tuning precedents this investigation's probes mirror).
+
+---
+
+## Correction (2026-07-22) — the real-data metrics were measured with a broken ruler
+
+Prompted by a direct challenge ("did you actually read the paper / understand
+the base architecture, or are you testing blindly?"), I went back and verified
+the architecture and the evaluation path against the source instead of against
+my own inference from config files. That check found a measurement bug that
+invalidates a conclusion this doc had already committed to.
+
+### The bug
+
+Two facts that are individually fine and jointly broken:
+
+1. **The data is in two different unit systems.** The shipped synthetic data
+   (`bone_synthetic.hdf5`) is pre-normalized — per object, `max|v| == 0.5`,
+   bbox extent exactly 1.0. The real Fractura meshes were ingested in raw scan
+   units. Measured `max|v|` per object:
+
+   | object | `max|v|` (scale factor) | 0.01 threshold as % of object half-extent |
+   |---|---|---|
+   | synthetic `pig/1/mode_0` | 0.500 | **2.0%** |
+   | real `bones/vert9` | 28.7 | 0.035% |
+   | real `bones/coxae` | 62.7 | 0.016% |
+   | real `ceramics/pink_bowl` | 108.0 | 0.009% |
+   | real `bones/limb3` | 297.3 | **0.003%** |
+
+2. **The evaluator un-normalizes before thresholding.** `tora/data/dataset.py`
+   normalizes model input (`scale = np.max(np.abs(pts_gt)); pts_gt /= scale`)
+   and stores `scale` in `results["scales"]`. Then `tora/eval/evaluator.py`:
+
+   ```python
+   pts_gt_rescaled   = pts_gt * scales.view(B, 1, 1)
+   pts_pred_rescaled = pointclouds_pred * scales.view(B, 1, 1)
+   object_cd = compute_object_cd(pts_gt_rescaled, pts_pred_rescaled)
+   ```
+
+   and `compute_part_acc(..., threshold: float = 0.01)` — an **absolute** 1 cm
+   Chamfer threshold — plus `recall@[0.01, 0.05]`.
+
+**Net effect:** real objects were scored against a threshold 125-216x stricter
+than synthetic. Because anchor-based mode clamps the anchor to ground truth
+(`tora/modeling/tora.py`: `x_t[anchor_indices] = x_0[anchor_indices]`,
+`v_t[anchor_indices] = 0.0`), the anchor scores CD=0 and always passes, while
+no other part can possibly clear ~0.01% of object size. `part_accuracy` for
+real data is therefore **pinned at exactly `1/n_parts` by construction**,
+regardless of how good or bad the model is.
+
+**Critically, this is an evaluation-only bug.** The dataset normalizes model
+input either way, so training and inference never saw a scale discrepancy. All
+checkpoints produced in this investigation remain valid artifacts — they were
+just measured with an instrument that could not register success.
+
+### What this explains
+
+Every observation the (now retracted) "joint-solve wall" conclusion was built on:
+
+- `part_accuracy` pinned at exactly `1/n_parts` for real objects at every piece
+  count from 2 to 10, identical across baseline, robust fine-tune, and the
+  quick fine-tune — "identically broken," not "identically bad."
+- `recall@1cm` **and** `recall@5cm` at exactly 0.000 for real, always.
+- Real `object_chamfer` of 659-6618 vs synthetic 0.00133 — a unit artifact,
+  ~500,000x, not a quality gap.
+- Real `translation_error` ~24 vs synthetic ~0.07 — raw units.
+- And the one metric that is **scale-invariant**, `rotation_error`, was the
+  only one that ever moved: it improved consistently with fine-tuning
+  (44.3 -> 29.7deg best-of-n multi-piece; 27.1 -> 14.8deg pairwise true-mate).
+
+### Status of prior conclusions
+
+| Conclusion | Status |
+|---|---|
+| Real fracture surfaces are 1.4-2.5x rougher than synthetic (Probe 2) | **Valid** — pure mesh geometry, no model or metric involved |
+| Pairwise mate/non-mate separation 1.03x -> 1.36x after fine-tune (Check C) | **Valid** — computed from `rotation_error` |
+| Fine-tuning measurably improves real-fracture pose quality | **Valid** — `rotation_error`, scale-invariant |
+| Overlap head is not a usable probe (Probe 1) | **Valid** — code-path fact |
+| "part_accuracy never lifts above anchor-only ⇒ no joint placement capability" | **RETRACTED** — metric artifact |
+| "The wall is joint-solve, not the 6-piece cliff" (job 27840720) | **RETRACTED** — same artifact |
+| "Needs an architectural coarse-shape/anchor-guided bootstrap (item 5c)" | **WITHDRAWN** — rested on the retracted premise; may or may not be true, but is currently unevidenced |
+
+### The fix
+
+`scripts/normalize_real_hdf5.py` rescales every piece of an object by a single
+shared per-object factor to `max|v| = 0.5`, matching the synthetic convention.
+Because the factor is shared across all pieces, relative geometry — and hence
+the assembly problem itself — is exactly preserved; only `scales`, and
+therefore metric thresholding, changes. Produces
+`dataset/{real_heldout_norm,pairs_real_norm}.hdf5` (internal group + `data_split`
+key retagged to match the filename stem, which is how `PointCloudDataModule`
+resolves `dataset_names`). Config: `config/data/zeroshot/real_heldout_norm.yaml`.
+
+Corrected baseline-vs-robust evaluation: **job 27858648**
+(`scripts/hpc/eval_real_normalized.slurm`) — results pending at time of writing.
+Until those land, **no claim about real-data `part_accuracy` in this doc should
+be treated as evidence.**
+
+### Methodological note
+
+The tell was visible before the bug was found: a metric reading *exactly*
+`1/n_parts` across every checkpoint, every piece count, and every training
+variation is not a finding, it is a constant. `recall@5cm` at exactly 0.000 —
+when `rotation_error` on the same predictions was 29deg — was internally
+inconsistent and should have triggered an instrument check immediately. Probe 1
+was correctly discarded for exactly this reason (an auxiliary head firing on
+75-98% of points regardless of input); the same skepticism should have been
+applied here. Validate the instrument on a known-answer case before drawing
+architectural conclusions from it.
