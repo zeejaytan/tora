@@ -1,0 +1,19 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 2
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# Scale-normalized real 2-piece pairs (max|v| = 0.5 per object, shared factor),
+# so the evaluator's absolute CD<0.01 part-accuracy threshold means the same
+# thing it means for synthetic. rotation_error is scale-invariant and unchanged
+# vs pairs_real; the point of this split is a VALID part_acc mate/non-mate
+# discrimination (the pre-normalization 0.5-pinned value was the metric bug).
+dataset_names: ["pairs_real_norm"]
+
+batch_size: 8
+num_workers: 4
+limit_val_samples: 0
