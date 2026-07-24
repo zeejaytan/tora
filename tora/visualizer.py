@@ -5,6 +5,7 @@ import logging
 from typing import Any, Optional
 
 import lightning as L
+import numpy as np
 import torch
 from lightning.pytorch.callbacks import Callback
 
@@ -139,6 +140,7 @@ class FlowVisualizationCallback(VisualizationCallback):
         self,
         save_trajectory: bool = True,
         save_procrustes_assembly: bool = False,
+        save_assembly_npz: bool = False,
         trajectory_gif_fps: int = 25,
         trajectory_gif_pause_last_frame: float = 1.0,
         **kwargs
@@ -149,6 +151,9 @@ class FlowVisualizationCallback(VisualizationCallback):
             save_trajectory (bool): Whether to save trajectory as GIF. Default: True.
             save_procrustes_assembly (bool): If True, save PNGs with scattered input
                 parts rigidly transformed by Procrustes poses (paper assembly proposal).
+            save_assembly_npz (bool): If True, dump per-sample posed 3D clouds +
+                metadata to `<log_dir>/clouds/<sample>.npz` for downstream GT-free
+                scoring (no-GT layout panel, symmetry-invariant chamfer). Default: False.
             trajectory_gif_fps (int): Frames per second for the GIF.
             trajectory_gif_pause_last_frame (float): Pause time for the last frame in seconds.
             **kwargs: Additional arguments passed to base class.
@@ -156,8 +161,60 @@ class FlowVisualizationCallback(VisualizationCallback):
         super().__init__(**kwargs)
         self.save_trajectory = save_trajectory
         self.save_procrustes_assembly = save_procrustes_assembly
+        self.save_assembly_npz = save_assembly_npz
         self.trajectory_gif_fps = trajectory_gif_fps
         self.trajectory_gif_pause_last_frame = trajectory_gif_pause_last_frame
+
+    def _save_assembly_npz(
+        self,
+        sample_name: str,
+        name: str,
+        dataset_name: str,
+        pts_input: torch.Tensor,
+        pts_gt: torch.Tensor,
+        part_ids: torch.Tensor,
+        points_per_part: torch.Tensor,
+        preds: list[torch.Tensor],
+        rotations: Optional[list[torch.Tensor]] = None,
+        translations: Optional[list[torch.Tensor]] = None,
+        scale: Optional[torch.Tensor] = None,
+    ) -> None:
+        """Dump posed 3D clouds + metadata for one sample (all K generations).
+
+        Everything is stored in the dataloader-normalized frame (unit scale); the
+        per-object `scale` factor is included so scoring can rescale if needed.
+        `generations_proposed` are the scattered input parts rigidly posed by the
+        predicted SE(3) (the paper's assembly proposal) — the correct object to
+        score for assembly quality.
+        """
+        try:
+            out_dir = self.vis_dir.parent / "clouds"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            data = {
+                "name": str(name),
+                "dataset_name": str(dataset_name),
+                "pts_input": pts_input.detach().cpu().float().numpy(),
+                "pts_gt": pts_gt.detach().cpu().float().numpy(),
+                "part_ids": part_ids.detach().cpu().numpy().astype("int32"),
+                "points_per_part": points_per_part.detach().cpu().numpy().astype("int32"),
+                "generations_pred": np.stack([p.detach().cpu().float().numpy() for p in preds]),
+            }
+            if rotations and translations and len(rotations) == len(preds):
+                data["rotations"] = np.stack([r.detach().cpu().float().numpy() for r in rotations])
+                data["translations"] = np.stack([t.detach().cpu().float().numpy() for t in translations])
+                proposed = []
+                for r, t in zip(rotations, translations):
+                    pr = apply_rigid_transformations(
+                        pts_input.unsqueeze(0), r.unsqueeze(0), t.unsqueeze(0),
+                        points_per_part.unsqueeze(0),
+                    )
+                    proposed.append(pr.squeeze(0).detach().cpu().float().numpy())
+                data["generations_proposed"] = np.stack(proposed)
+            if scale is not None:
+                data["scale"] = float(scale.reshape(-1)[0])
+            np.savez_compressed(out_dir / f"{sample_name.replace('/', '_')}.npz", **data)
+        except Exception as e:
+            logger.error(f"Error saving assembly npz for sample {sample_name}: {e}")
 
     def _save_trajectory_gif(
         self,
@@ -315,6 +372,21 @@ class FlowVisualizationCallback(VisualizationCallback):
                         sample_name=f"{sample_name}_generation{n+1:02d}",
                         vis_kwargs=vis_kwargs,
                     )
+
+            if self.save_assembly_npz:
+                self._save_assembly_npz(
+                    sample_name=sample_name,
+                    name=batch["name"][i],
+                    dataset_name=dataset_name,
+                    pts_input=pts_norm[i],
+                    pts_gt=pts_gt[i],
+                    part_ids=part_ids[i],
+                    points_per_part=points_per_part[i],
+                    preds=[pointclouds_pred_list[n][i] for n in range(K)],
+                    rotations=[rotations_list[n][i] for n in range(K)] if rotations_list else None,
+                    translations=[translations_list[n][i] for n in range(K)] if translations_list else None,
+                    scale=scale_tensor[i] if scale_tensor is not None else None,
+                )
 
             if self.max_samples_per_batch is not None and i >= self.max_samples_per_batch:
                 break
