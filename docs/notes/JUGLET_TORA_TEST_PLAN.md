@@ -45,8 +45,32 @@ two of GARF's decisive tools do **not** port cleanly and are replaced (below).
 | Symmetry-invariant pairwise chamfer (`pair_reference_chamfer.py`) | **Yes, as-is** | Scores any model's posed pair vs a reference; TORA output feeds it directly. This is the metric that sidesteps the broken GT. |
 | No-GT layout quality panel (`pfpp_layout_probes.py`) | **Yes, adapt I/O** | Reads posed part clouds; feed TORA's `proposed_assembly` clouds. Baselines already exist (PF++ 0.961, GARF 0.719, random 0.650). |
 | Validated erosion / de-weather mollifier (`fracture_mesh_ops.py`) | **Yes, as-is** | Pure mesh op, no model. Reused for the wear-bridge. |
-| **FracSeg fracture-response introspection (Exp 10)** | **NO** | TORA's analogue (`overlap_head`) is a dead instrument — fires on 75–98% of points regardless, AUC ≈ chance, and is discarded at inference (`tora.py._encode()` keeps only `out_dict["point"]`). Replaced by **T4**, a readout of the latents the DiT actually conditions on. |
+| **FracSeg fracture-response introspection (Exp 10)** | **NO** | Confirmed against the TORA paper (App. 0.A.1): overlap/mating prediction is a **linear probe of teacher-feature quality by design**, never an assembly module; the inference path uses only the frozen encoder's per-point conditioning features **c** (`_encode()` keeps `out_dict["point"]`). `overlap_head` also reads as dead (fires 75–98%, AUC ≈ chance). Replaced by **C2**, a paper-faithful readout of the on-path features. |
 | Pair oracle scored by `rotation_error` (`analyze_pairwise_oracle.py`) | **Partly** | rot_err is scale-safe, but on the Juglet there is no valid GT rotation, so rot_err is invalid there. Use the symmetry-invariant chamfer instead on Juglet; keep rot_err only on valid-GT controls. |
+
+### Architecture, confirmed against the paper (arXiv 2604.04050v1, 2026-07-24)
+
+- The **encoder is Rectified Point Flow's (RPF, Sun et al. 2025), reused frozen
+  and unmodified**: *"a frozen overlap-aware encoder extracts per-point
+  conditioning features **c** ∈ ℝ^{N×D}"*, which condition the flow DiT. TORA
+  does **not** alter perception.
+- **TORA's contribution is a CKA alignment** of the flow backbone's intermediate
+  features to a frozen **Uni3D-L** whole-object teacher — *training-only, zero
+  inference overhead*.
+- The paper's mating/overlap prediction is a **linear probe of teacher-feature
+  quality** (App. 0.A.1: *"whether the teacher features encode contact-aware
+  geometry … a point is labeled mating if it has ≥1 neighbor from a different
+  part within an adaptive overlap threshold"*) — it is a diagnostic, not a
+  pipeline stage. This is why `overlap_head` is the wrong readout (C2 fixes it).
+- **Consequences that shape the mechanism tier:**
+  1. TORA **cannot** have fixed GARF-style fracture perception — it froze RPF's
+     encoder. Any TORA≠GARF behaviour on the Juglet must originate in the **flow
+     backbone**, not the perception front-end.
+  2. The only channel that can differ is the **Uni3D CKA signal**, and Uni3D-L is
+     a *whole-object shape* model — exactly the macro-geometry channel GARF's
+     Exp-15 says carries the surviving Juglet mating cue and that GARF's
+     micro-texture encoder cannot read. The "TORA is more wear-robust" hypothesis
+     thus has a concrete, testable locus (C2b).
 
 ---
 
@@ -152,14 +176,20 @@ Measure at what k correct non-anchor placement emerges.
 - **Control:** identical sweep on a synthetic object (should place from k=2).
 - **Cost:** one short GPU job.
 
-### C2. TORA-native encoder introspection (replaces GARF Exp 10, tests H1/H3)
-GARF read P(fracture) off FracSeg. TORA's `overlap_head` is a dead instrument
-(see table). Instead read the **per-point / per-part latents the DiT actually
-conditions on** — `tora.py._encode()`'s `out_dict["point"]` — and test whether
-contact-region features are more *complementary* for true mates than non-mates
-(cosine-similarity structure at the mating band, or a linear-probe AUC).
-Arms: synthetic fresh breaks (labeled, must pass — the instrument validation),
-fresh real ceramics (GARF assembles, TORA assembles), Juglet worn rims.
+### C2. On-path feature introspection (replaces GARF Exp 10, tests H1/H3) — paper-faithful
+GARF read P(fracture) off FracSeg, which *is* its mechanism. TORA's `overlap_head`
+is not on the inference path (confirmed: it is the paper's teacher-quality linear
+probe, App. 0.A.1). So mirror the paper's own methodology — a **mating linear
+probe** — but point it at the features TORA actually uses:
+  (i) the **frozen encoder's per-point conditioning features c** (`_encode()`'s
+      `out_dict["point"]`), and
+  (ii) the **CKA-aligned intermediate flow-backbone features** (TORA's actual
+      contribution).
+For each, test whether mating-band points are separable / more complementary for
+true mates than non-mates (the paper's own quality readout, plus a cosine-
+complementarity variant). Arms: synthetic fresh breaks (labeled, must pass — the
+instrument validation), fresh real ceramics (both models assemble), Juglet worn
+rims.
 
 - **Validation gate:** the readout must separate mates on the synthetic labeled
   arm (AUC ≥ 0.75) or it is discarded, exactly as `overlap_head` was.
@@ -211,6 +241,32 @@ sign-off for this task):
   proven otherwise.
 - **Cross-check scale-dependent against scale-invariant** metrics on every arm.
 - On the Juglet, **never** trust anything scored against `pointclouds_gt`.
+
+---
+
+## Results log
+
+### 2026-07-24 — normalized pairwise oracle (job 27976473, baseline ckpt)
+Re-ran the pairwise mating oracle on **scale-normalized** real pairs so
+`part_accuracy` is valid (the pre-norm 0.5-pin was the metric bug). Synthetic
+control clears the instrument gate (13.35×, true-mate part_acc 1.000).
+
+| arm | true-mate part_acc | non-mate part_acc | true-mate rot_err | non-mate rot_err |
+|---|---|---|---|---|
+| synthetic (control) | 1.000 | 0.850 | 0.99° | 13.16° |
+| real, normalized | **0.943** | **0.769** | 15.17° | 24.13° |
+
+- **Trustworthy:** `part_acc` now **discriminates** real true-mates (0.943) from
+  non-mates (0.769). The pre-fix "no discrimination" (both pinned 0.5) was a
+  metric artifact. **TORA is not pairwise-blind on real fracture** — unlike GARF.
+  → moves probability to **H0/H2**, against **H1**.
+- **⚠️ Anomaly, untrusted pending reconciliation:** rot_err separation also moved
+  1.03× → 1.59× (baseline true-mate 27° → 15°) despite rot_err being
+  scale-invariant and predictions being (per the dataset's own re-normalization)
+  identical between `pairs_real` and `pairs_real_norm`. Do **not** cite the
+  rot_err delta until resolved. Cheap check: re-run this slurm on un-normalized
+  `pairs_real`; if rot_err ≈15° there too, the gap is config-drift vs the
+  historical Probe-3 number, not normalization.
 
 ---
 
