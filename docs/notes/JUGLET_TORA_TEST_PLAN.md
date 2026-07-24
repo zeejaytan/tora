@@ -260,13 +260,15 @@ control clears the instrument gate (13.35×, true-mate part_acc 1.000).
   non-mates (0.769). The pre-fix "no discrimination" (both pinned 0.5) was a
   metric artifact. **TORA is not pairwise-blind on real fracture** — unlike GARF.
   → moves probability to **H0/H2**, against **H1**.
-- **⚠️ Anomaly, untrusted pending reconciliation:** rot_err separation also moved
-  1.03× → 1.59× (baseline true-mate 27° → 15°) despite rot_err being
-  scale-invariant and predictions being (per the dataset's own re-normalization)
-  identical between `pairs_real` and `pairs_real_norm`. Do **not** cite the
-  rot_err delta until resolved. Cheap check: re-run this slurm on un-normalized
-  `pairs_real`; if rot_err ≈15° there too, the gap is config-drift vs the
-  historical Probe-3 number, not normalization.
+- **⚠️ rot_err anomaly — RECONCILED (control job 27979066, un-normalized pairs_real):**
+  un-normalized reproduces true-mate 26.6° / non-mate 28.7° → **1.08×** (≈ the
+  historical 1.03×) with part_acc pinned 0.500/0.500. So normalization moved
+  rot_err 27°→15° / 1.08×→1.59× even though rot_err should be scale-invariant.
+  **Conclusion:** `part_acc` is the robust signal (0.5-pin → 0.943/0.769 is the
+  expected metric-bug fix); `rot_err` here is **scale/stochastic-sensitive and
+  the less reliable metric** — do not lead with the rot_err delta or compare
+  rot_err across differently-scaled datasets. (Nail with a seed-repeat only if
+  the rot_err number is ever load-bearing.)
 
 ---
 
