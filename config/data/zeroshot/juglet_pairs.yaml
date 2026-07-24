@@ -1,0 +1,19 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 2
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# C(9,2)=36 two-piece Juglet subproblems, each stored in PF++'s pseudo-GT
+# assembled layout (built by scripts/build_juglet_pairs_pseudogt.py), rescaled
+# to max|v|=0.5. Scored against that reference => valid pairwise mating oracle.
+# CAVEAT: PF++ pseudo-GT is form-level, not contact-accurate (pieces don't truly
+# touch); B1 tests coarse-layout agreement, not verified mating. See the builder.
+dataset_names: ["juglet_pairs"]
+
+batch_size: 8
+num_workers: 4
+limit_val_samples: 0
