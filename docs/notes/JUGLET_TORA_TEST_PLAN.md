@@ -270,6 +270,46 @@ control clears the instrument gate (13.35×, true-mate part_acc 1.000).
   rot_err across differently-scaled datasets. (Nail with a seed-repeat only if
   the rot_err number is ever load-bearing.)
 
+### 2026-07-24 — B1: Juglet pairwise mating oracle (job 27982824)
+36 Juglet pairs (18 true mates) scored against **PF++ form-level pseudo-GT**.
+`part_accuracy` is **binary** on a 2-piece problem (0.5 = anchor only, 1.0 =
+non-anchor correctly placed), so it is a per-generation *placement success rate*.
+
+**⚠️ The shipped analyzer's best-of-N saturates and HIDES the signal** (mate
+0.944 vs non-mate 0.861 → "no discrimination"). The honest mean-over-generations
+statistic is the one to read:
+
+| ckpt | mate success | non-mate success | ratio | per-pair MWU (1-sided) | per-gen Fisher |
+|---|---|---|---|---|---|
+| **baseline** | **63.3%** (57/90) | **38.9%** (35/90) | **1.63×** | **p = 0.025** | OR 2.71, p = 0.0008 |
+| robust | 51.1% (46/90) | 36.7% (33/90) | 1.39× | p = 0.146 (n.s.) | OR 1.81, p = 0.036 |
+
+- **Baseline separates true mates from non-mates on the Juglet** (1.63×, crosses
+  the pre-registered 1.25× gate, p = 0.025 per-pair). GARF, by contrast, found
+  **no** separation on this same object (0.070 vs 0.073 = 1.04×) across its
+  entire 15-experiment arc. This is the first quantitative sign of a real
+  TORA-vs-GARF difference on the worn Juglet.
+- **Robust fine-tune is again worse than baseline** (1.39×, per-pair n.s.),
+  consistent with §Resolution's "fine-tuning degraded a competent checkpoint".
+
+**⚠️ Proximity confound — do NOT upgrade this to "TORA perceives Juglet mates":**
+true mates are adjacent in the pseudo-GT layout (mean centroid gap 0.429) while
+non-mates are far apart (0.639), and success correlates negatively with gap
+across all 36 pairs (Spearman ρ = −0.334, p = 0.046). So part of the 1.63× may
+be "closer pieces are easier targets," not mating perception. Within-group
+correlations are n.s. (mates ρ = −0.11 p = 0.67; non-mates ρ = −0.16 p = 0.52),
+and the distance-matched window retains the effect direction (1.50×) but is far
+too small to confirm (n = 4 vs 3, p = 0.36).
+
+**Supported claim:** TORA shows a statistically significant mate/non-mate
+separation on the Juglet where GARF shows none — *partly confounded by
+proximity, magnitude not yet established.* **Not** supported: that TORA achieves
+true contact-level mating (the pseudo-GT cannot test that — pieces don't touch).
+
+**Refinement for a decisive rerun:** score with a distance-normalized metric
+(GARF-style chamfer / pair-diagonal) and/or build a distance-matched pair set, so
+proximity is controlled by construction rather than post-hoc.
+
 ---
 
 ## Assets (all present, verified 2026-07-24)

@@ -1,0 +1,20 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# C1 piece-count sweep: sub-assemblies of one REAL, valid-GT object (galli_pot,
+# 10 pieces) at k = 2,3,4,6,8,10, several replicates each. Tests H2 — whether
+# TORA's mating signal is pairwise or needs multi-piece context. Real GT, so no
+# pseudo-GT caveat and no proximity confound. Built by
+# scripts/build_piececount_sweep.py; read with scripts/analyze_piececount_sweep.py
+# (reports the anchor-corrected non-anchor placement rate, comparable across k).
+dataset_names: ["piececount_sweep"]
+
+batch_size: 4
+num_workers: 4
+limit_val_samples: 0
