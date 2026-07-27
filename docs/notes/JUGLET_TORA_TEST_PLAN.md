@@ -361,6 +361,35 @@ conditioning features **c** — what the flow DiT actually consumes.
   wide uncertainty. Directionally consistent with B1, but it needs more worn
   objects (or bootstrap CIs) before the magnitude is load-bearing.
 
+### 2026-07-27 — C2b: which channel survives wear? (job 28200043)
+Same probe, same labels, both feature sources, both cut to 64-d by PCA so probe
+capacity is equal; each arm also fits on scrambled labels as an overfitting
+control (must sit near 0.5).
+
+| material | **encoder** (frozen RPF, break-surface) | **teacher** (Uni3D, whole-object form) |
+|---|---|---|
+| synthetic fresh breaks | 0.9644 *(ctrl 0.49 ✓)* | **0.9928** *(ctrl 0.51 ✓)* |
+| fresh real fracture | 0.9173 *(ctrl 0.50 ✓)* | **0.9385** *(ctrl 0.52 ✓)* |
+| **Juglet, worn** | **0.7165** *(ctrl 0.39 ⚠)* | **0.8583** *(ctrl 0.53 ✓)* |
+| **drop, fresh real → worn** | **−0.200** | **−0.081** |
+
+**The macro-shape channel degrades less than half as much under wear**
+(−0.081 vs −0.200), and on the worn Juglet it retains clearly more
+mating-relevant information (0.858 vs 0.717). This is the predicted signature:
+TORA reuses RPF's fracture encoder **frozen**, so its wear-robustness cannot
+come from better break-surface perception — and the one channel it adds, the
+Uni3D whole-object form teacher, is exactly the macro-geometry cue GARF's
+Exp-15 concluded survives abrasion and that GARF cannot read.
+
+**⚠️ One arm failed its own control.** The encoder/Juglet run returned a
+scrambled-label AUC of 0.39 rather than ~0.5. With one object (~5 000 points,
+3.3% positives ⇒ ~50 positives held out) the AUC standard error is ≈0.07, so
+0.39 is ~1.5 SE out — most likely small-sample noise rather than true
+overfitting, but by this document's own rules that number is **not clean**.
+The teacher/Juglet arm's control passed (0.53), so the *teacher* number rests on
+firmer ground than the *encoder* number it is being compared against.
+Robustness re-run across 3 point samplings: **job 28200111**.
+
 ---
 
 ## Synthesis (2026-07-27) — what the battery establishes
@@ -373,17 +402,28 @@ conditioning features **c** — what the flow DiT actually consumes.
 | **H4** piece-count cliff | **real but secondary** | C1: rot_err 15°→44° with k, seating rate flat |
 | **H0** benchmark-only | **still the leading account** | Juglet GT is an invalid scan layout; B1 shows real mate separation |
 
-**The picture that survives all four tests:** TORA is *not* broken on real
+**The picture that survives all five tests:** TORA is *not* broken on real
 fracture — pairwise or jointly — and on the worn Juglet it retains both mate
 discrimination (B1, 1.63×) and contact-encoding in its features (C2, 0.74).
 Wear costs it something (0.92 → 0.74) but nothing like GARF's collapse (0.17×
 fire rate, 1.04× separation across 15 experiments). This is architecturally
 coherent: TORA froze RPF's encoder, so its wear-robustness cannot come from
-better fracture perception — the candidate locus is the **Uni3D CKA macro-shape
-channel** in the flow backbone, exactly the form-level information GARF's
-Exp-15 concluded survives abrasion and that GARF's micro-texture encoder cannot
-read. **Not yet proven** — C2b (CKA-channel ablation) is the test that would
-close it.
+better fracture perception.
+
+**C2b locates the surviving channel.** Under wear the whole-object form channel
+degrades less than half as much as the break-surface channel (−0.081 vs −0.200)
+and stays clearly more informative on the worn Juglet (0.858 vs 0.717). That is
+the Uni3D teacher TORA aligns to — the form-level cue GARF's own Exp-15 said
+survives abrasion, and which GARF's micro-texture encoder cannot read. The
+hypothesis now has direct supporting evidence rather than just architectural
+plausibility.
+
+**What would still overturn it:** the Juglet arms rest on a single object, and
+the encoder/Juglet arm missed its scrambled-label control (job 28200111 re-runs
+it). And probing the *teacher* shows what information was available to transfer
+during training, not that the flow model uses it at inference — the decisive
+version compares a CKA-aligned checkpoint against a non-aligned RPF baseline on
+the same Juglet pairs, which needs an RPF checkpoint we do not currently hold.
 
 ---
 
