@@ -67,9 +67,32 @@ def _roc_auc(y: torch.Tensor, s: torch.Tensor) -> float:
     return ((ranks[:n_p].sum() - n_p * (n_p + 1) / 2) / (n_p * n_n)).item()
 
 
-def _fit_linear_probe(x: torch.Tensor, y: torch.Tensor, steps: int = 400, lr: float = 0.05):
-    """Balanced logistic regression; returns held-out AUC."""
+def _pca_reduce(x: torch.Tensor, dim: int) -> torch.Tensor:
+    """Reduce features to `dim` principal components.
+
+    Needed to compare feature sources FAIRLY: the Uni3D teacher emits 3072-d
+    features while the frozen encoder emits 64-d. A higher-capacity probe can
+    score better on noise alone, so both sources are cut to a common dimension
+    before probing.
+    """
+    if x.shape[1] <= dim:
+        return x
+    xc = x - x.mean(0, keepdim=True)
+    _, _, v = torch.pca_lowrank(xc, q=min(dim, min(xc.shape) - 1), niter=4)
+    return xc @ v
+
+
+def _fit_linear_probe(x: torch.Tensor, y: torch.Tensor, steps: int = 400, lr: float = 0.05,
+                      weight_decay: float = 1e-3, shuffle_labels: bool = False):
+    """Balanced, L2-regularised logistic regression; returns held-out AUC.
+
+    `shuffle_labels=True` fits the identical probe on randomly permuted labels —
+    the overfitting control. It must land near 0.5; anything higher means the
+    probe has enough capacity to memorise noise and the real AUC is inflated.
+    """
     g = torch.Generator().manual_seed(0)
+    if shuffle_labels:
+        y = y[torch.randperm(y.shape[0], generator=torch.Generator().manual_seed(1234))]
     perm = torch.randperm(x.shape[0], generator=g)
     x, y = x[perm], y[perm]
     n_tr = int(0.7 * x.shape[0])
@@ -80,7 +103,7 @@ def _fit_linear_probe(x: torch.Tensor, y: torch.Tensor, steps: int = 400, lr: fl
 
     w = torch.zeros(x.shape[1], 1, requires_grad=True)
     b = torch.zeros(1, requires_grad=True)
-    opt = torch.optim.Adam([w, b], lr=lr)
+    opt = torch.optim.Adam([w, b], lr=lr, weight_decay=weight_decay)
     # class-balanced positive weight so a rare mating class isn't ignored
     pw = torch.tensor([(ytr == 0).sum().clamp(min=1).float() / (ytr == 1).sum().clamp(min=1).float()])
     for _ in range(steps):
@@ -108,6 +131,19 @@ def main(cfg: DictConfig):
     encoder = model.feature_extractor.to(device).eval()
     datamodule.setup("test")
 
+    # C2  : "encoder" = frozen RPF per-point conditioning features c (on-path).
+    # C2b : "teacher" = frozen Uni3D whole-object teacher features — the
+    #       macro-shape channel TORA aligns the flow backbone to (its actual
+    #       contribution), and the channel GARF has no analogue of. Probing the
+    #       teacher is exactly what the paper does in App. 0.A.1.
+    source = str(cfg.get("probe_features", "encoder")).lower()
+    if source not in ("encoder", "teacher"):
+        raise ValueError("probe_features must be 'encoder' or 'teacher'")
+    if source == "teacher" and getattr(model, "teacher", None) is None:
+        raise RuntimeError("teacher is None (use_repa disabled?) — cannot run the C2b arm")
+    if source == "teacher":
+        model.teacher = model.teacher.to(device).eval()
+
     feats, labels = [], []
     n_obj = 0
     with torch.inference_mode():
@@ -116,12 +152,15 @@ def main(cfg: DictConfig):
                 batch = _move(batch, device)
                 with torch.autocast(device_type=device.type, enabled=False):
                     out = encoder(batch)
-                # On-path conditioning features c (what the flow DiT consumes)
                 point = out["point"]
-                f = point["feat"].detach().float()
-                # Paper's mating label: >=1 neighbour from a different part
-                # within the adaptive overlap threshold.
+                # Labels ALWAYS come from the same rule regardless of feature
+                # source, so encoder-vs-teacher is a controlled comparison.
                 mask = encoder._compute_overlap_points(batch, point).reshape(-1)
+                if source == "encoder":
+                    f = point["feat"].detach().float()
+                else:
+                    t = model.teacher.extract_features(batch)[0]     # (B, N, D)
+                    f = t.reshape(-1, t.shape[-1]).detach().float()
                 n = min(f.shape[0], mask.shape[0])
                 feats.append(f[:n].cpu())
                 labels.append(mask[:n].detach().cpu().float())
@@ -132,7 +171,9 @@ def main(cfg: DictConfig):
     rate = y.mean().item()
 
     name = ",".join(datamodule.dataset_names)
-    print(f"\n=== C2 mating probe (on-path conditioning features): {name} ===")
+    src_label = ("frozen RPF conditioning features c (on-path)" if source == "encoder"
+                 else "frozen Uni3D teacher features (macro-shape channel)")
+    print(f"\n=== mating probe [{source}] — {src_label}: {name} ===")
     print(f"  objects: {n_obj} | points: {x.shape[0]} | feature dim: {x.shape[1]}")
     print(f"  GT mating-label rate: {rate * 100:.2f}%")
 
@@ -147,8 +188,19 @@ def main(cfg: DictConfig):
         idx = torch.randperm(x.shape[0], generator=torch.Generator().manual_seed(0))[:max_points]
         x, y = x[idx], y[idx]
 
+    # Equalise probe capacity across feature sources (teacher is 3072-d, encoder
+    # 64-d); a bigger probe scores better on noise alone, so cut to a common dim.
+    common_dim = int(cfg.get("probe_dim", 64))
+    if x.shape[1] > common_dim:
+        x = _pca_reduce(x, common_dim)
+        print(f"  reduced {x.shape[1]}-d (PCA) for a like-for-like comparison")
+    print(f"  probe dim: {x.shape[1]} | train points: {int(0.7 * x.shape[0])}")
+
     auc, loss = _fit_linear_probe(x, y)
+    auc_shuf, _ = _fit_linear_probe(x, y, shuffle_labels=True)
     print(f"  linear-probe AUC (held-out 30%): {auc:.4f}   [train BCE {loss:.4f}]")
+    print(f"  shuffled-label control (must be ~0.5): {auc_shuf:.4f}"
+          f"  {'OK' if abs(auc_shuf - 0.5) < 0.10 else '!! OVERFITTING — real AUC is inflated'}")
     is_validation_arm = any("synth" in n for n in datamodule.dataset_names)
     if is_validation_arm:
         print(f"  INSTRUMENT GATE (this labeled synthetic arm must reach AUC >= {VALIDATION_GATE}):"
