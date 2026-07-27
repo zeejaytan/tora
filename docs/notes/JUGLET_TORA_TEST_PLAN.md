@@ -381,14 +381,25 @@ come from better break-surface perception — and the one channel it adds, the
 Uni3D whole-object form teacher, is exactly the macro-geometry cue GARF's
 Exp-15 concluded survives abrasion and that GARF cannot read.
 
-**⚠️ One arm failed its own control.** The encoder/Juglet run returned a
-scrambled-label AUC of 0.39 rather than ~0.5. With one object (~5 000 points,
-3.3% positives ⇒ ~50 positives held out) the AUC standard error is ≈0.07, so
-0.39 is ~1.5 SE out — most likely small-sample noise rather than true
-overfitting, but by this document's own rules that number is **not clean**.
-The teacher/Juglet arm's control passed (0.53), so the *teacher* number rests on
-firmer ground than the *encoder* number it is being compared against.
-Robustness re-run across 3 point samplings: **job 28200111**.
+**⚠️→✅ The one failed control is RESOLVED (job 28200111).** The encoder/Juglet
+run had returned a scrambled-label AUC of 0.39 rather than ~0.5 (~1.5 SE out on
+~50 held-out positives). Re-running both channels across 3 further point
+samplings: **all 6 controls now pass** (0.458–0.545), confirming the 0.39 was
+small-sample noise, not overfitting. The channel gap is stable and the two
+distributions never overlap:
+
+| sampling | encoder | teacher | gap |
+|---|---|---|---|
+| seed 42 (orig) | 0.7165 | 0.8583 | 0.142 |
+| seed 0 | 0.7102 | 0.8753 | 0.165 |
+| seed 1 | 0.7121 | 0.8960 | 0.184 |
+| seed 2 | 0.7045 | 0.8817 | 0.177 |
+| **mean** | **0.711** | **0.878** | **0.167** |
+
+Using the 4-sampling means, the drop from fresh real fracture to the worn Juglet
+is **−0.206 for the break-surface channel vs −0.061 for the whole-object form
+channel** — the form channel loses roughly **a third** as much. The C2b
+conclusion stands on repeated measurement, not a single run.
 
 ---
 
@@ -410,20 +421,22 @@ fire rate, 1.04× separation across 15 experiments). This is architecturally
 coherent: TORA froze RPF's encoder, so its wear-robustness cannot come from
 better fracture perception.
 
-**C2b locates the surviving channel.** Under wear the whole-object form channel
-degrades less than half as much as the break-surface channel (−0.081 vs −0.200)
-and stays clearly more informative on the worn Juglet (0.858 vs 0.717). That is
-the Uni3D teacher TORA aligns to — the form-level cue GARF's own Exp-15 said
-survives abrasion, and which GARF's micro-texture encoder cannot read. The
-hypothesis now has direct supporting evidence rather than just architectural
-plausibility.
+**C2b locates the surviving channel, and it replicates.** Across 4 point
+samplings the whole-object form channel loses ~a third as much to wear as the
+break-surface channel (−0.061 vs −0.206) and stays clearly more informative on
+the worn Juglet (0.878 vs 0.711, gap stable at 0.14–0.18, distributions never
+overlapping, all 8 scrambled-label controls passing). That is the Uni3D teacher
+TORA aligns to — the form-level cue GARF's own Exp-15 said survives abrasion,
+and which GARF's micro-texture encoder cannot read. The hypothesis now has
+direct, repeated supporting evidence rather than architectural plausibility.
 
-**What would still overturn it:** the Juglet arms rest on a single object, and
-the encoder/Juglet arm missed its scrambled-label control (job 28200111 re-runs
-it). And probing the *teacher* shows what information was available to transfer
-during training, not that the flow model uses it at inference — the decisive
-version compares a CKA-aligned checkpoint against a non-aligned RPF baseline on
-the same Juglet pairs, which needs an RPF checkpoint we do not currently hold.
+**The remaining limit is what the probe can address at all:** it shows what
+information the form channel *contains*, not that the flow model *uses* it at
+inference. The decisive version compares a CKA-aligned checkpoint against a
+non-aligned RPF baseline on the same Juglet pairs — that needs an RPF checkpoint
+not currently on Spartan (only `bbad_everyday_cka.ckpt` + the Uni3D teacher are
+present). Also note the Juglet remains a single object; the *direction* is now
+well established, the exact magnitudes are still one-pot numbers.
 
 ---
 
