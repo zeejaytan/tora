@@ -310,6 +310,81 @@ true contact-level mating (the pseudo-GT cannot test that — pieces don't touch
 (GARF-style chamfer / pair-diagonal) and/or build a distance-matched pair set, so
 proximity is controlled by construction rather than post-hoc.
 
+### 2026-07-27 — C1: piece-count sweep, galli_pot, REAL valid GT (job 28198773)
+Sub-assemblies of one 10-piece real ceramic at k = 2…10 (5 replicates each,
+k=10 has 1). Rate = anchor-corrected non-anchor placement rate.
+
+| k | subsets | placement rate (mean / best-of-n) | rot_err |
+|---|---|---|---|
+| 2 | 5 | **0.800** / 1.000 | 15.3° |
+| 3 | 5 | 0.633 / 0.700 | 23.4° |
+| 4 | 5 | 0.356 / 0.467 | 33.0° |
+| 6 | 5 | 0.573 / 0.680 | 41.0° |
+| 8 | 5 | 0.590 / 0.714 | 44.1° |
+| 10 | 1 | 0.778 / 0.889 | 32.2° |
+
+**H2 is NOT supported** (k=2 → k=10: 0.800 → 0.778; Spearman ρ = −0.124, p = 0.55).
+More context does **not** unlock placement — and crucially **k=2 is the *best*
+arm (0.800)**. TORA seats 80% of isolated real 2-piece fractures correctly.
+
+**This dissolves the contradiction that motivated C1.** There was never a
+"pairwise-blind but competent-jointly" paradox: the old 1.03×/0.5-pinned pairwise
+number was the metric artifact, not a perceptual finding. Corrected, TORA is
+competent *both* pairwise and multi-piece. **H1 (pairwise perception failure) is
+refuted on real fracture.** (rot_err does climb with k, 15°→44° — the documented
+piece-count cliff is real, but it degrades *pose precision*, not seating.)
+Caveat: 5 subsets/k is noisy (the k=4 dip to 0.356 is small-sample), and k=10 is
+a single subset; the *level* at k=2 is the load-bearing result, not the curve shape.
+
+### 2026-07-27 — C2: mating linear probe on ON-PATH features (job 28198811)
+Paper-faithful probe (App. 0.A.1 methodology) on the frozen encoder's per-point
+conditioning features **c** — what the flow DiT actually consumes.
+
+| arm | objects | GT mating-label rate | linear-probe AUC |
+|---|---|---|---|
+| synthetic fresh breaks (**validation**) | 34 | 2.13% | **0.9625 — PASS** |
+| fresh real fracture (`real_heldout_norm`) | 6 | 7.29% | **0.9208** |
+| **Juglet, worn** (`juglet_norm`) | 1 | 3.30% | **0.7396** |
+
+- **Instrument validated.** Synthetic AUC 0.96 clears the 0.75 gate, and label
+  rates are sane (2–7%) — *not* the ~100% degenerate case that made the old
+  `overlap_head` probe meaningless. The scale-normalized splits fixed it.
+- **No real-vs-synthetic perceptual gap**: fresh real 0.92 ≈ synthetic 0.96.
+  Independently corroborates §Resolution — the founding premise really is void.
+- **Wear does degrade contact encoding**: Juglet 0.74 vs fresh real 0.92 — the
+  **H3 signature**. But it degrades *partially*; 0.74 is still well above chance
+  (0.5), i.e. the worn rims retain usable contact signal in TORA's features.
+- **Contrast with GARF**: GARF's encoder fires on 0.57% of Juglet points vs 3.4%
+  on fresh ceramics (0.17× — effectively blind). TORA's on-path features stay
+  informative on the same worn rims. Same object, same wear, different outcome.
+- ⚠️ **Caveat:** the Juglet arm is **one object / 5 000 points** — the 0.74 has
+  wide uncertainty. Directionally consistent with B1, but it needs more worn
+  objects (or bootstrap CIs) before the magnitude is load-bearing.
+
+---
+
+## Synthesis (2026-07-27) — what the battery establishes
+
+| hypothesis | verdict | evidence |
+|---|---|---|
+| **H1** pairwise-perception failure (GARF's mechanism) | **REFUTED** | C1: 0.800 placement at k=2; C2: fresh-real AUC 0.92 |
+| **H2** joint-solve / context-dependent | **NOT SUPPORTED** | C1: flat in k (ρ = −0.124, p = 0.55) |
+| **H3** wear-specific degradation | **SUPPORTED, partial** | C2: 0.92 fresh → 0.74 worn (n=1, wide CI) |
+| **H4** piece-count cliff | **real but secondary** | C1: rot_err 15°→44° with k, seating rate flat |
+| **H0** benchmark-only | **still the leading account** | Juglet GT is an invalid scan layout; B1 shows real mate separation |
+
+**The picture that survives all four tests:** TORA is *not* broken on real
+fracture — pairwise or jointly — and on the worn Juglet it retains both mate
+discrimination (B1, 1.63×) and contact-encoding in its features (C2, 0.74).
+Wear costs it something (0.92 → 0.74) but nothing like GARF's collapse (0.17×
+fire rate, 1.04× separation across 15 experiments). This is architecturally
+coherent: TORA froze RPF's encoder, so its wear-robustness cannot come from
+better fracture perception — the candidate locus is the **Uni3D CKA macro-shape
+channel** in the flow backbone, exactly the form-level information GARF's
+Exp-15 concluded survives abrasion and that GARF's micro-texture encoder cannot
+read. **Not yet proven** — C2b (CKA-channel ablation) is the test that would
+close it.
+
 ---
 
 ## Assets (all present, verified 2026-07-24)

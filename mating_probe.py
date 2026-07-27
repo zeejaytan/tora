@@ -149,10 +149,14 @@ def main(cfg: DictConfig):
 
     auc, loss = _fit_linear_probe(x, y)
     print(f"  linear-probe AUC (held-out 30%): {auc:.4f}   [train BCE {loss:.4f}]")
-    print(f"  instrument gate (labeled synthetic arm must reach AUC >= {VALIDATION_GATE}):"
-          f" {'PASS' if auc >= VALIDATION_GATE else 'below gate'}")
-    print("  NOTE: interpret only against the synthetic control from the same sweep —")
-    print("        a collapse on worn rims vs fresh ceramics is the H3 signature.")
+    is_validation_arm = any("synth" in n for n in datamodule.dataset_names)
+    if is_validation_arm:
+        print(f"  INSTRUMENT GATE (this labeled synthetic arm must reach AUC >= {VALIDATION_GATE}):"
+              f" {'PASS' if auc >= VALIDATION_GATE else 'FAIL — do not interpret the other arms'}")
+    else:
+        print("  (not the validation arm — the AUC>=0.75 gate applies only to the labeled")
+        print("   synthetic run; read this number against the synthetic and fresh-real arms.")
+        print("   A drop on worn rims relative to fresh real fracture is the H3 signature.)")
     print("=== end probe ===\n")
 
 
