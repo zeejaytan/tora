@@ -107,12 +107,55 @@ touch. Widening the settling reach makes it **catastrophically worse**:
 confidently to the **wrong** neighbour. **Local geometry cannot recover a
 correspondence it does not have.** No post-hoc tidying can fix this.
 
-### S3 — wear-augmented fine-tuning: **running** (job 28231335)
-Newly possible: the validated mollifier manufactures worn training data *that
-keeps its ground truth*. 108 variants built (84 train / 24 val). Conservative
-recipe (synthetic replay, low LR, few epochs) because both prior fine-tunes here
-ended up worse than the checkpoint they started from. Evaluated on worn **and**
-fresh material so a gain bought by wrecking fresh objects is reported as a trade.
+### S3 — wear-augmented fine-tuning: **IT WORKS** (job 28231335)
+
+The first lever that recovers seating under wear. Trained on 108 manufactured
+worn variants (84 train / 24 val) with synthetic replay, low LR, 40 epochs.
+
+**Leakage check first:** the 6 test pots (blue_pot, coxae, galli_pot, limb3,
+plate, vert9) are exactly the held-out set; the 21 training objects are entirely
+different pots. **No leakage** — the gains are on unseen objects.
+
+| wear | baseline | wear-trained | change |
+|---|---|---|---|
+| 0.00 (fresh) | 0.819 | 0.704 | **−0.115** |
+| 0.25 | 0.798 | 0.770 | −0.028 |
+| 0.50 | 0.641 | **0.894** | **+0.253** |
+| 0.75 | 0.591 | **0.770** | **+0.179** |
+| 1.00 | 0.524 | **0.797** | **+0.273** |
+
+**In the worn regime (wear ≥ 0.50): mean +0.235, 10 improved / 4 worsened /
+4 tied, Wilcoxon one-sided p = 0.0078.** Statistically solid, unlike most results
+in this investigation.
+
+**At full wear, seating rises 0.524 → 0.797 — essentially recovering the
+baseline's *fresh-pot* performance (0.819) on heavily abraded material.**
+
+Per-object, the two catastrophic failures are the ones rescued:
+
+| object | fresh (base→ft) | full wear (base→ft) |
+|---|---|---|
+| coxae | 0.67→0.67 | **0.00 → 0.83** |
+| vert9 | 0.83→**0.00** | **0.00 → 0.67** |
+| plate | 0.60→1.00 | 0.60 → 0.87 |
+| blue_pot | 1.00→1.00 | 0.92 → 0.75 |
+| galli_pot | 0.81→0.56 | 0.63 → 0.67 |
+| limb3 | 1.00→1.00 | 1.00 → 1.00 |
+
+**This confirms the shortcut hypothesis (§2).** The model *can* place worn
+fragments — it simply never had to learn how, because training only ever offered
+breaks with good micro-texture. Remove the shortcut and the capability appears.
+
+**⚠️ It is a TRADE, not a free win.** Fresh performance drops 0.819 → 0.704, and
+`vert9` fresh collapses 0.83 → 0.00 while its worn case goes 0.00 → 0.67 — the
+same object trading one regime for the other. Note the training set *did* include
+un-worn copies (strength 0), yet fresh still degraded: 3 of the 4 wear levels are
+worn, so the mixture is worn-heavy. **Rebalancing the wear distribution is the
+obvious next tuning step**, and may recover much of the fresh loss.
+
+**Practical reading:** for worn archaeological material this checkpoint is
+clearly better; for fresh breaks the original is better. Until the mixture is
+tuned, treat them as two tools rather than one.
 
 ---
 
@@ -217,21 +260,33 @@ arbitrary choice costs.
 
 ---
 
-## 5. Recommended order
+## 5. Recommended order (revised after S3 succeeded)
 
-1. **A** — measured headroom, no retraining, works on real material. Do first.
-2. **B** — best fit to conservation practice; modest, well-understood work.
-3. **F** — cheap, might be free improvement.
-4. **C** — promising but needs a validation step first.
-5. **D / E** — real method changes; justified only if S3 and A/B fall short.
+0. **S3 is the primary route** — it works (p = 0.008), recovers worn-pot seating
+   to fresh-baseline levels, and confirms the capability exists. Immediate
+   follow-up: **rebalance the wear mixture** to claw back the fresh-material
+   loss, then re-run the same comparison.
+1. **A** (recognise a good attempt) — now a *multiplier* on a better model
+   rather than compensation for a weak one. Still no retraining, still the only
+   option deployable where no answer key exists.
+2. **B** (human-in-the-loop anchors) — best fit to conservation practice.
+3. **F** — cheap, may be free improvement.
+4. **C** — promising, needs a validation step first.
+5. **D / E** — real method changes. S3's success **lowers** their priority: the
+   model can evidently learn worn placement, so rebuilding the matching stage is
+   no longer the only road.
 
 ## 6. What would change this ranking
 
-- **If S3 succeeds**, the shortcut hypothesis (§2) is confirmed and retraining
-  with wear augmentation becomes the primary route — A and B then become
-  multipliers on a better model rather than compensations for a weak one.
-- **If S3 fails**, the model cannot use form for placement under any training
-  pressure, and **D** moves from optional to necessary.
-- All wear findings still rest on **six pots and one genuinely worn object**.
-  More worn archaeological material would firm up every number here.
+- **S3 succeeded**, so the shortcut hypothesis is supported and retraining is the
+  primary route. **D/E drop in priority.**
+- **The pending flow-feature probe (job 28232465) still matters**: if the aligned
+  features turn out *not* to carry form, then S3's gain came from something else
+  (e.g. the encoder adapting), and the mechanism story in §2 needs revising even
+  though the fix works.
+- All wear findings still rest on **six test pots and one genuinely worn
+  archaeological object**. More worn material would firm up every number here.
+- The fresh-material regression is real and unexplained in detail; if
+  rebalancing does not fix it, a wear-conditioned or two-checkpoint deployment
+  is the fallback.
 </content>
