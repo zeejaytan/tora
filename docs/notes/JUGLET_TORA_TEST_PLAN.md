@@ -655,6 +655,89 @@ the same split C2b measured, now visible at the object level.
 
 ---
 
+## 2026-07-28 — SOLUTIONS: what recovers seating under wear?
+
+Test bed for every candidate: the C3 erosion sweep — real pots with **valid
+ground truth**, progressively abraded, seating known to fall 0.875 → 0.524. The
+Juglet cannot serve here (no correct answer to score against).
+
+### S1 — free inference knobs: **NO EFFECT** (job 28229895)
+
+| arm | seating @ full wear |
+|---|---|
+| baseline (euler, 50 steps, 3 gens) | 0.435 |
+| 200 steps (4× compute) | 0.504 |
+| rk4 sampler | 0.463 |
+| 10 generations | 0.485 |
+
+All within run-to-run noise. The model does not need more compute; it needs
+better information. Matches GARF's Exp 5. **Cheap to rule out, and now ruled out.**
+
+### S2 — post-hoc geometric settling: **REFUTED, and instructively so**
+(jobs 28229957, 28230423)
+
+The idea (user's): don't demand a perfect join — let neighbouring fragments
+settle until they touch. Sound *if* the failure were "nearly right, not quite
+closed".
+
+**It is not.** Measured per-fragment displacement from the correct position
+(object half-extent = 1.0; seating tolerance ≈ 0.14):
+
+| wear | median error | 90th pct | within 0.06 |
+|---|---|---|---|
+| 0.00 | 0.139 | 0.814 | 42% |
+| 1.00 | **0.346** | **1.226** | 12% |
+
+At full wear the typical fragment sits **2.5× beyond the seating tolerance**, and
+the worst are **further from home than the pot is wide**. This is *gross
+misplacement*, not a join that failed to close — and it corrects an earlier
+claim in this document that fragments land "roughly in the right neighbourhood".
+
+Retuning the settling reach to the measured scale makes it **catastrophically
+worse**, which is the decisive evidence:
+
+| reach | Δ seating | worsened |
+|---|---|---|
+| 0.06 | +0.002 | 1/30 |
+| 0.15 | −0.009 | 8/30 |
+| 0.30 | **−0.389** | 22/30 |
+| 0.50 | **−0.407** | 22/30 |
+
+**Why more freedom hurts:** "pull toward the nearest surface" is only correct
+when the nearest surface is the *true* mate. Once fragments are misplaced, the
+nearest surface is usually the *wrong* partner, so every extra degree of freedom
+attaches them more confidently to the wrong neighbour. Local geometry cannot
+recover a correspondence it does not have.
+
+**Conclusion: no post-hoc tidying can fix this.** The deficit is *which fragment
+goes where*, not *how precisely it is seated*. That must be fixed in the
+prediction, not after it.
+
+### S3 — wear-augmented fine-tuning: **the remaining candidate** (job 28230079)
+
+Newly feasible: until now the only genuinely worn object (the Juglet) had no
+ground truth, so there was nothing to learn from. The validated mollifier
+manufactures worn training data **that keeps its answer key**.
+
+Deliberately conservative (synthetic replay, low LR, few epochs) because *both*
+previous fine-tunes here ended up worse than the checkpoint they started from,
+and evaluated on **worn and fresh** material so a gain bought by wrecking fresh
+objects is reported as the trade it is.
+
+### Forward direction if S3 also fails
+
+The measurements point somewhere specific. TORA *does* retain partial
+correspondence signal on worn material (B1: true mates separated from non-mates
+at 1.63×, p = 0.025) and a strong whole-object form channel (C2b: 0.88). What it
+lacks is a stage that *uses* that pairwise signal to constrain the global
+assembly — it currently solves all fragments jointly in one flow, with no
+explicit "which fragment mates with which" step. A matching/graph stage seeded
+from the surviving pairwise signal is the architecturally-indicated next lever,
+and matches GARF's own closing recommendation (form-based pairing and pose init,
+with fracture-feature refinement only where signal survives).
+
+---
+
 ## Assets (all present, verified 2026-07-24)
 
 - Juglet normalized data: `TORA/dataset/juglet_norm.hdf5` (Spartan).
