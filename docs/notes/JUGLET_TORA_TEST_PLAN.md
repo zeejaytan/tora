@@ -528,6 +528,85 @@ rotation.
 
 ---
 
+## 2026-07-28 — ROOT CAUSE: why TORA fails on the Juglet
+
+### The 2×2 that closed it (job 28228263)
+
+The Juglet was the only evaluation running `data.anchor_free=true`, paired with
+`model.anchor_free=false` — a combination matching neither training nor any
+other test. Prime suspect. It is now **exonerated**:
+
+| arm | result |
+|---|---|
+| real held-out, `anchor_free=false` (known-good) | part_acc **0.867**, rot 30.6° |
+| real held-out, **under the Juglet's setting** (`true`) | part_acc **0.817**, rot 33.6° — *essentially unchanged* |
+| Juglet, `anchor_free=true` (known failure) | no vessel |
+| **Juglet, under the WORKING setting** (`false`) | **still no vessel** |
+
+Good objects do not break under the Juglet's setting, and the Juglet does not
+recover under the working setting (`artifacts/juglet_viz/anchor2x2/`, all
+generations show the same anchor-sherd-plus-fan geometry). **The task setup is
+not the cause.**
+
+### What is ruled out
+
+| candidate | verdict | evidence |
+|---|---|---|
+| real (vs simulated) fracture | **ruled out** | real Fractura pots reassemble well once measured correctly — blue_pot 5 pieces @ 4.3°, part_acc 1.00 |
+| thin walls | **ruled out** | `narrow_bottle1/2/3/4` are thin-walled and sit in the same competent set |
+| piece count | **ruled out** | `galli_pot` has **10** pieces — more than the Juglet's 9 — at 0.867–0.900 seated |
+| anchor / task setup | **ruled out** | the 2×2 above |
+| broken measurement | **real, but a separate fault** | two independent metric bugs; they hid the failure, they are not it |
+
+### The cause: wear removes the fine break-surface detail needed to *seat* a fragment
+
+What survives on the Juglet and what does not, measured (C2, C2b):
+
+- **Break-surface reading** — the fine texture that says *these two faces mate
+  exactly here* — degrades from **0.92 on fresh real breaks to 0.71 on the
+  Juglet's abraded rims**.
+- **Whole-object form reading** holds up at **0.88** (loses ~⅓ as much).
+- Consistently, TORA still tells Juglet true neighbours from unrelated pairs
+  (B1, 1.63×, p = 0.025) — coarse grouping survives.
+
+So the deficit is specific: TORA retains enough signal to work out **which
+sherds belong near each other**, but not enough to work out **exactly how they
+seat against each other**. Abrasion destroyed the fine interlocking detail;
+what is left positions fragments in roughly the right neighbourhood without ever
+locking them into a closed vessel profile — precisely what every visualization
+shows (sherds fanned around the anchor, never closing).
+
+At 9 worn fragments those seating errors compound, which matches C1: seating
+rate stays flat with piece count while **rotation error grows 15° → 44°**. The
+failure mode is *loss of precision*, not loss of grouping.
+
+### How this differs from GARF's failure
+
+Same root cause — wear — but **different severity**, and that difference is the
+substantive TORA-vs-GARF result:
+
+| | GARF | TORA |
+|---|---|---|
+| break-surface perception on worn rims | **collapses** (fires 0.57% vs 3.4% fresh = 0.17×) | **degrades** (0.92 → 0.71) |
+| tells true mates from non-mates on the Juglet | **no** (1.04×, across 15 experiments) | **yes** (1.63×, p = 0.025) |
+| fallback channel | none — micro-texture only | **whole-object form, 0.88** |
+| rebuilds the Juglet | no | **no** |
+
+GARF goes blind; TORA goes imprecise. Both fail to rebuild this pot, but TORA
+fails from a materially better starting position — it still knows which sherds
+are neighbours, which is the part GARF has lost entirely.
+
+### What would change the answer
+
+- **Single worn object.** Every wear number here rests on the Juglet alone. More
+  worn archaeological vessels would move this from a strong lead to a result.
+- The decisive causal test remains the erosion bridge (**C3**, GARF's validated
+  mollifier, unmodified): progressively wear a *fresh* pot that TORA currently
+  reassembles and watch seating precision fall. That converts "worn objects
+  score worse" into "wear *causes* the failure". Not yet run.
+
+---
+
 ## Assets (all present, verified 2026-07-24)
 
 - Juglet normalized data: `TORA/dataset/juglet_norm.hdf5` (Spartan).
