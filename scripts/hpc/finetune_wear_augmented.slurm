@@ -46,6 +46,9 @@ eval "$(conda shell.bash hook)"
 conda activate "$ENV_PREFIX"
 export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
 export HF_HOME=$TORA_ROOT/.hf-cache
+# wandb is the only logger config shipped, and the cluster has no outbound
+# network for it -- run it offline, as the previous working fine-tunes did.
+export WANDB_MODE=offline
 cd "$TORA_ROOT/repo"
 
 echo ""
@@ -71,10 +74,9 @@ python train.py \
     model.flow_model_ckpt="$CKPT" \
     model.optimizer.lr=2e-5 \
     trainer.max_epochs=40 \
-    log_dir="$OUT_ROOT" \
-    loggers=csv || { echo "training failed"; exit 1; }
+    log_dir="$OUT_ROOT" || { echo "training failed"; exit 1; }
 
-BEST=$(ls -t "$OUT_ROOT"/*.ckpt 2>/dev/null | head -1)
+BEST=$(find "$OUT_ROOT" -name "*.ckpt" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -1 | cut -d" " -f2)
 echo "using checkpoint: $BEST"
 
 echo ""
