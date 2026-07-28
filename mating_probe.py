@@ -136,9 +136,15 @@ def main(cfg: DictConfig):
     #       macro-shape channel TORA aligns the flow backbone to (its actual
     #       contribution), and the channel GARF has no analogue of. Probing the
     #       teacher is exactly what the paper does in App. 0.A.1.
+    # "flow" = the flow model's OWN intermediate features at the layer the CKA
+    #   alignment targets (repa_layer, layer 3 of 6). This is the decisive arm:
+    #   the Uni3D teacher is training-only and discarded at inference, so a high
+    #   teacher score shows only what was AVAILABLE to transfer, not what TORA
+    #   actually carries where placement is decided. Probing here answers
+    #   "did the form structure transfer, or not?".
     source = str(cfg.get("probe_features", "encoder")).lower()
-    if source not in ("encoder", "teacher"):
-        raise ValueError("probe_features must be 'encoder' or 'teacher'")
+    if source not in ("encoder", "teacher", "flow"):
+        raise ValueError("probe_features must be 'encoder', 'teacher' or 'flow'")
     if source == "teacher" and getattr(model, "teacher", None) is None:
         raise RuntimeError("teacher is None (use_repa disabled?) — cannot run the C2b arm")
     if source == "teacher":
@@ -158,9 +164,28 @@ def main(cfg: DictConfig):
                 mask = encoder._compute_overlap_points(batch, point).reshape(-1)
                 if source == "encoder":
                     f = point["feat"].detach().float()
-                else:
+                elif source == "teacher":
                     t = model.teacher.extract_features(batch)[0]     # (B, N, D)
                     f = t.reshape(-1, t.shape[-1]).detach().float()
+                else:
+                    # Flow model's intermediate features at the aligned layer.
+                    # These depend on the noisy state x_t, so evaluate at a fixed
+                    # timestep (probe_t) built exactly as training does.
+                    from tora.modeling.tora import compute_flow_target
+                    x0 = batch["pointclouds_gt"]
+                    B = x0.shape[0]
+                    gen = torch.Generator(device="cpu").manual_seed(0)
+                    x1 = torch.randn(x0.shape, generator=gen).to(x0.device)
+                    tt = torch.full((B,), float(cfg.get("probe_t", 0.3)), device=x0.device)
+                    x_t, _ = compute_flow_target(x0, x1, tt)
+                    latent = model._encode(batch)
+                    _, interm = model.flow_model(
+                        x=x_t, timesteps=tt, latent=latent,
+                        scales=batch["scales"], anchor_indices=batch["anchor_indices"])
+                    if interm is None:
+                        raise RuntimeError("flow model returned no intermediate "
+                                           "representation (repa_layer unset?)")
+                    f = interm.reshape(-1, interm.shape[-1]).detach().float()
                 n = min(f.shape[0], mask.shape[0])
                 feats.append(f[:n].cpu())
                 labels.append(mask[:n].detach().cpu().float())
@@ -171,8 +196,11 @@ def main(cfg: DictConfig):
     rate = y.mean().item()
 
     name = ",".join(datamodule.dataset_names)
-    src_label = ("frozen RPF conditioning features c (on-path)" if source == "encoder"
-                 else "frozen Uni3D teacher features (macro-shape channel)")
+    src_label = {
+        "encoder": "frozen RPF conditioning features c (on-path)",
+        "teacher": "frozen Uni3D teacher features (training-only, NOT used at inference)",
+        "flow": f"flow model intermediate @ aligned layer, t={cfg.get('probe_t', 0.3)} (on-path)",
+    }[source]
     print(f"\n=== mating probe [{source}] — {src_label}: {name} ===")
     print(f"  objects: {n_obj} | points: {x.shape[0]} | feature dim: {x.shape[1]}")
     print(f"  GT mating-label rate: {rate * 100:.2f}%")
