@@ -724,6 +724,12 @@ previous fine-tunes here ended up worse than the checkpoint they started from,
 and evaluated on **worn and fresh** material so a gain bought by wrecking fresh
 objects is reported as the trade it is.
 
+> **Mechanism and the full solution roadmap now live in
+> `TORA_WEAR_SOLUTIONS.md`** — how placement is actually decided inside the model
+> (global all-against-all attention at every layer and step), why that works on
+> fresh breaks and collapses on worn ones, and six candidate fixes ranked by
+> value ÷ effort with the measured evidence for each.
+
 ### Forward direction if S3 also fails
 
 The measurements point somewhere specific. TORA *does* retain partial
