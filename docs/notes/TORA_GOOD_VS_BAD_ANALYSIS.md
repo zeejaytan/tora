@@ -913,10 +913,33 @@ blob beside a separate cluster of coloured sherds — the scattered scan/table
 layout. The model's `*_proposed_assembly*.png` reproduces that same blob +
 cluster structure almost exactly, which is why Chamfer ~ 0 and part_acc = 1.0.
 
-So the model is faithfully solving the problem it was given; the problem is
+> **⚠️ CORRECTION (2026-07-28): the two sentences that followed here were wrong.**
+> They claimed the model was "faithfully solving the problem it was given" and
+> that the blob+cluster geometry was "the model correctly matching an invalid
+> target". **The model cannot match a target it never sees.** In anchor-free mode
+> — which the Juglet uses — `_transform` centres *every* part including the
+> anchor and randomly rotates all non-anchor parts (`dataset.py`), so the input
+> is nine loose sherds and nothing else. The reference is used **only by the
+> evaluator, after the fact, to score**. It is never an instruction.
+>
+> The correct reading: the proposed assembly **is TORA's own unaided
+> reconstruction**, so it can and should be judged on its merits — visually,
+> which is the only honest instrument when no true answer exists (the normal
+> archaeological case). Judged that way it shows **a large anchor sherd with the
+> other eight clustered against one side, and no vessel** — i.e. a **genuine
+> failure to reassemble this pot**, not a scoring artifact. Any resemblance
+> between the output and the scan layout is coincidence or an artifact of the
+> anchor-alignment step applied at scoring time, not the model copying a target.
+>
+> **Two separate faults, both real:** (1) the method genuinely fails to rebuild
+> this vessel, and (2) the reference is an invalid scan layout, so the scores
+> that called this "perfect" are meaningless. Fault (2) hid fault (1); it does
+> not excuse it.
+
+~~So the model is faithfully solving the problem it was given; the problem is
 wrong. The long-observed "anchor blob + separate satellite cluster" failure
 geometry is **the model correctly matching an invalid target**, not a mating
-failure. This independently confirms the invalid-GT finding already flagged in
+failure.~~ This independently confirms the invalid-GT finding already flagged in
 `JUGLET_TORA_ROOTCAUSE.md` and `GARF/docs/notes/JUGLET_DEPLOY_INFERENCE_ANALYSIS.md`,
 and it means **no conclusion about any model's Juglet reassembly ability can be
 drawn from this benchmark as shipped** — the metrics reward reproducing a

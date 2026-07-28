@@ -411,7 +411,35 @@ conclusion stands on repeated measurement, not a single run.
 | **H2** joint-solve / context-dependent | **NOT SUPPORTED** | C1: flat in k (ρ = −0.124, p = 0.55) |
 | **H3** wear-specific degradation | **SUPPORTED, partial** | C2: 0.92 fresh → 0.74 worn (n=1, wide CI) |
 | **H4** piece-count cliff | **real but secondary** | C1: rot_err 15°→44° with k, seating rate flat |
-| **H0** benchmark-only | **still the leading account** | Juglet GT is an invalid scan layout; B1 shows real mate separation |
+| **H0** benchmark-only | **PARTLY WITHDRAWN 2026-07-28** — see below | the scores are meaningless, but the *reconstruction* genuinely fails |
+
+### ⚠️ Correction (2026-07-28) — H0 was overstated
+
+Earlier wording said the model "was never asked to reassemble the Juglet, it was
+asked to reproduce a table layout." **That is wrong.** In anchor-free mode (used
+for the Juglet) `_transform` centres every part *including* the anchor and
+randomly rotates all non-anchor parts, so the model's input is nine loose sherds.
+The reference is consumed **only by the evaluator, after inference, to score** —
+it is a yardstick, never an instruction, and the model cannot copy it.
+
+Consequences:
+- The proposed assembly **is TORA's own unaided reconstruction**, so judging it
+  visually is legitimate — and it is the *only* honest instrument when no true
+  answer exists, which is the normal archaeological case.
+- Judged that way (`artifacts/juglet_viz/`): anchor sherd with the other eight
+  clustered against one side, **no vessel** ⇒ **a genuine failure to reassemble
+  this pot**, not merely a scoring artifact.
+- **Two independent faults, both real:** (1) the method fails on this vessel;
+  (2) the reference is an invalid scan layout so every score from it is
+  meaningless. (2) *concealed* (1) — it does not excuse it.
+- Still true: no *numerical* claim about Juglet reassembly is possible without a
+  correct assembled reference. The *qualitative* verdict does not need one.
+
+This is compatible with B1/C2b rather than contradicting them: TORA has better
+fragment-level signal than GARF (mate separation 1.63×; form channel surviving
+wear) **and still cannot converge on a correct 9-piece worn vessel**. Good local
+signal is not a global solution — consistent with C1, where rotation error grew
+15° → 44° as piece count rose even while seating stayed flat.
 
 **The picture that survives all five tests:** TORA is *not* broken on real
 fracture — pairwise or jointly — and on the worn Juglet it retains both mate

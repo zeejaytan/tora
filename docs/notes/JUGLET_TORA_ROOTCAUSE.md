@@ -28,13 +28,28 @@
 > coloured sherds — the scattered scan/table layout — and the model's
 > `*_proposed_assembly*.png` reproduces that same structure almost exactly.
 >
-> So the long-documented "anchor blob + separate satellite cluster" failure
+> **⚠️ CORRECTED 2026-07-28 — the struck-through claim below was wrong.**
+> ~~So the long-documented "anchor blob + separate satellite cluster" failure
 > geometry is **the model correctly matching an invalid target**, not a mating
-> failure. This confirms the invalid-GT finding this doc already flagged, and
-> means **no conclusion about any model's Juglet reassembly ability can be drawn
-> from this benchmark as shipped** — its metrics reward reproducing a
-> non-assembly. Whether TORA could assemble the Juglet is untested and
-> currently untestable: it needs a genuine assembled ground truth.
+> failure.~~ **The model never sees the target.** In anchor-free mode (used here)
+> `_transform` centres every part including the anchor and randomly rotates all
+> non-anchor parts, so the input is nine loose sherds; the reference is used only
+> by the evaluator afterwards to score. It is a yardstick, never an instruction.
+>
+> The proposed assembly is therefore **TORA's own unaided reconstruction**, and
+> visual inspection is a legitimate — indeed the only honest — way to judge it
+> when no true answer exists, which is the normal archaeological situation.
+> Judged that way (`artifacts/juglet_viz/`): anchor sherd with the other eight
+> clustered against one side, **no vessel**. That is a **real failure to
+> reassemble this pot**, and it is stable across generations (which also vary
+> noticeably run-to-run — the documented instability warning sign).
+>
+> Two distinct faults, both real: the **method** fails to rebuild this vessel,
+> **and** the reference is an invalid scan layout so the scores are meaningless.
+> The broken scores concealed the genuine failure rather than excusing it.
+> What remains true: **no *numerical* conclusion about Juglet reassembly can be
+> drawn from this benchmark as shipped** — a correct assembled reference is still
+> needed to *measure* anything. But the qualitative verdict does not need it.
 >
 > Separately, the premise that TORA is weak on real fracture is **refuted** —
 > the baseline scores 0.861/0.928 part accuracy on real held-out objects,
