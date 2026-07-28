@@ -1,0 +1,19 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# C3 causal wear test: real pots TORA currently reassembles well, with their
+# BREAK SURFACES progressively abraded (GARF's validated mollifier, faces and
+# ground-truth poses preserved). Same pots, same pieces, same poses -- only
+# surface wear varies, so a fall in seating accuracy is caused by the wear.
+# Built by scripts/build_erosion_sweep.py; read with analyze_erosion_sweep.py.
+dataset_names: ["erosion_sweep"]
+
+batch_size: 4
+num_workers: 4
+limit_val_samples: 0
