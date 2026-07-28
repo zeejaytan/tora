@@ -1,0 +1,27 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# S3 — wear-augmented fine-tuning.
+#
+# Teaches TORA to seat fragments whose break surfaces are ABRADED. Until now
+# this was impossible: the only genuinely worn object available (the Juglet) has
+# no correct answer, so there was nothing to learn from. `wear_trainset` is built
+# by applying the validated mollifier to real objects at several wear strengths
+# while PRESERVING their ground-truth poses -- manufactured wear that keeps its
+# answer key.
+#
+# Synthetic replay (pig/rib) is mixed in, mirroring GARF's Exp 11-15 recipe, to
+# resist the forgetting that made earlier fine-tunes here worse than the model
+# they started from.
+dataset_names: ["wear_trainset", "pig", "rib"]
+
+batch_size: 8
+num_workers: 8
+min_dataset_size: 600
+limit_val_samples: 0
