@@ -468,6 +468,66 @@ well established, the exact magnitudes are still one-pot numbers.
 
 ---
 
+## 2026-07-28 — SECOND measurement bug found: broken part-matching corrupts rotation error
+
+Chasing "why did the Juglet fail, and did TORA do well on Fractura?" surfaced a
+discrepancy that could not be explained: **blue_pot scores rot_err 71.6° in the
+raw-scale run but 4.5° in the normalized run — the same pot, same checkpoint,
+same `anchor_free: false`.** Rotation error is supposedly scale-invariant, and
+its ICP does run in normalized space, so scale alone cannot do this.
+
+**Mechanism (found in `tora/eval/metrics.py`).** `compute_part_acc` builds its
+assignment cost as a *boolean*:
+
+```python
+cost_mat = (cd_mat >= threshold).float()      # all-ones when nothing passes
+row_ind, col_ind = linear_sum_assignment(cost_mat)
+```
+
+On raw-scale real data the absolute `CD < 0.01` threshold is unreachable, so
+**every** entry is 1, the matrix is uniform, and `linear_sum_assignment` returns
+an **arbitrary** permutation. That permutation is returned as `matched_part_ids`
+and handed to `compute_transform_errors`, which reorders the predictions by it:
+
+```python
+rotations_pred = rotations_pred[batch_idx, matched_part_ids]
+```
+
+⇒ **rotation error then compares the wrong fragment to the wrong fragment.** The
+55–72° "rotation errors" on raw-scale real objects are not rotations at all;
+they are the signature of scrambled correspondences.
+
+**Evidence (identical objects, both `anchor_free: false`):**
+
+| object | raw-scale part_acc | = 1/n? | raw rot_err | normalized part_acc | normalized rot_err |
+|---|---|---|---|---|---|
+| blue_pot (5) | 0.2000 | **exactly** | 71.6° | 1.00 | **4.5°** |
+| galli_pot (10) | 0.1000 | **exactly** | 72.4° | 0.90 | 27.2° |
+| plate (6) | 0.1667 | **exactly** | 72.4° | 0.67 | 29.9° |
+| narrow_bottle1 (12) | 0.0833 | **exactly** | 64.8° | — | — |
+| pink_bowl (3) | 0.3333 | **exactly** | 60.2° | — | — |
+
+Every raw-scale object sits at *exactly* 1/n — the tell this document already
+names as an instrument failure.
+
+**This retroactively explains the rot_err anomaly flagged on 2026-07-24**
+(`pairs_real` 26.6° vs `pairs_real_norm` 15.2°), which was recorded as
+"scale/stochastic-sensitive, unexplained". It is neither: the un-normalized arm
+had scrambled part correspondences. The note is now resolved.
+
+**Consequence:** the metric bug is *worse* than previously documented. It did not
+only pin `part_accuracy`; it silently corrupted `rotation_error` too, via the
+matching handoff. Both of the metrics that drove the original "TORA is bad at
+real fracture" narrative were broken **by the same root cause**, and
+`rotation_error` was wrongly treated as the trustworthy scale-invariant fallback
+throughout the earlier investigation.
+
+**Rule going forward:** `rotation_error` is only meaningful when `part_accuracy`
+on the same run is *not* pinned at 1/n. Check the matching before quoting a
+rotation.
+
+---
+
 ## Assets (all present, verified 2026-07-24)
 
 - Juglet normalized data: `TORA/dataset/juglet_norm.hdf5` (Spartan).
