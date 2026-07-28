@@ -596,14 +596,62 @@ GARF goes blind; TORA goes imprecise. Both fail to rebuild this pot, but TORA
 fails from a materially better starting position — it still knows which sherds
 are neighbours, which is the part GARF has lost entirely.
 
-### What would change the answer
+### C3 — the causal test: RUN, and wear is confirmed as the cause (job 28228655)
 
-- **Single worn object.** Every wear number here rests on the Juglet alone. More
-  worn archaeological vessels would move this from a strong lead to a result.
-- The decisive causal test remains the erosion bridge (**C3**, GARF's validated
-  mollifier, unmodified): progressively wear a *fresh* pot that TORA currently
-  reassembles and watch seating precision fall. That converts "worn objects
-  score worse" into "wear *causes* the failure". Not yet run.
+Intervention, not comparison: six real pots TORA already reassembles were
+progressively abraded **on their break surfaces only**, with pieces, poses and
+ground truth held fixed (GARF's validated mollifier, vertex-only, fixed physical
+radius). The only variable is wear.
+
+| wear | seating rate | achieved relief_p90 |
+|---|---|---|
+| 0.00 (fresh) | **0.875** | 0.2844 |
+| 0.25 | 0.785 | 0.2680 |
+| 0.50 | 0.758 | 0.2320 |
+| 0.75 | 0.627 | 0.2012 |
+| 1.00 | **0.524** | **0.1829** |
+
+**Monotonic dose-response across every step** — seating falls 0.875 → 0.524, a
+40% relative loss, as the surfaces are worn and nothing else changes.
+Spearman ρ = −0.442, p = 0.0144 (n = 30 object×level).
+
+**Calibration succeeded where GARF's Exp 7 failed.** Achieved relief reaches
+**0.183** against the Juglet's real **0.171** — i.e. our most extreme condition
+is *still slightly less worn than the actual Juglet*, and seating had already
+lost 40%. GARF's bridge plateaued above the target and could not be interpreted;
+this one lands on it, so the result is not an undershoot artifact.
+
+**Per-object, and the honest statistics:**
+
+| object | fresh → full wear | |
+|---|---|---|
+| vert9 | 0.833 → **0.000** | total collapse |
+| coxae | 1.000 → 0.333 | collapse |
+| blue_pot | 1.000 → 0.583 | collapse |
+| galli_pot | 0.815 → 0.630 | degraded |
+| plate | 0.600 → 0.600 | unchanged |
+| limb3 | 1.000 → **1.000** | **immune** |
+
+**4/6 decreased, 2/6 unchanged, 0/6 improved.** Paired tests give p = 0.0625
+(Wilcoxon and sign test) — *just above* the conventional 0.05 threshold with only
+six objects. So: the direction is unambiguous (nothing improved, ever), the
+effect is large where it occurs, and there is a clean dose-response — but the
+formal significance is **marginal, limited by six objects**. Stated plainly:
+strong causal evidence, not yet a fully powered result.
+
+**`limb3` being immune is informative, not noise.** It is a long bone with a
+highly distinctive overall shape — exactly the case where the whole-object form
+channel (C2b, 0.88 under wear) can carry the assembly without fine break detail.
+Wear costs you the seating cue; distinctive form can substitute for it. That is
+the same split C2b measured, now visible at the object level.
+
+### What would still change the answer
+
+- **Six objects.** p = 0.06 needs more pots to become a firm result.
+- **No off-band control yet.** Abrading a *non*-fracture region by the same
+  amount should leave seating untouched; that would prove the effect is carried
+  by the break faces specifically rather than by generic mesh smoothing.
+- Still only **one genuinely worn archaeological object** (the Juglet itself).
 
 ---
 
