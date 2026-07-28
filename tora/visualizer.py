@@ -310,6 +310,26 @@ class FlowVisualizationCallback(VisualizationCallback):
                 # Frame the full cloud; scan-layout GT spans more than [-1, 1]^3.
                 vis_kwargs["center_points"] = True
 
+            # Cloud-export-only mode: skip rendering entirely.
+            if self.renderer == "none":
+                if self.save_assembly_npz:
+                    self._save_assembly_npz(
+                        sample_name=sample_name,
+                        name=batch["name"][i],
+                        dataset_name=dataset_name,
+                        pts_input=pts_norm[i],
+                        pts_gt=pts_gt[i],
+                        part_ids=part_ids[i],
+                        points_per_part=points_per_part[i],
+                        preds=[pointclouds_pred_list[n][i] for n in range(K)],
+                        rotations=[rotations_list[n][i] for n in range(K)] if rotations_list else None,
+                        translations=[translations_list[n][i] for n in range(K)] if translations_list else None,
+                        scale=scale_tensor[i] if scale_tensor is not None else None,
+                    )
+                if self.max_samples_per_batch is not None and i >= self.max_samples_per_batch:
+                    break
+                continue
+
             self._save_sample_images(
                 points=pts[i],
                 colors=colors,

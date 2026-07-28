@@ -48,7 +48,13 @@ def setup(cfg: DictConfig):
 
     vis_config = cfg.get("visualizer", {})
     callbacks = []
-    if vis_config and cfg["visualizer"]["renderer"] != "none":
+    # The callback is also what exports posed 3D clouds (`save_assembly_npz`),
+    # which is useful without rendering any images -- so instantiate it when
+    # either a renderer or the cloud export is requested.
+    if vis_config and (
+        cfg["visualizer"]["renderer"] != "none"
+        or bool(vis_config.get("save_assembly_npz", False))
+    ):
         vis_callback: VisualizationCallback = hydra.utils.instantiate(vis_config)
         callbacks.append(vis_callback)
 
