@@ -50,7 +50,7 @@ def gt_free_features(pts, slices, diag):
     trees = [cKDTree(pts[a:b]) for a, b in slices]
     k = len(slices)
 
-    contact, overlap, touched = [], [], 0
+    contact, tight, touched = [], [], 0
     for i, (a, b) in enumerate(slices):
         best = np.full(b - a, np.inf)
         for j in range(k):
@@ -60,7 +60,12 @@ def gt_free_features(pts, slices, diag):
             best = np.minimum(best, d)
         c = float(np.mean(best < tau))
         contact.append(c)
-        overlap.append(float(np.mean(best < tau_pen)))
+        # NOTE: this is TIGHT CONTACT, not interpenetration. An earlier version
+        # called it "overlap" and it correlated POSITIVELY with quality (+0.69),
+        # which is the giveaway: correctly seated fragments sit close together.
+        # Detecting true interpenetration needs inside/outside tests on
+        # watertight meshes, which point clouds alone cannot provide.
+        tight.append(float(np.mean(best < tau_pen)))
         if c > 0.01:
             touched += 1
 
@@ -77,7 +82,7 @@ def gt_free_features(pts, slices, diag):
     return {
         "contact": float(np.mean(contact)),
         "connectivity": touched / k,
-        "overlap": float(np.mean(overlap)),
+        "tight_contact": float(np.mean(tight)),
         "compactness": float(np.mean(part_diags) / asm_diag),
         "shell": shell,
     }
@@ -131,36 +136,65 @@ def main() -> None:
         print("no assemblies found")
         return
 
-    feats = ["contact", "connectivity", "overlap", "compactness", "shell"]
+    feats = ["contact", "connectivity", "tight_contact", "compactness", "shell"]
     print(f"\n=== scored {len(rows)} assemblies from {args.clouds_dir} ===")
 
     if args.validate:
-        from scipy.stats import spearmanr
-        print("\nDoes each score track real quality? (ground truth used ONLY here)")
-        for f in feats:
-            x = [r[f] for r in rows]
-            y = [r["true_seating"] for r in rows]
-            rho, p = spearmanr(x, y)
-            flag = "  <-- usable" if abs(rho) > 0.3 and p < 0.05 else ""
-            print(f"  {f:<13s} rho={rho:+.3f}  p={p:.4f}{flag}")
-
-        # can a score pick the good attempt, per object?
+        from scipy.stats import spearmanr, wilcoxon
         byobj = {}
         for r in rows:
             byobj.setdefault(r["name"], []).append(r)
-        print("\nPicking one attempt per object:")
-        base = np.mean([np.mean([g["true_seating"] for g in v]) for v in byobj.values()])
-        ceil = np.mean([max(g["true_seating"] for g in v) for v in byobj.values()])
-        print(f"  take a random attempt (average): {base:.3f}")
-        print(f"  an oracle picking the best     : {ceil:.3f}   (headroom {ceil - base:+.3f})")
+
+        # THE RIGHT TEST. Selection happens WITHIN one object, choosing among its
+        # attempts. A global correlation across different objects answers a
+        # different question and can flatly disagree -- an earlier version of this
+        # script reported `shell` at rho=-0.03 (useless) yet recovering 75% of the
+        # headroom, which is exactly that mismatch.
+        print("\nWithin-object ranking — does the score order THIS pot's attempts")
+        print("the way real quality does? (ground truth used ONLY to check)")
+        for f in feats:
+            rhos = []
+            for v in byobj.values():
+                ys = [g["true_seating"] for g in v]
+                if len(v) < 3 or len(set(ys)) < 2:
+                    continue                      # no signal to rank
+                rho, _ = spearmanr([g[f] for g in v], ys)
+                if not np.isnan(rho):
+                    rhos.append(rho)
+            if not rhos:
+                print(f"  {f:<15s} (no rankable objects)")
+                continue
+            m = float(np.mean(rhos))
+            try:
+                _, p = wilcoxon(rhos, alternative="two-sided")
+            except Exception:
+                p = float("nan")
+            flag = "  <-- ranks correctly" if m > 0.2 and p < 0.05 else ""
+            print(f"  {f:<15s} mean rho={m:+.3f}  n={len(rhos):2d} objects  p={p:.4f}{flag}")
+
+        print("\nPicking one attempt per object (is the gain real?):")
+        per_obj_mean = {k: np.mean([g["true_seating"] for g in v]) for k, v in byobj.items()}
+        base = float(np.mean(list(per_obj_mean.values())))
+        ceil = float(np.mean([max(g["true_seating"] for g in v) for v in byobj.values()]))
+        print(f"  take an attempt at random : {base:.3f}")
+        print(f"  an oracle picking the best: {ceil:.3f}   (headroom {ceil - base:+.3f})")
         for f in feats:
             for sign, lab in ((1, ""), (-1, " (low)")):
-                sel = [max(v, key=lambda r: sign * r[f])["true_seating"] for v in byobj.values()]
-                got = np.mean(sel)
-                if got > base + 1e-9:
-                    frac = (got - base) / (ceil - base) if ceil > base else 0.0
-                    print(f"  select by {f}{lab:<6s}: {got:.3f}   "
-                          f"({frac * 100:.0f}% of the available headroom)")
+                sel = {k: max(v, key=lambda r: sign * r[f])["true_seating"]
+                       for k, v in byobj.items()}
+                got = float(np.mean(list(sel.values())))
+                if got <= base + 1e-9:
+                    continue
+                a = [sel[k] for k in byobj]
+                b = [per_obj_mean[k] for k in byobj]
+                try:
+                    _, p = wilcoxon(a, b, alternative="greater")
+                except Exception:
+                    p = float("nan")
+                frac = (got - base) / (ceil - base) if ceil > base else 0.0
+                sig = "SIGNIFICANT" if p < 0.05 else "not significant"
+                print(f"  select by {f}{lab:<6s}: {got:.3f}  "
+                      f"({frac * 100:3.0f}% of headroom)  p={p:.4f}  {sig}")
 
     if args.out_json:
         open(args.out_json, "w").write(json.dumps(rows, indent=2))
