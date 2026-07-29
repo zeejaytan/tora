@@ -55,6 +55,79 @@ def _band_mask(pieces, idx, verts, band_tau_frac=0.02, feather_mult=3.0):
     return hard, feather
 
 
+def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
+                    chip_frac: float = 0.010, seed: int = 0, verbose: bool = False):
+    """Material LOSS done properly: recede the fracture edge and chip the points.
+
+    Conservator's description of what burial actually does to a sherd:
+      * the fracture edge RECEDES — material is lost from the break, so worn
+        sherds no longer meet tightly and gaps open at the joins;
+      * small CHIPS form on the pointy ends, which are the most exposed and
+        fragile parts of a fragment. Localised and modest, not a uniform shrink.
+
+    The earlier attempt (`material_loss` in `wear_piece_set`) tried to fake this
+    by displacing vertices inward along their normals. That is not what loss is,
+    and it failed accordingly — relief blew up ~6x because per-vertex
+    displacement on noisy normals corrugates the surface instead of removing
+    material (calibration job 28287699).
+
+    This REMOVES GEOMETRY instead: faces near the fracture rim, and small patches
+    at sharp protrusions, are deleted. That is topologically what abrasion does,
+    and it cannot corrugate a surface because it never moves a vertex.
+
+    Returns a list of (verts, faces) — topology changes, so faces come back too.
+    """
+    rng = np.random.default_rng(seed)
+    allv = np.concatenate([v for v, _ in pieces], axis=0)
+    scale = float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-9
+    out = []
+
+    for i, (v, f) in enumerate(pieces):
+        hard, feather = _band_mask(pieces, i, v)
+        keep = np.ones(len(f), bool)
+
+        # --- edge recession: drop faces at the rim of the break surface ---
+        # the rim is where the break face meets the original surface: partially
+        # feathered, not deep inside the contact band.
+        rim_v = (feather > 0.15) & (feather < 0.98)
+        if rim_v.any() and recession_frac > 0:
+            rim_pts = v[rim_v]
+            tree = cKDTree(rim_pts)
+            fc = v[f].mean(axis=1)                      # face centroids
+            d, _ = tree.query(fc)
+            keep &= d > (recession_frac * scale)
+
+        # --- chipping: remove small patches at sharp, exposed protrusions ---
+        if chip_count > 0 and chip_frac > 0:
+            try:
+                m = trimesh.Trimesh(vertices=v, faces=f, process=False)
+                sharp = np.asarray(m.vertex_defects)     # angle deficit: high = pointy
+            except Exception:
+                sharp = np.zeros(len(v))
+            cand = np.where(hard & (sharp > np.percentile(sharp[hard], 90))
+                            if hard.any() else np.zeros(len(v), bool))[0]
+            if len(cand) > 0:
+                picks = rng.choice(cand, size=min(chip_count, len(cand)), replace=False)
+                fc = v[f].mean(axis=1)
+                ftree = cKDTree(fc)
+                for p in picks:
+                    r = chip_frac * scale * rng.uniform(0.5, 1.5)
+                    keep[ftree.query_ball_point(v[p], r)] = False
+
+        nf = f[keep]
+        if len(nf) < 16:                                 # never delete a piece
+            out.append((v.copy(), f.copy()))
+            continue
+        m = trimesh.Trimesh(vertices=v, faces=nf, process=False)
+        m.remove_unreferenced_vertices()
+        if verbose:
+            print(f"      piece {i}: faces {len(f)} -> {len(m.faces)} "
+                  f"({100 * (1 - len(m.faces) / len(f)):.1f}% removed)", flush=True)
+        out.append((np.asarray(m.vertices, dtype=np.float64),
+                    np.asarray(m.faces, dtype=np.int64)))
+    return out
+
+
 def wear_to_target(pieces, target_relief: float, *, kernel_frac_max: float = 0.05,
                    lo: float = 0.0, hi: float = 1.0, iters: int = 5, verbose: bool = False):
     """Wear each object until it REACHES a target roughness, not by a fixed amount.
