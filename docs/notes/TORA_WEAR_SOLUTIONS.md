@@ -312,6 +312,58 @@ arbitrary choice costs.
 
 ---
 
+## 4b. The wear-trained checkpoint ON THE REAL JUGLET (job 28266869)
+
+The sweep validated the fix on *artificially* abraded pots. The Juglet is the
+genuine article: real archaeological wear, 9 fragments, near-symmetric vessel.
+
+**Visual (the only honest instrument here — no valid ground truth exists).**
+`artifacts/juglet_viz/wearft/COMPARISON_wearft.png`:
+
+- **Real, visible improvement.** The sherds are markedly **more compact and
+  better organised**, hugging the anchor fragment in a coherent mass that follows
+  its contour, instead of fanning outward with pieces jutting into space.
+- **Noticeably more consistent across attempts** than the baseline, whose
+  arrangements varied considerably run-to-run (that instability was itself a
+  documented warning sign).
+- **Still not a vessel.** No neck, no closed body profile. **The Juglet is not
+  reassembled.**
+
+**Pairwise (PF++ pseudo-GT, form-level only), mean-over-generations:**
+
+| | true neighbours | unrelated pairs | ratio |
+|---|---|---|---|
+| baseline | 65.6% | 27.8% | **2.36×** (p = 0.002) |
+| wear-trained | 67.8% | **54.4%** | 1.24× (p = 0.17, n.s.) |
+
+The wear-trained model improved only marginally on true neighbours (65.6 → 67.8%)
+but **greatly** on unrelated pairs (27.8 → 54.4%), so its *discrimination ratio*
+fell. This is not a regression in disguise — it is the predicted behaviour: for a
+non-touching pair the pseudo-GT still specifies where the two sit in the overall
+vessel, so scoring better there means **placing fragments by whole-object form
+rather than by local edge-matching**. Exactly what the training targeted and what
+the mechanism probes (§2) predicted: less reliance on destroyed micro-texture,
+more on surviving form.
+
+**Verdict: the lever works, and it is not sufficient for this pot.** Arranging
+fragments plausibly is not the same as joining them correctly.
+
+Two honest limits on why:
+
+1. **The Juglet is worn beyond the training range.** Its measured roughness
+   (relief_p90 **0.171**) is slightly past our most extreme simulated level
+   (**0.183** — lower = more worn). We trained up to *almost* this pot's
+   condition, not past it.
+2. **Simulated wear is a proxy.** The mollifier smooths break faces; burial also
+   rounds edges, chips rims and removes material. A real limitation of the
+   approach, not a tuning knob.
+
+**This is the most informative negative available**: it says artificial wear does
+not fully substitute for the real thing, and bounds how far this route can go
+without genuinely worn training material.
+
+---
+
 ## 5. Recommended order (revised after S3 succeeded)
 
 0. **S3 is the primary route** — it works (p = 0.008), recovers worn-pot seating
