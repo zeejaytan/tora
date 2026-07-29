@@ -68,20 +68,72 @@ With 9 fragments resolved simultaneously and continuously, weak evidence
 compounds: one ambiguous sherd pushes its neighbours wrong, worsening their
 comparisons in turn.
 
-### The key nuance — this looks like a learned shortcut
+### The key nuance — a learned shortcut, now CONFIRMED
 
-Whole-object form information **is already present** in the features (that is
-what the Uni3D alignment contributes, measured surviving wear at **0.88**), and
-global attention has access to it. So why isn't it used to rescue placement?
+> **⚠️ Corrects an earlier overstatement.** I originally wrote that form
+> information "is already present in the model's features", citing 0.88. That
+> 0.88 was the **Uni3D teacher's own** features — and the teacher is
+> **training-only, discarded at inference**. It showed what was *available to
+> transfer*, not what TORA carries where placement happens. Three separate
+> claims had been run together. Both have now been measured.
 
-Most likely because it never had to be. Training used only breaks with excellent
-micro-texture, where surface matching always succeeded. The model learned the
-shortcut and never needed form for placement.
+**Did the structure transfer? Partially** (job 28232465, probing the flow model's
+own features at the aligned layer, stable across t = 0.1/0.3/0.6):
 
-**This is a testable prediction**, and S3 (wear-augmented fine-tuning) tests it:
-removing the shortcut should force the model onto the form information it
-already has. If S3 fails anyway, the model *cannot* use form for placement, and
-an explicit matching stage stops being optional.
+| features | worn Juglet | fresh real | simulated |
+|---|---|---|---|
+| frozen RPF encoder | 0.71 | 0.92 | 0.96 |
+| **TORA's aligned flow features** | **0.77** | 0.95 | 0.99 |
+| Uni3D teacher (*training-only*) | 0.88 | 0.94 | 0.99 |
+
+TORA's own features are consistently better than the raw encoder — so the
+alignment *did* hand something over — but fall well short of the teacher (0.77
+vs 0.88), and the wear-induced collapse is barely softened (−0.18 vs −0.21).
+**Some of it is there, and it is not enough.**
+
+**Did S3 fix it by seeing better, or by using what it had?** Probing the
+wear-trained checkpoint identically (job 28240775):
+
+| features | baseline | wear-trained |
+|---|---|---|
+| encoder, worn | 0.717 | 0.693 |
+| **flow, worn** | 0.758 | **0.782** |
+| flow, fresh real | 0.950 | 0.947 |
+
+**The features barely moved** — every change sits inside the ±0.02 run-to-run
+noise measured in the C2b seed sweep — yet placement improved by **+0.235**
+(p = 0.008). So:
+
+> **S3 taught the model to USE the information it already had, not to extract
+> better information.** Perception was never the bottleneck; the placement
+> policy was.
+
+This confirms the shortcut hypothesis directly. Consequences:
+
+- **Better perception is not the priority.** A stronger encoder would not have
+  helped; the features were already adequate and were being under-exploited.
+- **D (explicit matching stage) drops further in priority** — the model can
+  evidently learn worn placement from the features it has.
+- **A true LoRA becomes attractive.** S3 was a *full* fine-tune, and it damaged
+  fresh-material performance (§3). Since the needed change is in how features
+  are *used*, not in the features themselves, a low-rank adapter on the flow
+  model's later layers should capture the gain while leaving the fresh-break
+  behaviour largely intact — the obvious way to remove the trade-off.
+
+### What Uni3D actually supplies (and what it does not)
+
+The teacher is shown `pointclouds_gt` — the **correctly assembled pot** (coords
+plus a constant colour) — and the CKA loss pushes the flow model's layer-3
+features (of 6) to reproduce its *pairwise similarity structure*: which points on
+the vessel resemble which others.
+
+So it conveys **generic whole-object shape structure**, learned from seeing the
+pot intact. It does **not** encode wall thickness, rim curvature, or profile
+continuity — Uni3D-L is a general shape model trained on complete everyday
+objects for retrieval/classification; it knows nothing of pottery and never sees
+fragments. Those conservation cues describe what an **explicit matching stage
+could be fed** (idea D), *not* what the model currently measures. Nothing in
+TORA presently quantifies the properties a conservator would reason from.
 
 ---
 
