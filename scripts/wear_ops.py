@@ -55,6 +55,50 @@ def _band_mask(pieces, idx, verts, band_tau_frac=0.02, feather_mult=3.0):
     return hard, feather
 
 
+def wear_to_target(pieces, target_relief: float, *, kernel_frac_max: float = 0.05,
+                   lo: float = 0.0, hi: float = 1.0, iters: int = 5, verbose: bool = False):
+    """Wear each object until it REACHES a target roughness, not by a fixed amount.
+
+    This is the fix the calibration pointed to (job 28287699). A fixed strength
+    wears different pots by wildly different amounts: at the same setting
+    `blue_pot` reached relief 0.110 while `limb3` only reached 0.171, and the
+    training-set mean of 0.183 hid that spread. Half the training material never
+    reached the condition we actually care about.
+
+    Raising the kernel does NOT fix this — the mollifier SATURATES (0.1707 ->
+    0.1789 -> 0.1820 as the kernel grows), the same plateau GARF hit in Exp 7/7b.
+    So the lever is per-object strength, targeted.
+
+    Binary-searches mollification strength so each object lands near
+    `target_relief` (lower = more worn). Returns (verts, achieved_relief).
+    """
+    from fracture_mesh_ops import piece_relief_stats
+
+    def relief_of(vs):
+        return float(np.mean([piece_relief_stats(v, f)["relief_p90"]
+                              for v, (_, f) in zip(vs, pieces)]))
+
+    best_v = [v.copy() for v, _ in pieces]
+    best_r = relief_of(best_v)
+    if best_r <= target_relief:
+        return best_v, best_r          # already at least this worn
+
+    for _ in range(iters):
+        mid = 0.5 * (lo + hi)
+        v = erode_fracture_band(pieces, strength=max(mid, 1e-6),
+                                kernel_frac_max=kernel_frac_max)
+        r = relief_of(v)
+        if verbose:
+            print(f"      strength {mid:.3f} -> relief {r:.4f}", flush=True)
+        if abs(r - target_relief) < abs(best_r - target_relief):
+            best_v, best_r = v, r
+        if r > target_relief:
+            lo = mid                   # not worn enough -> wear harder
+        else:
+            hi = mid
+    return best_v, best_r
+
+
 def wear_piece_set(pieces, strength: float, *, kernel_frac_max: float = 0.05,
                    material_loss: float = 0.0, edge_round: float = 0.0):
     """Apply mollification + material loss + edge rounding. Returns new vertex arrays.
@@ -64,8 +108,16 @@ def wear_piece_set(pieces, strength: float, *, kernel_frac_max: float = 0.05,
         strength: mollification strength (0 = none).
         kernel_frac_max: mollification radius as a fraction of piece scale.
             Raise this to push wear PAST the Juglet's real level.
-        material_loss: inward displacement of band vertices, as a fraction of
-            object scale. This is what opens gaps between worn sherds.
+        material_loss: **BROKEN — DO NOT USE FOR TRAINING.** Calibration job
+            28287699 showed this drives relief to 1.03-1.07, i.e. ~6x ROUGHER,
+            when it should be smoother. Values near 1.0 mean neighbouring
+            normals are near-perpendicular: mangled geometry, not an abraded
+            pot. Cause: displacing each vertex along ITS OWN normal on a
+            million-vertex scan with noisy normals adds high-frequency noise
+            instead of removing material. Real material loss needs solid-body
+            erosion (offsetting the whole surface, e.g. via a signed-distance
+            field), not per-vertex nudging. Kept only so the failure is on
+            record and not re-attempted this way.
         edge_round: extra smoothing applied at the break/original-surface edge.
     """
     if strength > 0:
