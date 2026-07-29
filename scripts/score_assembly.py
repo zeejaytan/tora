@@ -28,9 +28,15 @@ import glob
 import json
 import os
 
+import sys
+from pathlib import Path
+
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import cKDTree
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from vessel_features import vessel_features  # noqa: E402
 
 
 def part_slices(ppp):
@@ -128,6 +134,11 @@ def main() -> None:
         for gi, g in enumerate(z["generations_proposed"]):
             rec = {"name": str(z["name"]), "gen": gi}
             rec.update(gt_free_features(g, sl, diag))
+            try:
+                rec.update(vessel_features(g))
+            except Exception:
+                rec.update({"axis_residual": np.nan, "profile_smooth": np.nan,
+                            "thickness_cv": np.nan, "radial_gap": np.nan})
             if args.validate:
                 rec["true_seating"] = true_seating(g, gt, sl, thr)
             rows.append(rec)
@@ -136,7 +147,10 @@ def main() -> None:
         print("no assemblies found")
         return
 
-    feats = ["contact", "connectivity", "tight_contact", "compactness", "shell"]
+    feats = ["contact", "connectivity", "tight_contact", "compactness", "shell",
+             "axis_residual", "profile_smooth", "thickness_cv", "radial_gap"]
+    rows = [r for r in rows if not any(
+        isinstance(r.get(f), float) and np.isnan(r.get(f)) for f in feats)]
     print(f"\n=== scored {len(rows)} assemblies from {args.clouds_dir} ===")
 
     if args.validate:
