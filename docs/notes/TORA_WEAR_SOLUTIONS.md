@@ -326,8 +326,16 @@ genuine article: real archaeological wear, 9 fragments, near-symmetric vessel.
 - **Noticeably more consistent across attempts** than the baseline, whose
   arrangements varied considerably run-to-run (that instability was itself a
   documented warning sign).
-- **Still not a vessel.** No neck, no closed body profile. **The Juglet is not
-  reassembled.**
+- **Assessment corrected by the conservator (2026-07-29).** My original wording
+  here was "still not a vessel — the Juglet is not reassembled", judged against a
+  binary complete/incomplete standard. The domain expert reads generation 1
+  differently and more usefully: **a base and a vessel shape are present**, with
+  gaps still to close and some fragments not correctly fitted. That is the
+  judgement that matters for deciding whether to continue, and it is their
+  expertise, not mine. **Recorded as: a genuine partial reassembly showing
+  vessel form — worth building on, not yet a solved pot.**
+- Still true and worth stating: joins are not closed and some placements are
+  wrong, so this is not a finished reconstruction.
 
 **Pairwise (PF++ pseudo-GT, form-level only), mean-over-generations:**
 
@@ -345,8 +353,11 @@ rather than by local edge-matching**. Exactly what the training targeted and wha
 the mechanism probes (§2) predicted: less reliance on destroyed micro-texture,
 more on surviving form.
 
-**Verdict: the lever works, and it is not sufficient for this pot.** Arranging
-fragments plausibly is not the same as joining them correctly.
+**Verdict (revised): the lever works and has produced the first partial
+reassembly of the Juglet showing genuine vessel form** — base present, profile
+emerging, joins not yet closed, some fragments misplaced. Not a solved pot, but a
+qualitatively different result from the baseline's anchor-plus-scatter, and the
+first output from any method here that a conservator judged worth building on.
 
 Two honest limits on why:
 
@@ -361,6 +372,24 @@ Two honest limits on why:
 **This is the most informative negative available**: it says artificial wear does
 not fully substitute for the real thing, and bounds how far this route can go
 without genuinely worn training material.
+
+---
+
+### Agreed plan (conservator's ordering, 2026-07-29)
+
+Work proceeds in this order, chosen by the user and better than my original:
+
+1. **Recognise a good attempt without the answer key** (idea A). Build the
+   judgement first, so improvements can be *seen*. It also has an immediate
+   validation target: does it rank the Juglet generation the conservator picked?
+2. **Extend the wear simulation** past the Juglet's real roughness, and add
+   edge-rounding and material loss rather than only smoothing break faces.
+3. **A true LoRA** to keep the worn-material gain without the fresh-material loss
+   the full fine-tune caused.
+
+The reasoning for putting selection first: it is independent of training, needs
+no GPU, works on material with no ground truth, and turns "the model sometimes
+gets it right" into "the model can tell you when it did".
 
 ---
 
