@@ -213,7 +213,60 @@ tuned, treat them as two tools rather than one.
 
 ## 4. Candidate fixes, ranked by value ÷ effort
 
-### A. Recognise a good attempt without the answer key — **highest value, no retraining**
+### A. Recognise a good attempt without the answer key — **ATTEMPTED, FAILED** (jobs 28287458, 28287642)
+
+> **Status 2026-07-29: two feature families tried, both fail.** The headroom is
+> real and remains unreached. Documented here so it is not re-attempted the same
+> way.
+
+**Family 1 — geometric "togetherness"** (contact, tight contact, connectivity,
+compactness, shell). **Family 2 — vessel-form** (surface-of-revolution residual,
+profile smoothness, wall-thickness variation, angular coverage), motivated by
+the form channel surviving wear (C2b 0.88).
+
+Within-pot rank correlation against true quality, 300 assemblies, 10 attempts
+per pot:
+
+| feature | mean rho | p |
+|---|---|---|
+| contact | −0.150 | 0.13 |
+| connectivity | +0.085 | 0.63 |
+| tight_contact | −0.048 | 0.69 |
+| compactness | −0.016 | 0.76 |
+| shell | −0.109 | 0.44 |
+| axis_residual | −0.133 | 0.30 |
+| profile_smooth | +0.034 | 0.90 |
+| thickness_cv | +0.110 | 0.33 |
+| **radial_gap** | **−0.244** | **0.073** ← nearest miss |
+
+Selection recovers **at most 14% of the +0.130 headroom, none significant**
+(best p = 0.22).
+
+**⚠️ Methodological trap, recorded because it nearly fooled me.** A first
+validation measured correlation ACROSS all assemblies and reported +0.69, +0.57,
++0.51 — apparently strong. That was a **between-pot artefact**: easy pots score
+well on both quality and geometry, hard pots poorly on both. Selection happens
+*within* one pot, and there the same features are blind. **Always test
+within-object ranking for a selection task.**
+
+**Why it fails — the likely diagnosis.** The oracle gap is real (+0.130), so
+attempts genuinely differ in quality. But they differ in *which fragments landed
+correctly*, not in any whole-assembly shape property: attempt A may seat
+fragments 1-2-3 and miss 4-5, attempt B seat 1-2-4 and miss 3-5. Both look
+equally vessel-like globally while scoring differently. **Global shape features
+are the wrong granularity** — the signal needed is per-fragment placement
+confidence, which is precisely the local mating judgement that wear destroys.
+
+**Caveat on power:** only 15 of 30 pots had any variation to rank (seating is
+discrete — with *k* fragments it takes only *k* values), so the test is
+underpowered. `radial_gap` at p = 0.073 is a near-miss that more pots or a finer
+quality measure might resolve.
+
+**Recommendation:** do not tune further features. If revisited, score
+*individual fragment placements*, not whole assemblies — and note that may be
+fundamentally hard for exactly the reason the pot fails in the first place.
+
+<details><summary>Original (still-valid) motivation for this idea</summary>
 
 **The model already succeeds on worn pots — it just cannot tell when.** Across
 the 10 attempts it already makes (job 28229895, `gens10`):
@@ -243,6 +296,8 @@ fraction, with published baselines PF++ 0.961 / GARF 0.719 / random 0.650).
 - **Risk:** low — changes nothing about the model.
 - **Deployable on real material**, unlike everything else here.
 - **Ceiling:** bounded by the best attempt; will not fix full-wear cases.
+
+</details>
 
 ### B. Human-in-the-loop partial assembly — **high value, modest effort, most conservation-relevant**
 
@@ -379,9 +434,11 @@ without genuinely worn training material.
 
 Work proceeds in this order, chosen by the user and better than my original:
 
-1. **Recognise a good attempt without the answer key** (idea A). Build the
-   judgement first, so improvements can be *seen*. It also has an immediate
-   validation target: does it rank the Juglet generation the conservator picked?
+1. ~~**Recognise a good attempt without the answer key** (idea A).~~
+   **ATTEMPTED AND FAILED 2026-07-29** — two feature families, neither ranks a
+   pot's own attempts (best p = 0.22). See §4 A for the negative result, the
+   between-pot validation trap, and why global shape features are the wrong
+   granularity. **Moving to step 2.**
 2. **Extend the wear simulation** past the Juglet's real roughness, and add
    edge-rounding and material loss rather than only smoothing break faces.
 3. **A true LoRA** to keep the worn-material gain without the fresh-material loss
