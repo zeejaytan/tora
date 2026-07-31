@@ -1,23 +1,27 @@
-"""Check that edge recession + chipping behaves like real wear, not like noise.
+"""Check the wear model behaves like real wear, before any dataset is built on it.
 
-Validates the conservator-specified wear model (`wear_ops.recede_and_chip`)
-before any training data is built on it. Three things must hold:
+Validates `wear_ops.apply_wear` — the model intended for this and future
+datasets. Four things must hold, and the first is the one earlier versions failed:
 
-  joint_gap   MUST INCREASE. This is the point: worn sherds no longer meet
-              tightly, so gaps open at the joins. No previous training data had
-              this — fragments always still mated perfectly, just with smoother
-              faces. It changes the assembly problem, not just its appearance.
+  joint_gap   MUST RISE, ON EVERY POT. Worn sherds no longer meet tightly, so
+              gaps open at the joins. No previous training data had this —
+              fragments always still mated perfectly, merely with smoother
+              faces. A rim-only version passed on limb3 (x2.6) but FAILED on
+              blue_pot (x0.8), because broad contact faces still met in the
+              middle; that is why recession now acts on the mating surface.
 
-  faces_kept  should stay HIGH (~95%+). Chips are small and local, not a
-              uniform shrink of the sherd.
+  faces_kept  ~95%+. Chips are small and local, not a uniform shrink. The
+              previous version removed 15-34%, which destroys the sherd.
 
-  relief      must stay SANE. The previous material-loss attempt drove this to
-              ~1.0 (six times rougher) because per-vertex displacement
-              corrugates the surface. Removing geometry cannot do that, and this
-              is the check that proves it.
+  relief      must stay SANE (~0.2-0.4). Displacement along RAW normals drove
+              this to ~1.0 — six times rougher — by corrugating the surface.
+              Smoothing the normal field first is the fix, and this is the check.
+
+  poses       untouched by construction: geometry-only edits, so ground truth
+              and scoring stay valid.
 
 Usage:
-  python scripts/validate_wear_ops.py [--src ...] [--objects limb3,blue_pot]
+  python scripts/validate_wear_ops.py [--objects limb3,blue_pot]
 """
 
 import argparse
@@ -30,11 +34,11 @@ from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fracture_mesh_ops import piece_relief_stats  # noqa: E402
-from wear_ops import recede_and_chip  # noqa: E402
+from wear_ops import apply_wear  # noqa: E402
 
 
 def joint_gap(pieces):
-    """How tightly do the pieces meet? 10th-percentile nearest-other-piece distance."""
+    """How tightly do fragments meet? Mean 10th-pct nearest-other-piece distance."""
     out = []
     for i, (v, _) in enumerate(pieces):
         best = np.full(len(v), np.inf)
@@ -58,12 +62,19 @@ def main() -> None:
     ap.add_argument("--objects", default="limb3,blue_pot")
     args = ap.parse_args()
 
-    settings = [(0.002, 4, 0.008), (0.004, 6, 0.010), (0.008, 10, 0.014)]
-    print("Does edge recession + chipping behave like real wear?")
-    print("  gap MUST rise | faces should stay high | relief must stay sane (~0.2-0.4)")
-    print()
-    print("  object     setting             relief   faces_kept   joint_gap")
+    # light / moderate / heavy — recession is the key axis, kept small
+    settings = [
+        ("light",    dict(smoothing=1.0, recession=0.0008, chip_count=3, chip_size=0.0020)),
+        ("moderate", dict(smoothing=1.0, recession=0.0015, chip_count=4, chip_size=0.0030)),
+        ("heavy",    dict(smoothing=1.0, recession=0.0030, chip_count=6, chip_size=0.0040)),
+    ]
 
+    print("Wear model validation — gap MUST rise on EVERY pot")
+    print("  faces_kept ~95%+ | relief sane 0.2-0.4 | gap x>1.0")
+    print()
+    print("  object     setting    relief   faces_kept   joint_gap   verdict")
+
+    ok = True
     with h5py.File(args.src, "r") as h:
         for obj in [o.strip() for o in args.objects.split(",") if o.strip()]:
             grp = h[args.dataset][obj]
@@ -74,17 +85,31 @@ def main() -> None:
 
             n0 = sum(len(f) for _, f in pieces)
             g0 = joint_gap(pieces)
-            print("  %-10s %-19s %.4f   %6.1f%%      %.5f" %
-                  (obj, "original", mean_relief(pieces), 100.0, g0), flush=True)
+            r0 = mean_relief(pieces)
+            print("  %-10s %-10s %.4f   %6.1f%%      %.5f" % (obj, "original", r0, 100.0, g0),
+                  flush=True)
 
-            for rec, chips, cf in settings:
-                w = recede_and_chip(pieces, recession_frac=rec,
-                                    chip_count=chips, chip_frac=cf)
+            for name, kw in settings:
+                w = apply_wear(pieces, **kw)
                 n = sum(len(f) for _, f in w)
-                gw = joint_gap(w)
-                print("  %-10s rec=%.3f chips=%2d   %.4f   %6.1f%%      %.5f  (gap x%.1f)" %
-                      (obj, rec, chips, mean_relief(w), 100.0 * n / n0, gw,
-                       gw / max(g0, 1e-9)), flush=True)
+                gw, rw = joint_gap(w), mean_relief(w)
+                kept = 100.0 * n / n0
+                ratio = gw / max(g0, 1e-9)
+                bad = []
+                if ratio <= 1.0:
+                    bad.append("GAP DID NOT OPEN")
+                if kept < 90.0:
+                    bad.append("too much removed")
+                if not (0.10 <= rw <= 0.60):
+                    bad.append("relief unsane")
+                if bad:
+                    ok = False
+                print("  %-10s %-10s %.4f   %6.1f%%      %.5f   x%.2f %s" %
+                      (obj, name, rw, kept, gw, ratio,
+                       "OK" if not bad else "<-- " + "; ".join(bad)), flush=True)
+
+    print()
+    print("RESULT:", "wear model behaves correctly" if ok else "NOT READY — see flags above")
 
 
 if __name__ == "__main__":

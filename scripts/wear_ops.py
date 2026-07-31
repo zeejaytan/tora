@@ -55,6 +55,63 @@ def _band_mask(pieces, idx, verts, band_tau_frac=0.02, feather_mult=3.0):
     return hard, feather
 
 
+def _smoothed_normals(v, f, mask, k: int = 16):
+    """Outward vertex normals, averaged over neighbours to remove scan noise.
+
+    This is the fix for the corrugation failure. Displacing along RAW per-vertex
+    normals on a million-point scan adds high-frequency noise — measured relief
+    blew up ~6x (job 28287699). Averaging the normal field first makes the
+    displacement smooth, so the surface retreats instead of crumpling.
+
+    Only computed for `mask` vertices (the fracture band), which is a small
+    fraction of the mesh — smoothing all of a 1M-vertex scan is needlessly slow.
+    """
+    m = trimesh.Trimesh(vertices=v, faces=f, process=False)
+    try:
+        vn = np.asarray(m.vertex_normals, dtype=np.float64)
+    except Exception:
+        return np.zeros_like(v)
+    idx = np.where(mask)[0]
+    if len(idx) == 0:
+        return np.zeros_like(v)
+    tree = cKDTree(v)
+    _, nb = tree.query(v[idx], k=min(k, len(v)))
+    sm = vn[nb].mean(axis=1)
+    n = np.linalg.norm(sm, axis=1, keepdims=True)
+    out = np.zeros_like(v)
+    out[idx] = sm / np.maximum(n, 1e-12)
+    return out
+
+
+def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16):
+    """Retreat the MATING SURFACE so worn sherds no longer meet tightly.
+
+    Why the surface and not the rim: two fragments touch across the WHOLE break
+    face, so trimming only its outline leaves the middle still meeting perfectly.
+    Validation showed exactly that — `blue_pot`, whose fragments have broad
+    contact areas, saw its joints *close* slightly (x0.8) while `limb3` opened
+    (x2.6). Receding the surface itself fixes that.
+
+    Displaces band vertices inward along a SMOOTHED normal field, weighted by
+    how deep in the contact band they sit. Vertices are moved, not deleted, so
+    the sherd stays a closed surface; the piece simply becomes slightly thinner
+    at the break, which is what opens the join.
+    """
+    allv = np.concatenate([v for v, _ in pieces], axis=0)
+    scale = float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-9
+    out = []
+    for i, (v, f) in enumerate(pieces):
+        hard, feather = _band_mask(pieces, i, v)
+        band = feather > 0.02
+        if not band.any() or recession_frac <= 0:
+            out.append((v.copy(), f.copy()))
+            continue
+        nrm = _smoothed_normals(v, f, band, k=normal_k)
+        d = (recession_frac * scale) * feather[:, None]
+        out.append((v - nrm * d, f.copy()))
+    return out
+
+
 def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
                     chip_frac: float = 0.010, seed: int = 0, verbose: bool = False):
     """Material LOSS done properly: recede the fracture edge and chip the points.
@@ -240,3 +297,63 @@ def wear_piece_set(pieces, strength: float, *, kernel_frac_max: float = 0.05,
                 v[edge] = v[edge] * (1 - edge_round) + target * edge_round
         out.append(v)
     return out
+
+
+# ---------------------------------------------------------------------------
+# The wear model, as one call
+# ---------------------------------------------------------------------------
+
+def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05,
+               recession: float = 0.0015, chip_count: int = 4,
+               chip_size: float = 0.003, seed: int = 0):
+    """Simulate archaeological wear on an assembled set of fragments.
+
+    Three independent, physically-named effects, applied in the order burial
+    causes them. All edit geometry only — assembled poses and the ground-truth
+    answer are never touched, so scoring stays valid.
+
+      smoothing  Rounds the fracture relief. NOTE this SATURATES: raising the
+                 kernel past ~0.05 buys almost nothing (limb3 relief 0.1707 ->
+                 0.1789 -> 0.1820 as kernel goes 0.05 -> 0.12), the same plateau
+                 GARF hit in Exp 7/7b. Use `wear_to_target` if you need a
+                 specific roughness per object rather than a fixed dose.
+
+      recession  Retreats the mating SURFACE, so fragments no longer meet
+                 tightly and gaps open at the joins. This is the effect no
+                 earlier training data had — fragments always still mated
+                 perfectly, merely with smoother faces — and it changes the
+                 assembly problem rather than just its appearance.
+
+      chipping   Removes small chunks at the sharpest, most exposed points of
+                 the break, which is where sherds actually chip. Deliberately
+                 small and local, not a uniform shrink.
+
+    Args:
+        pieces: list of (verts, faces) in the ASSEMBLED pose.
+        smoothing: mollification strength, 0 to disable.
+        smoothing_kernel: mollification radius as a fraction of piece scale.
+        recession: inward retreat of the mating surface, as a fraction of object
+            scale. Small — 0.0015 is a realistic default; 0.01 would be extreme.
+        chip_count: number of chips per fragment.
+        chip_size: chip radius as a fraction of object scale.
+        seed: RNG seed for chip placement.
+
+    Returns:
+        list of (verts, faces). Topology changes when chipping is enabled.
+    """
+    cur = [(np.asarray(v, dtype=np.float64), np.asarray(f, dtype=np.int64))
+           for v, f in pieces]
+
+    if smoothing and smoothing > 0:
+        sm = erode_fracture_band(cur, strength=smoothing,
+                                 kernel_frac_max=smoothing_kernel)
+        cur = [(sm[i], cur[i][1]) for i in range(len(cur))]
+
+    if recession and recession > 0:
+        cur = recede_surface(cur, recession_frac=recession)
+
+    if chip_count and chip_count > 0 and chip_size > 0:
+        cur = recede_and_chip(cur, recession_frac=0.0,      # recession done above
+                              chip_count=chip_count, chip_frac=chip_size, seed=seed)
+
+    return cur
