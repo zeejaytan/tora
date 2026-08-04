@@ -36,6 +36,7 @@ from scipy.spatial import cKDTree
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fracture_mesh_ops import piece_relief_stats  # noqa: E402
 from wear_ops import apply_wear, wear_conditions  # noqa: E402
+from visual_check import closest_pair, render_pair_panel  # noqa: E402
 
 
 def joint_gap(pieces, max_pts: int = 60000, seed: int = 0):
@@ -101,6 +102,10 @@ def main() -> None:
     ap.add_argument("--src", default="/data/gpfs/projects/punim2657/TORA/dataset/real_heldout_norm.hdf5")
     ap.add_argument("--dataset", default="real_heldout_norm")
     ap.add_argument("--objects", default="")
+    ap.add_argument("--visual-dir", default="",
+                    help="write before/after renders here. STRONGLY RECOMMENDED: "
+                         "the recession bug survived three rounds of numeric "
+                         "validation and was obvious on sight.")
     args = ap.parse_args()
 
     conds = wear_conditions()
@@ -124,10 +129,13 @@ def main() -> None:
             print("  %-10s %-15s %.4f  %5.1f%%  %.4f" % (obj, "(original)", r0, 100.0, g0),
                   flush=True)
 
+            variants = []
             for name, kw in conds:
                 if name == "fresh":
                     continue
                 w = apply_wear(pieces, **kw)
+                if args.visual_dir:
+                    variants.append((name, w))
                 kept = 100.0 * sum(len(f) for _, f in w) / n0
                 r1, gw = mean_relief(w), joint_gap(w)
                 ratio = gw / max(g0, 1e-9)
@@ -137,6 +145,22 @@ def main() -> None:
                 print("  %-10s %-15s %.4f  %5.1f%%  x%.2f   %s" %
                       (obj, name, r1, kept, ratio,
                        "OK" if not bad else "<-- " + "; ".join(bad)), flush=True)
+
+            # Visual confirmation is part of the test, not a debugging aid.
+            if args.visual_dir and variants:
+                import os
+                os.makedirs(args.visual_dir, exist_ok=True)
+                i, j = closest_pair(pieces)
+                sel = [("original", [pieces[i], pieces[j]])]
+                for nm, w in variants:
+                    if len(w) == len(pieces):
+                        sel.append((nm, [w[i], w[j]]))
+                out = os.path.join(args.visual_dir, f"join_{obj}.png")
+                try:
+                    render_pair_panel(sel, out, title=f"{obj}: join under each wear condition")
+                    print(f"      rendered {out}", flush=True)
+                except Exception as e:
+                    print(f"      render failed: {e}", flush=True)
 
     print()
     print("RESULT:", "conditions behave as intended" if ok else "NOT READY — see flags")
