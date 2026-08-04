@@ -137,9 +137,56 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
         if not band.any() or recession_frac <= 0:
             out.append((v.copy(), f.copy()))
             continue
-        nrm = _smoothed_normals(v, f, band, k=normal_k)
-        d = (recession_frac * scale) * feather[:, None]
-        out.append((v - nrm * d, f.copy()))
+
+        # Retreat direction comes from the CONTACT, not from mesh normals.
+        #
+        # Using mesh normals was a real bug, found by visualising the join
+        # (jobs 28758826 / 28760757). These scans have 7-15% of their band
+        # normals wound INWARD, and wherever that happened recession pushed the
+        # surface TOWARD the neighbouring fragment. The damage tracked the defect
+        # exactly: blue_pot at 14.5% inverted normals went backwards (x0.95),
+        # vert9 at 12.2% barely moved, coxae at 7.1% behaved correctly. Small
+        # recessions looked worst because the wrongly-moved patches are the
+        # closest points, so they dominate the measurement.
+        #
+        # Moving away from the nearest point on another fragment is correct by
+        # construction, whatever the winding: material is lost AT the contact, so
+        # the surface retreats FROM the contact.
+        idx = np.where(band)[0]
+        nearest = None
+        best = np.full(len(idx), np.inf)
+        for j, (w, _) in enumerate(pieces):
+            if j == i:
+                continue
+            ref = w if len(w) <= 80000 else w[::max(1, len(w) // 80000)]
+            d_, k_ = cKDTree(ref).query(v[idx], workers=-1)
+            upd = d_ < best
+            if upd.any():
+                pts = ref[k_[upd]]
+                if nearest is None:
+                    nearest = np.zeros((len(idx), 3))
+                nearest[upd] = pts
+                best[upd] = d_[upd]
+        if nearest is None:
+            out.append((v.copy(), f.copy()))
+            continue
+
+        away = v[idx] - nearest
+        n = np.linalg.norm(away, axis=1, keepdims=True)
+        away = np.divide(away, np.maximum(n, 1e-12))
+
+        # Smooth the direction field, for the reason the original normals were
+        # smoothed: an unsmoothed per-vertex direction corrugates the surface
+        # instead of retreating it (relief blew up ~6x, job 28287699).
+        if len(idx) > 8:
+            _, nb = cKDTree(v[idx]).query(v[idx], k=min(normal_k, len(idx)), workers=-1)
+            away = away[nb].mean(axis=1)
+            n = np.linalg.norm(away, axis=1, keepdims=True)
+            away = np.divide(away, np.maximum(n, 1e-12))
+
+        disp = np.zeros_like(v)
+        disp[idx] = away * (recession_frac * scale) * feather[idx, None]
+        out.append((v + disp, f.copy()))
     return out
 
 
