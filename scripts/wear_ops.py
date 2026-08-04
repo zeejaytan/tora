@@ -28,6 +28,19 @@ Consequences that matter for building a dataset:
 Ground-truth poses are never touched — geometry-only edits — so scoring stays
 valid and any dataset built here remains scoreable.
 
+PLANNED (decided 2026-08-01, after current testing): replace recession with
+genuine mesh offsetting via trimesh or libigl signed-distance fields. The current
+vertex displacement approximates what is properly a solid offset; a real offset
+would handle self-intersection, remove the need for direction smoothing, and
+eliminate the whole class of normal-winding bugs documented in
+docs/notes/WEAR_SIMULATION.md. Validate any replacement against this
+implementation before switching -- every downstream dataset depends on it.
+
+No purpose-built tool for this exists: fracture-modes (behind Breaking Bad)
+breaks objects rather than wearing them, terrain-erosion libraries target
+landscapes, and the nearest archaeological work (Deep Aramaic) targets
+inscriptions with no released library. See docs/notes/WEAR_SIMULATION.md.
+
 Entry points:
     apply_wear      one object, explicit doses
     wear_to_loss    wear until the joins have opened by a target amount
