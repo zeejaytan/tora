@@ -101,12 +101,19 @@ def main() -> None:
     worn_all = apply_wear(pair, smoothing=1.0, recession=args.recession,
                           chip_count=4, chip_size=0.0022)
 
-    # slice a slab through the middle of the contact band, perpendicular to the
-    # face's longest direction, so the profile of BOTH faces is visible
+    # Slice ACROSS the join so the faces are seen EDGE-ON and any separation
+    # between them is visible. The first attempt sliced PARALLEL to the face
+    # instead, showing it head-on: material then appeared to "vanish" between
+    # panels purely because recession pushed points out of a thin slab, which
+    # looks like evidence and is not.
+    #
+    # vt[2] is the face normal (direction of least spread). Separation happens
+    # ALONG it, so it must be a plotted axis, never the slab normal.
     c = band.mean(0)
-    u, s, vt = np.linalg.svd(band - c, full_matrices=False)
-    normal, along, across = vt[2], vt[0], vt[1]
-    ht = 0.004 * scale
+    _u, _s, vt = np.linalg.svd(band - c, full_matrices=False)
+    face_normal, long_axis, mid_axis = vt[2], vt[0], vt[1]
+    normal, along, across = long_axis, mid_axis, face_normal
+    ht = 0.02 * scale
 
     # The measurement that cannot be fooled by a slicing choice: how far is each
     # point of one fragment from the other fragment, before and after?
