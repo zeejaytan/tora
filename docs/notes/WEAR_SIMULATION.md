@@ -15,7 +15,7 @@ wear on 3D fragments while preserving reassembly ground truth.**
 
 | existing work | what it does | why it does not fit |
 |---|---|---|
-| [fracture-modes](https://github.com/sgsellan/fracture-modes) (Sellán et al.) | physically-based fracture; the code behind [Breaking Bad](https://breaking-bad-dataset.github.io/) and therefore behind GARF/TORA training data | **breaks** objects, does not **wear** them |
+| **[fracture-modes](https://github.com/sgsellan/fracture-modes)** (Sellán et al.) — *see §1b* | physically-based fracture; the code behind [Breaking Bad](https://breaking-bad-dataset.github.io/) and therefore behind GARF/TORA/PF++ training data | **breaks** objects, does not **wear** them |
 | [soillib](https://github.com/erosiv/soillib), [hydraulic-erosion](https://github.com/mustartt/hydraulic-erosion) | geomorphology, terrain erosion | landscapes and heightmaps, not artefacts |
 | [Deep Aramaic](https://arxiv.org/pdf/2310.07310) | abrades meshes for archaeological ML — smoothed edges, topological noise | **closest in spirit**, but targets inscriptions and the method lives in the paper, not a library |
 | [stone-artifact weathering](https://link.springer.com/article/10.1007/s11042-015-2507-7), [Delaunay weathering](https://link.springer.com/article/10.1007/s00371-010-0506-2) | academic weathering simulation | no released code; terrain/stone rather than fragments |
@@ -55,6 +55,37 @@ targets inscriptions and releases no code.
 built the data to attack it. That is the gap this fills.
 
 ---
+
+### 1b. fracture-modes — the upstream fracture generator
+
+**<https://github.com/sgsellan/fracture-modes>**
+
+Public code for Sellán et al., *Breaking Good: Fracture Modes for Realtime
+Destruction* (ACM TOG) and *Breaking Bad: A Dataset for Geometric Fracture and
+Reassembly* (NeurIPS 2022).
+
+**This is the tool that produced the training data underneath everything in this
+workspace.** Breaking Bad computed the first 20 "fracture modes" — a shape's most
+geometrically natural ways of coming apart — for each of ~10k base models from
+Thingi10K and PartNet, then simulated 80 fractures from them, giving ~1.05M
+breakdown patterns. GARF, TORA and PF++ were all trained on subsets of that.
+
+Worth keeping to hand for two reasons:
+
+1. **To generate new synthetic fractures.** If a future dataset needs fractured
+   objects rather than worn ones — new material, different categories, controlled
+   piece counts — this is the tool, and it is the same one the pretrained
+   checkpoints already saw, so the fracture statistics stay consistent with what
+   the models were trained on.
+2. **It defines the boundary this wear model sits on.** fracture-modes answers
+   *how does this object break*. It says nothing about *what happens to the
+   fragments afterwards*, which is the entire gap here. The two compose: fracture
+   with fracture-modes, then wear with `wear_ops`, and the ground-truth poses
+   survive both.
+
+Together they would give something the field currently lacks: fractured objects
+with **known assembly answers** whose break surfaces have been aged — which, per
+§1, is precisely what GARF's authors report struggling with.
 
 ## 2. The model: wear is material loss at three scales
 
