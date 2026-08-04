@@ -37,18 +37,40 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fracture_mesh_ops import erode_fracture_band  # noqa: E402
 
 
-def _band_mask(pieces, idx, verts, band_tau_frac=0.02, feather_mult=3.0):
-    """Vertices of piece `idx` on/near the contact band with any other piece."""
+def _band_mask(pieces, idx, verts, band_tau_frac=0.02, feather_mult=3.0,
+               ref_pts: int = 80000, seed: int = 0):
+    """Vertices of piece `idx` on/near the contact band with any other piece.
+
+    This is the pipeline's real hot spot — profiling (job 28740054) showed a
+    single nearest-neighbour query over ~460k vertices costs 11.4s, and this
+    runs once per fragment per other-fragment. Two things make it affordable:
+
+      * the reference set is SUBSAMPLED. We only need each vertex's distance to
+        another fragment's SURFACE, and 80k points describe that surface just as
+        well as 500k for a tolerance measured in percent of object scale. Tree
+        size drops ~6x.
+      * `workers=-1` actually applies here. An earlier attempt patched
+        `scipy.spatial.cKDTree` globally and gained nothing (x1.0), because this
+        module binds `cKDTree` at import time — the patch only ever reached
+        GARF's mollifier, which is ~12s of an 843s run.
+    """
+    rng = np.random.default_rng(seed)
     allv = np.concatenate([v for v, _ in pieces], axis=0)
     scale = float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-9
     tau = band_tau_frac * scale
-    others = [cKDTree(v) for j, (v, _) in enumerate(pieces) if j != idx]
-    if not others:
-        return np.zeros(len(verts), bool), np.zeros(len(verts))
+
     best = np.full(len(verts), np.inf)
-    for t in others:
-        d, _ = t.query(verts)
+    found = False
+    for j, (v, _) in enumerate(pieces):
+        if j == idx:
+            continue
+        ref = v if len(v) <= ref_pts else v[rng.choice(len(v), ref_pts, replace=False)]
+        d, _ = cKDTree(ref).query(verts, workers=-1)
         best = np.minimum(best, d)
+        found = True
+    if not found:
+        return np.zeros(len(verts), bool), np.zeros(len(verts))
+
     hard = best < tau
     feather = np.clip(1.0 - (best - tau) / (tau * (feather_mult - 1) + 1e-12), 0.0, 1.0)
     feather[hard] = 1.0
@@ -75,7 +97,7 @@ def _smoothed_normals(v, f, mask, k: int = 16):
     if len(idx) == 0:
         return np.zeros_like(v)
     tree = cKDTree(v)
-    _, nb = tree.query(v[idx], k=min(k, len(v)))
+    _, nb = tree.query(v[idx], k=min(k, len(v)), workers=-1)
     sm = vn[nb].mean(axis=1)
     n = np.linalg.norm(sm, axis=1, keepdims=True)
     out = np.zeros_like(v)
@@ -83,7 +105,7 @@ def _smoothed_normals(v, f, mask, k: int = 16):
     return out
 
 
-def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16):
+def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, masks=None):
     """Retreat the MATING SURFACE so worn sherds no longer meet tightly.
 
     Why the surface and not the rim: two fragments touch across the WHOLE break
@@ -101,7 +123,7 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16):
     scale = float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-9
     out = []
     for i, (v, f) in enumerate(pieces):
-        hard, feather = _band_mask(pieces, i, v)
+        hard, feather = masks[i] if masks is not None else _band_mask(pieces, i, v)
         band = feather > 0.02
         if not band.any() or recession_frac <= 0:
             out.append((v.copy(), f.copy()))
@@ -113,7 +135,8 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16):
 
 
 def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
-                    chip_frac: float = 0.010, seed: int = 0, verbose: bool = False):
+                    chip_frac: float = 0.010, seed: int = 0, verbose: bool = False,
+                    masks=None):
     """Material LOSS done properly: recede the fracture edge and chip the points.
 
     Conservator's description of what burial actually does to a sherd:
@@ -140,7 +163,7 @@ def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
     out = []
 
     for i, (v, f) in enumerate(pieces):
-        hard, feather = _band_mask(pieces, i, v)
+        hard, feather = masks[i] if masks is not None else _band_mask(pieces, i, v)
         keep = np.ones(len(f), bool)
 
         # --- edge recession: drop faces at the rim of the break surface ---
@@ -349,11 +372,20 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
                                  kernel_frac_max=smoothing_kernel)
         cur = [(sm[i], cur[i][1]) for i in range(len(cur))]
 
+    # The band mask is the expensive step (see `_band_mask`), and recession and
+    # chipping both need it over the SAME geometry. Compute it once and share.
+    # Recession moves vertices only slightly — far less than the band tolerance —
+    # so the mask stays valid for the chipping step that follows.
+    masks = None
+    if (recession and recession > 0) or (chip_count and chip_count > 0 and chip_size > 0):
+        masks = [_band_mask(cur, i, cur[i][0]) for i in range(len(cur))]
+
     if recession and recession > 0:
-        cur = recede_surface(cur, recession_frac=recession)
+        cur = recede_surface(cur, recession_frac=recession, masks=masks)
 
     if chip_count and chip_count > 0 and chip_size > 0:
         cur = recede_and_chip(cur, recession_frac=0.0,      # recession done above
-                              chip_count=chip_count, chip_frac=chip_size, seed=seed)
+                              chip_count=chip_count, chip_frac=chip_size, seed=seed,
+                              masks=masks)
 
     return cur
