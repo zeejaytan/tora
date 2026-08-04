@@ -108,8 +108,24 @@ def main() -> None:
     normal, along, across = vt[2], vt[0], vt[1]
     ht = 0.004 * scale
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5.5))
-    for ax, (title, ps) in zip(axes, [("original", pair),
+    # The measurement that cannot be fooled by a slicing choice: how far is each
+    # point of one fragment from the other fragment, before and after?
+    def sep(ps):
+        a, b = ps[0][0], ps[1][0]
+        sa = a if len(a) <= 60000 else a[::max(1, len(a) // 60000)]
+        d, _ = cKDTree(b if len(b) <= 60000 else b[::max(1, len(b) // 60000)]).query(sa, workers=-1)
+        return d[d < 0.05 * scale] / scale
+
+    d0, d1, d2 = sep(pair), sep(worn_rec), sep(worn_all)
+    print(f"  contact separation (fraction of object size), 10th pct:")
+    print(f"      original        {np.percentile(d0, 10):.5f}")
+    print(f"      recession only  {np.percentile(d1, 10):.5f}"
+          f"   ({np.percentile(d1, 10) / max(np.percentile(d0, 10), 1e-12):.2f}x)")
+    print(f"      full wear       {np.percentile(d2, 10):.5f}"
+          f"   ({np.percentile(d2, 10) / max(np.percentile(d0, 10), 1e-12):.2f}x)", flush=True)
+
+    fig, axes = plt.subplots(1, 4, figsize=(21, 5.5))
+    for ax, (title, ps) in zip(axes[:3], [("original", pair),
                                       ("recession only", worn_rec),
                                       ("full wear (chip+smooth+recede)", worn_all)]):
         for k, (v, _) in enumerate(ps):
@@ -126,7 +142,17 @@ def main() -> None:
         ax.set_aspect("equal")
         ax.legend(markerscale=8, loc="upper right", fontsize=8)
         ax.set_xlabel("along the join")
-    axes[0].set_ylabel("across the join")
+    axes[0].set_ylabel("across the join (separation direction)")
+
+    ax = axes[3]
+    bins = np.linspace(0, 0.02, 60)
+    ax.hist(d0, bins=bins, alpha=0.55, label="original", color="tab:blue")
+    ax.hist(d1, bins=bins, alpha=0.55, label="recession only", color="tab:orange")
+    ax.hist(d2, bins=bins, alpha=0.55, label="full wear", color="tab:red")
+    ax.set_title("separation between the fragments")
+    ax.set_xlabel("distance (fraction of object size)")
+    ax.set_ylabel("points")
+    ax.legend(fontsize=8)
     fig.suptitle(f"{args.object}: cross-section through the join "
                  f"(non-flatness {flat:.3f}, recession {args.recession})")
     fig.tight_layout()
