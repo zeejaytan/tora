@@ -1,29 +1,38 @@
-"""Deeper, more realistic archaeological wear than smoothing alone.
+"""Archaeological wear, modelled as material loss at three scales.
 
-The wear-trained checkpoint works (+0.235 seating on abraded pots, p=0.008) and
-produced the first Juglet output showing genuine vessel form. Two limits bound
-how far that route went, and this addresses both:
+WEAR IS MATERIAL LOSS. Smoothing is not a separate phenomenon — it is loss of
+the sharp edges. What differs between these operations is the SCALE of what goes:
 
-1. **The Juglet is worn past our training range.** Its measured surface relief
-   is 0.171; the harshest level we simulated reached only 0.183 (higher =
-   sharper = less worn). We trained up to *almost* this pot's condition.
+    micro   asperities on the break face   -> reads as smoothing
+    meso    the mating surface as a whole  -> reads as a receding edge
+    macro   chunks at exposed points       -> reads as chipping
 
-2. **Smoothing is only part of what burial does.** The existing mollifier
-   rounds fracture relief. Real abrasion also *removes material*, so worn sherds
-   no longer meet tightly — there are gaps at the joins. That changes the
-   assembly problem itself, not just the surface texture, and nothing in the
-   current simulation reproduces it.
+Consequences that matter for building a dataset:
 
-`wear_piece_set` applies, in order:
-  * mollification (GARF's validated `erode_fracture_band`, unmodified) at a
-    configurable kernel so wear can be pushed past the Juglet's real level;
-  * **material loss** — band vertices pulled inward along their local normals,
-    opening the gaps that abrasion actually creates;
-  * **edge rounding** — extra smoothing where the break face meets the original
-    surface, which is the first thing to soften on a buried sherd.
+  * Loss at ANY scale opens the joins, so worn sherds no longer meet tightly.
+    That is the effect no earlier training data had — fragments always still
+    mated perfectly, merely with smoother faces — and it changes the assembly
+    problem rather than just its appearance.
 
-Ground-truth poses are never touched: this edits vertex positions only, so
-scoring stays valid, exactly as the base mollifier does.
+  * Asperity-scale loss SATURATES. Beyond a point more smoothing removes nothing
+    further (galli_pot stalls at relief 0.288, plate at 0.234, against a 0.15
+    target), the same plateau GARF hit in Exp 7/7b. Wear does not stop there; it
+    continues at a larger scale. `wear_to_loss` does exactly that.
+
+  * ORDER follows the sherd's history: chip, then smooth, then recede. A sherd
+    chips in antiquity and is then abraded for centuries, so its chip boundaries
+    end up rounded. Chipping last leaves fresh sharp edges, which are themselves
+    relief — that drove measured roughness ABOVE the untouched sherd
+    (galli_pot 0.457 -> 0.681) until the order was corrected.
+
+Ground-truth poses are never touched — geometry-only edits — so scoring stays
+valid and any dataset built here remains scoreable.
+
+Entry points:
+    apply_wear      one object, explicit doses
+    wear_to_loss    wear until the joins have opened by a target amount
+    wear_to_target  wear until the surface reaches a target roughness
+    WEAR_CONDITIONS canonical conditions for building a dataset
 """
 
 import sys
@@ -444,3 +453,85 @@ def wear_conditions(names=None):
         return list(WEAR_CONDITIONS)
     want = {n.strip() for n in names.split(",")} if isinstance(names, str) else set(names)
     return [(n, kw) for n, kw in WEAR_CONDITIONS if n in want]
+
+
+# ---------------------------------------------------------------------------
+# Wear as loss: one phenomenon at three scales
+# ---------------------------------------------------------------------------
+#
+# Conservator's framing, adopted 2026-08-01 and better than the two-axis model
+# it replaces: WEAR IS MATERIAL LOSS. Smoothing is not a separate effect — it is
+# loss of the sharp edges. What differs between the three operations here is the
+# SCALE of what goes:
+#
+#   micro   asperities on the break face      -> reads as smoothing
+#   meso    the mating surface as a whole     -> reads as a receding edge
+#   macro   chunks at exposed points          -> reads as chipping
+#
+# This retro-explains a result I had wrongly called a bad test. Validation job
+# 28749619 flagged "abrasion opened the join without material loss" on nine arms,
+# and I dismissed the check as encoding a wrong assumption. Under this framing it
+# is not surprising at all: smoothing IS loss, so of course the pieces stop
+# meeting. Only the two-axis model made it look anomalous.
+#
+# Practical consequence: when asperity-scale loss saturates — as it does on
+# naturally-rough pots (galli_pot stalls at relief 0.288, plate at 0.234, against
+# a 0.15 target) — wear does not stop. It continues at the next scale up. That is
+# what `wear_to_loss` does.
+
+
+def wear_to_loss(pieces, target_gap_ratio: float = 1.30, *,
+                 smoothing: float = 1.0, smoothing_kernel: float = 0.05,
+                 chip_count: int = 4, chip_size: float = 0.0022,
+                 lo: float = 0.0, hi: float = 0.010, iters: int = 5,
+                 seed: int = 0, verbose: bool = False):
+    """Wear an object until its joins have opened by `target_gap_ratio`.
+
+    Wear is expressed as LOSS, measured where it matters for reassembly: how far
+    the fragments have stopped meeting. Smoothing and chipping are applied first
+    (asperity- and chunk-scale loss), then surface recession is searched to reach
+    the target — so an object whose surface will not smooth any further still
+    reaches the intended degree of wear, via loss at a larger scale.
+
+    Returns (pieces, achieved_gap_ratio).
+    """
+    from scipy.spatial import cKDTree as _KD
+
+    def gap(ps, max_pts=40000):
+        rng = np.random.default_rng(0)
+        subs = [v if len(v) <= max_pts else v[rng.choice(len(v), max_pts, replace=False)]
+                for v, _ in ps]
+        trees = [_KD(s) for s in subs]
+        out = []
+        for i, s in enumerate(subs):
+            best = np.full(len(s), np.inf)
+            for j, t in enumerate(trees):
+                if i != j:
+                    d, _ = t.query(s, workers=-1)
+                    best = np.minimum(best, d)
+            out.append(float(np.percentile(best, 10)))
+        return float(np.mean(out))
+
+    g0 = gap(pieces)
+    base = apply_wear(pieces, smoothing=smoothing, smoothing_kernel=smoothing_kernel,
+                      recession=0.0, chip_count=chip_count, chip_size=chip_size,
+                      seed=seed)
+    best, best_r = base, gap(base) / max(g0, 1e-12)
+    if verbose:
+        print(f"      after micro+macro loss: gap x{best_r:.2f}", flush=True)
+    if best_r >= target_gap_ratio:
+        return best, best_r
+
+    for _ in range(iters):
+        mid = 0.5 * (lo + hi)
+        cand = recede_surface(base, recession_frac=max(mid, 1e-9))
+        r = gap(cand) / max(g0, 1e-12)
+        if verbose:
+            print(f"      recession {mid:.5f} -> gap x{r:.2f}", flush=True)
+        if abs(r - target_gap_ratio) < abs(best_r - target_gap_ratio):
+            best, best_r = cand, r
+        if r < target_gap_ratio:
+            lo = mid
+        else:
+            hi = mid
+    return best, best_r
