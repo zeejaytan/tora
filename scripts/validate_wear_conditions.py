@@ -13,7 +13,8 @@ Each condition is now checked against its own intent:
   fresh          nothing should change.
   abraded_*      smoothing only, so relief must FALL and the gap must NOT open
                  (no material has been removed).
-  loss_only      material loss only, so the gap MUST open. Relief may rise a
+  loss_dominant  material loss with only light abrasion, so the gap MUST open.
+                 Relief may rise a
                  little — chip boundaries are themselves relief.
   worn_*         both, so the gap MUST open AND relief must not exceed the
                  untouched sherd. Full-set validation (job 28742114) showed the
@@ -84,7 +85,7 @@ def judge(name, r0, r1, g_ratio, kept):
         # which was a wrong assumption rather than a wrong model: smoothing a
         # fracture surface removes its high points, and the high points are
         # exactly what touch. Abrasion legitimately opens a join a little.
-    elif name == "loss_only":
+    elif name == "loss_dominant":
         if g_ratio <= GAP_NOISE:
             bad.append("GAP DID NOT OPEN")
         if r1 > r0 * 1.5:

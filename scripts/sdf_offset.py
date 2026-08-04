@@ -1,39 +1,40 @@
-"""Material loss by signed-distance offset — the correct way to shrink a solid.
+"""Material loss by signed-distance offset — IMPLEMENTED, TESTED, AND REJECTED.
 
-Recession currently displaces band vertices along a smoothed contact-relative
-direction. That works, but it approximates what is properly a SOLID OFFSET, and
-the approximation has already cost real time:
+**Do not adopt this without re-reading the numbers below.** It is kept because
+the negative result is worth more than the code: it records that the
+mathematically correct method is the wrong one here, and why.
 
-  * displacing along raw per-vertex normals corrugated the surface (relief rose
-    ~6x, job 28287699), because a per-vertex direction field on a noisy scan is
-    itself noise;
-  * displacing along MESH normals pushed 7-17% of the surface the WRONG WAY,
-    since that fraction of these scans is wound inward. It survived three rounds
-    of numeric validation (jobs 28758826, 28760757).
+The motivation was sound. Both recession bugs were the same species -- vertex
+displacement needs a DIRECTION, and on scanned meshes the direction cannot be
+trusted (raw normals corrugated the surface; mesh normals pushed 7-17% of it the
+wrong way and survived three validation rounds). An SDF offset has no direction
+at all, so the whole bug class disappears by construction.
 
-Both bugs are the same species: **vertex displacement needs a direction, and on
-scanned meshes the direction cannot be trusted.**
+MEASURED (job on 2026-08-01, validate_sdf_offset.py):
 
-An SDF offset has no direction at all. Convert the fragment to a signed distance
-field, subtract the offset, re-extract the surface. The operation is arithmetic
-on a grid, so:
+    blue_pot   original relief 0.225
+               displacement    gap x1.38   relief 0.269
+               SDF grid 128    gap x1.17   relief 0.108
+               SDF grid 256    gap x1.13   relief 0.133
 
-  * there is no winding to invert — the whole bug class disappears;
-  * the surface cannot self-intersect or fold over;
-  * "how much material was lost" is an exact distance, not an inferred quantity;
-  * concave regions shrink correctly, which displacement handles badly.
+    limb3      original relief 0.319
+               displacement    gap x1.09   relief 0.530
+               SDF grid 128    gap x0.73   relief 0.119
+               SDF grid 256    gap x0.85   relief 0.151
 
-The cost is resolution: an SDF is sampled on a grid, so fine relief below the
-voxel size is lost. That matters here — relief IS the signal — so `grid` must be
-fine enough that the offset does not silently smooth the break face. The
-validation below measures exactly that rather than assuming it.
+The offset HALVES the surface relief, and on limb3 it CLOSES joins rather than
+opening them. Relief is the signal this entire investigation rests on -- 0.92 on
+fresh break surfaces versus 0.71 on worn ones is what made the wear-training work
+-- so an operation that smooths the break face defeats the purpose, however clean
+its mathematics.
 
-These are SCANNED fragments: holes, self-intersections and inconsistent winding
-are normal, so the backend must tolerate non-watertight input. `mesh_to_sdf` and
-`mesh2sdf` both do; a library assuming clean solids would fail on this material.
+The cause is inherent, not a tuning failure: an SDF is sampled on a grid, so
+detail finer than a voxel is lost. Preserving this relief needs 512^3 or 1024^3,
+and memory scales as the cube.
 
-Falls back to the displacement implementation when no SDF backend is installed,
-so the pipeline keeps working either way.
+CONCLUSION: the approximation beats the correct method here. Displacement stays.
+Revisit only with a sparse or adaptive SDF that can carry fine detail without
+a dense grid.
 """
 
 import numpy as np
