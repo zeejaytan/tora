@@ -410,6 +410,13 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
 # `smoothing` is a DOSE, not an outcome — the same dose wears different pots by
 # very different amounts (blue_pot reached relief 0.110 where limb3 reached only
 # 0.171). Use `wear_to_target` when a specific roughness is required across a set.
+#
+# Chip size is deliberately restrained. Full-set validation (job 28742114) showed
+# that chipping at 0.0040 with 6 chips OVERWHELMS the smoothing it is combined
+# with: galli_pot's relief went 0.471 -> 0.726 and plate's 0.339 -> 0.606, i.e.
+# "heavy wear" produced ROUGHER break faces than the untouched sherd. Ragged chip
+# boundaries are themselves relief. Chips must stay small enough to read as
+# missing material rather than as added texture.
 WEAR_CONDITIONS = [
     # name             smoothing  recession  chips  chip size
     ("fresh",          dict(smoothing=0.0, recession=0.0,    chip_count=0, chip_size=0.0)),
@@ -417,7 +424,7 @@ WEAR_CONDITIONS = [
     ("abraded_heavy",  dict(smoothing=1.0, recession=0.0,    chip_count=0, chip_size=0.0)),
     ("loss_only",      dict(smoothing=0.0, recession=0.0015, chip_count=4, chip_size=0.0030)),
     ("worn_moderate",  dict(smoothing=0.7, recession=0.0010, chip_count=3, chip_size=0.0025)),
-    ("worn_heavy",     dict(smoothing=1.0, recession=0.0030, chip_count=6, chip_size=0.0040)),
+    ("worn_heavy",     dict(smoothing=1.0, recession=0.0025, chip_count=4, chip_size=0.0022)),
 ]
 
 
