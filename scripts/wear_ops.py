@@ -197,8 +197,20 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
             n = np.linalg.norm(away, axis=1, keepdims=True)
             away = np.divide(away, np.maximum(n, 1e-12))
 
+        # Smooth the displacement MAGNITUDE as well as its direction. The
+        # feather weight varies per vertex, so an unsmoothed magnitude field
+        # sculpts new undulation into the surface -- the displacement gradient
+        # becomes relief. That is why worn_heavy (recession 0.0025) measured
+        # rougher than the untouched sherd on 4 of 6 pots while worn_moderate
+        # (0.0010) passed everywhere: the same effect, scaled up.
+        mag = feather[idx]
+        if len(idx) > 8:
+            _, nbm = cKDTree(v[idx]).query(v[idx], k=min(normal_k, len(idx)),
+                                           workers=-1)
+            mag = mag[nbm].mean(axis=1)
+
         disp = np.zeros_like(v)
-        disp[idx] = away * (recession_frac * scale) * feather[idx, None]
+        disp[idx] = away * (recession_frac * scale) * mag[:, None]
         out.append((v + disp, f.copy()))
     return out
 
