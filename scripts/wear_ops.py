@@ -389,3 +389,46 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
                               masks=masks)
 
     return cur
+
+
+# ---------------------------------------------------------------------------
+# Dataset wear conditions
+# ---------------------------------------------------------------------------
+
+# Surface abrasion and material loss are INDEPENDENT axes, and a dataset should
+# sample them independently. The first validation set failed to: all three of its
+# "levels" used identical smoothing and varied only material loss, so they were
+# material-loss levels wearing a wear-level label. That is also why measured
+# roughness came out non-monotonic — chipping ADDS roughness (ragged edges) while
+# smoothing removes it, so at heavy settings the added roughness won and `limb3`
+# ended up rougher (0.380) than the untouched sherd (0.315).
+#
+# Real assemblages contain both kinds independently: sherds abraded smooth but
+# intact, and sherds with crisp breaks that have chipped. Training data should
+# too, or the model cannot learn which cue to trust.
+#
+# `smoothing` is a DOSE, not an outcome — the same dose wears different pots by
+# very different amounts (blue_pot reached relief 0.110 where limb3 reached only
+# 0.171). Use `wear_to_target` when a specific roughness is required across a set.
+WEAR_CONDITIONS = [
+    # name             smoothing  recession  chips  chip size
+    ("fresh",          dict(smoothing=0.0, recession=0.0,    chip_count=0, chip_size=0.0)),
+    ("abraded_light",  dict(smoothing=0.5, recession=0.0,    chip_count=0, chip_size=0.0)),
+    ("abraded_heavy",  dict(smoothing=1.0, recession=0.0,    chip_count=0, chip_size=0.0)),
+    ("loss_only",      dict(smoothing=0.0, recession=0.0015, chip_count=4, chip_size=0.0030)),
+    ("worn_moderate",  dict(smoothing=0.7, recession=0.0010, chip_count=3, chip_size=0.0025)),
+    ("worn_heavy",     dict(smoothing=1.0, recession=0.0030, chip_count=6, chip_size=0.0040)),
+]
+
+
+def wear_conditions(names=None):
+    """The canonical wear conditions for building a dataset.
+
+    Returns [(name, kwargs)] suitable for `apply_wear`. Covers both axes
+    separately (`abraded_*` = smoothing only, `loss_only` = material loss only)
+    and together (`worn_*`), plus an untouched control.
+    """
+    if names is None:
+        return list(WEAR_CONDITIONS)
+    want = {n.strip() for n in names.split(",")} if isinstance(names, str) else set(names)
+    return [(n, kw) for n, kw in WEAR_CONDITIONS if n in want]
