@@ -62,6 +62,12 @@ def mean_relief(pieces):
     return float(np.mean([piece_relief_stats(v, f)["relief_p90"] for v, f in pieces]))
 
 
+# The gap metric subsamples vertices, so ratios within a few percent of 1.0 are
+# not distinguishable from noise. Job 28749619 flagged two arms at x0.98 as
+# "gap did not open" over an absolute difference of 0.0001.
+GAP_NOISE = 1.02
+
+
 def judge(name, r0, r1, g_ratio, kept):
     """Check a condition against what it is SUPPOSED to do."""
     bad = []
@@ -73,15 +79,17 @@ def judge(name, r0, r1, g_ratio, kept):
     elif name.startswith("abraded"):
         if r1 >= r0:
             bad.append("smoothing did not reduce relief")
-        if g_ratio > 1.05:
-            bad.append("gap opened without material loss")
+        # NO gap check here. An earlier version required the gap to stay shut,
+        # which was a wrong assumption rather than a wrong model: smoothing a
+        # fracture surface removes its high points, and the high points are
+        # exactly what touch. Abrasion legitimately opens a join a little.
     elif name == "loss_only":
-        if g_ratio <= 1.0:
+        if g_ratio <= GAP_NOISE:
             bad.append("GAP DID NOT OPEN")
         if r1 > r0 * 1.5:
             bad.append("chips dominate the surface")
     elif name.startswith("worn"):
-        if g_ratio <= 1.0:
+        if g_ratio <= GAP_NOISE:
             bad.append("GAP DID NOT OPEN")
         if r1 > r0:
             bad.append("rougher than the original sherd")

@@ -367,26 +367,31 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
     cur = [(np.asarray(v, dtype=np.float64), np.asarray(f, dtype=np.int64))
            for v, f in pieces]
 
+    # ORDER MATTERS, and it follows the physical history of the sherd.
+    #
+    # Chipping comes FIRST. A sherd chips in antiquity and is then abraded for
+    # centuries, so its chip boundaries end up rounded like everything else.
+    # Chipping last leaves fresh, sharp-edged deletions, and validation job
+    # 28749619 showed exactly that: chipped arms came out ROUGHER than the
+    # untouched sherd (galli_pot 0.457 -> 0.681, plate 0.332 -> 0.541) because
+    # sharp chip boundaries are themselves relief. Chipping first lets the
+    # smoothing pass round them, as burial does.
+    if chip_count and chip_count > 0 and chip_size > 0:
+        masks = [_band_mask(cur, i, cur[i][0]) for i in range(len(cur))]
+        cur = recede_and_chip(cur, recession_frac=0.0,
+                              chip_count=chip_count, chip_frac=chip_size,
+                              seed=seed, masks=masks)
+
     if smoothing and smoothing > 0:
         sm = erode_fracture_band(cur, strength=smoothing,
                                  kernel_frac_max=smoothing_kernel)
         cur = [(sm[i], cur[i][1]) for i in range(len(cur))]
 
-    # The band mask is the expensive step (see `_band_mask`), and recession and
-    # chipping both need it over the SAME geometry. Compute it once and share.
-    # Recession moves vertices only slightly — far less than the band tolerance —
-    # so the mask stays valid for the chipping step that follows.
-    masks = None
-    if (recession and recession > 0) or (chip_count and chip_count > 0 and chip_size > 0):
-        masks = [_band_mask(cur, i, cur[i][0]) for i in range(len(cur))]
-
+    # Recession last: it is the net loss of material from the mating face, and
+    # must not be undone by a later smoothing pass. Its mask is recomputed
+    # because chipping changed the vertex arrays.
     if recession and recession > 0:
-        cur = recede_surface(cur, recession_frac=recession, masks=masks)
-
-    if chip_count and chip_count > 0 and chip_size > 0:
-        cur = recede_and_chip(cur, recession_frac=0.0,      # recession done above
-                              chip_count=chip_count, chip_frac=chip_size, seed=seed,
-                              masks=masks)
+        cur = recede_surface(cur, recession_frac=recession)
 
     return cur
 
