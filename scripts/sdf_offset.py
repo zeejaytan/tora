@@ -1,33 +1,47 @@
-"""Material loss by signed-distance offset.
+"""Material loss by signed-distance offset — WORKS, but not what this needs.
 
-Convert the fragment to a distance field, move the level set, re-extract the
-surface. The motivation: both recession bugs were the same species -- vertex
-displacement needs a DIRECTION, and on scanned meshes the direction cannot be
-trusted (raw normals corrugated the surface; mesh normals pushed 7-17% of it the
-wrong way and survived three validation rounds). A field offset has no direction.
+Convert the fragment to a distance field, move the level set, re-extract. No
+direction is involved, so the winding bugs that plagued vertex displacement
+cannot occur.
 
-**SIGN CONVENTION — the bug this module itself shipped with.** `mesh2sdf` uses
-NEGATIVE inside. The first version raised the level to shrink, which only shrinks
-when inside is POSITIVE, so it GREW every fragment instead (limb3 volume
-0.000329 -> 0.000412, blue_pot 0.000633 -> 0.000797). That produced joins
-CLOSING (limb3 x0.73), which was then read as evidence the METHOD was unsuitable
-and it was rejected outright — for a defect in this file.
+**HISTORY, because both my verdicts on this were wrong.**
 
-It was caught only because someone asked whether a visual check had been done.
-It had not: the rejection rested on numbers alone, days after visual
-confirmation was made mandatory for exactly this kind of operation. The lesson is
-not about signed distance fields. The convention is now MEASURED at runtime
-rather than assumed.
+First verdict (reject): "it halves the relief and closes joins". That rested on a
+SIGN CONVENTION bug in this file -- mesh2sdf is NEGATIVE-inside, and raising the
+level to shrink only shrinks when inside is POSITIVE, so it GREW every fragment
+(limb3 volume 0.000329 -> 0.000412). The relief loss and closing joins were both
+artefacts of reconstructing a grown surface. Caught only because the conservator
+asked whether a visual check had been done. It had not.
 
-OPEN QUESTION, still being tested: whether grid sampling destroys the fracture
-relief. These meshes carry detail at ~0.002-0.005 of object size and a 256 grid
-has ~0.004 voxels, so the texture sits at grid scale. Relief is the signal this
-whole investigation rests on (0.92 fresh vs 0.71 worn break surfaces), so if it
-does not survive, displacement stays -- but that verdict now has to be reached
-with the offset actually shrinking.
+Second measurement, sign fixed (volumes now shrink correctly):
 
-Backend tolerates non-watertight input, because these are scanned fragments where
-holes, self-intersections and inconsistent winding are normal.
+    blue_pot   original relief 0.218
+               displacement    gap x1.38   relief 0.263
+               SDF grid 256    gap x1.08   relief 0.208
+
+    limb3      original relief 0.314
+               displacement    gap x1.09   relief 0.522
+               SDF grid 256    gap x0.95   relief 0.223
+
+**Relief is largely preserved at grid 256** -- 0.208 against 0.218 on blue_pot.
+The "grid sampling destroys the texture" reasoning was mostly wrong; it was the
+grown surface.
+
+**The real reason not to use it here is different and is not a defect.** An SDF
+offset shrinks the WHOLE fragment uniformly. Displacement targets only the
+contact band, so every bit of removed material goes into opening the join --
+which is why it achieves x1.38 where a uniform shrink of the same distance gets
+x1.08. Most of the SDF's material loss happens on outer surfaces that have
+nothing to do with the join.
+
+That also makes targeted loss the more physical choice for pottery: a fresh
+break face is newly exposed and unprotected, while the vessel's outer surface is
+finished or glazed and wears far more slowly. Uniform shrinkage models neither.
+
+VERDICT: displacement stays -- because it concentrates loss where wear actually
+concentrates, not because the SDF is broken. Revisit if a future use needs
+whole-fragment loss (chemical dissolution, say) rather than break-face wear,
+where a uniform offset would be the correct model.
 """
 
 import numpy as np
