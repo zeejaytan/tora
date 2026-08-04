@@ -27,6 +27,33 @@ the assembly answer valid**. That last clause is the hard part: the wear has to
 change the geometry without invalidating the ground-truth poses that make the
 data trainable and scoreable.
 
+### The gap is confirmed by the field's own literature
+
+Two findings from arXiv make this stronger than "we couldn't find a tool":
+
+**GARF's authors name eroded surfaces as their failure mode.**
+[GARF (arXiv 2504.05400)](https://arxiv.org/abs/2504.05400) reports that despite
+training on 1.9M fractures, it "still struggles with geometric ambiguity,
+particularly when dealing with highly similar fragments and **eroded fracture
+surfaces**." That is independent confirmation, from the method's own authors, of
+what this investigation measured from the outside.
+
+**The newest benchmark still has no wear.**
+[SARe (arXiv 2603.21611, 2026)](https://arxiv.org/html/2603.21611v1) builds a
+55K-sample reassembly benchmark from real scanned objects — and generates its
+fractures "using the same pipeline as Breaking Bad". No erosion, weathering or
+surface degradation. So as of 2026 the state of the art trains on **pristine
+break surfaces** and then reports difficulty on eroded ones.
+
+Related: [a survey of reassembly methods (arXiv 2410.14770)](https://arxiv.org/pdf/2410.14770);
+[Deep Aramaic (arXiv 2310.07310)](https://arxiv.org/abs/2310.07310) remains the
+nearest neighbour — it abrades meshes *and* procedurally removes small portions of
+geometry to mimic missing stone, which is the same two-scale idea used here — but
+targets inscriptions and releases no code.
+
+**Net:** the field has identified worn surfaces as the open problem and has not
+built the data to attack it. That is the gap this fills.
+
 ---
 
 ## 2. The model: wear is material loss at three scales
@@ -117,20 +144,42 @@ Recession currently displaces band vertices along a smoothed contact-relative
 direction. That works, but it approximates what is properly a **solid offset** —
 shrinking a closed body by a fixed distance.
 
-[trimesh](https://trimesh.org/) and [libigl](https://libigl.github.io/tutorial/)
-both implement this via signed-distance fields. Switching would:
+The right approach is a **signed-distance field**: convert the fragment to an SDF,
+subtract the recession distance, and re-extract the surface. Offsetting on a
+voxel grid rather than on raw triangles is what makes it robust — the operation
+becomes arithmetic on a field, so there is no winding to get wrong and no
+self-intersection to repair.
+
+Switching would:
 
 - be mathematically correct rather than an approximation;
 - handle self-intersection properly, which vertex displacement cannot;
-- remove the need for direction-smoothing entirely — the offset has no direction
-  ambiguity, so the whole class of normal-winding bugs disappears;
+- **remove the entire class of normal-winding bugs by construction** — an SDF
+  offset has no direction to invert (see §5, where exactly that cost three
+  validation rounds);
 - give a defensible definition of "how much material was lost" (a distance),
   which currently has to be inferred.
+
+### Candidate libraries
+
+| library | why it is a candidate |
+|---|---|
+| [mesh_to_sdf](https://github.com/marian42/mesh_to_sdf) | explicitly handles **non-watertight, self-intersecting and non-manifold** meshes — which is what archaeological scans are |
+| [mesh2sdf](https://github.com/wang-ps/mesh2sdf) | same tolerance for imperfect input; simple mesh → SDF conversion |
+| [MeshLib](https://meshlib.io/feature/mesh-to-sdf/) | grows or shrinks an object by an *exact* distance "without causing the mesh to fold over itself" — precisely the guarantee vertex displacement cannot make |
+| [trimesh](https://github.com/mikedh/trimesh) | already a dependency here; has signed-distance support, so worth trying first |
+
+**The non-watertight tolerance is the deciding factor.** These are scanned
+fragments, not modelled solids: holes, self-intersections and inconsistent
+winding are the norm — the last of which already caused one silent bug here. A
+library that assumes clean watertight input would fail on exactly the material
+this is built for.
 
 **Validate the replacement against the current implementation before switching**,
 the same way the 30× speedup was checked: the wear model is what every downstream
 dataset depends on, so a change here must be shown not to alter behaviour beyond
-the intended improvement.
+the intended improvement. And render it — §5 exists because numbers alone missed
+a sign error three times.
 
 ---
 
