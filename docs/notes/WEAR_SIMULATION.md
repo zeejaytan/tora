@@ -125,6 +125,35 @@ the net loss from the mating face is not smoothed away.
 - **No corrugation.** Displacement fields are smoothed; an unsmoothed per-vertex
   displacement crumples the surface rather than retreating it.
 
+## 3b. The hard limit of vertex displacement: fold-over
+
+**Recession cannot exceed the local radius of curvature.** Push a concave region
+inward further than that and the surface passes through itself, leaving spikes —
+which register as *increased* roughness, the opposite of wear.
+
+This is the real ceiling on the displacement approach, not a tuning error, and it
+is exactly the failure that signed-distance offsetting exists to prevent
+("without causing the mesh to fold over itself").
+
+It surfaced as `worn_heavy` measuring rougher than the untouched sherd on 4 of 6
+pots. **Three hypotheses were spent blaming chips** — sharp boundaries (fixed by
+reordering), chip size (reduced), displacement-magnitude variation (smoothed) —
+and none moved the number. The numbers had said so all along: `loss_dominant`
+carries *more* chipping (4×0.0030) and *less* smoothing (0.3) yet came out
+smoother (limb3 0.464) than `worn_heavy` (0.611, chips 4×0.0022, smoothing 1.0).
+Chips could not be the cause. The only remaining difference was recession,
+0.0025 against 0.0015.
+
+**The render showed the folded geometry immediately.**
+
+Displacement is now capped at 35% of local feature size, estimated per vertex as
+the distance to the far end of its local neighbourhood — the opposite wall on a
+thin sherd, the curvature scale in a concave dimple.
+
+**Practical consequence for heavy wear:** if a future dataset needs recession
+beyond this cap, use the SDF offset (§6) instead. A field offset has no fold-over
+limit. The two methods are complementary rather than competing.
+
 ## 4. Known limits
 
 - **Smoothing saturates.** Past roughly `kernel_frac_max=0.05` more smoothing
@@ -167,52 +196,61 @@ contact, so the surface retreats *from* it.
 
 ---
 
-## 6. Planned: genuine mesh offsetting
+## 6. SDF offsetting: implemented, tested, and the verdict revised twice
 
-**Decided 2026-08-01, to be done after current testing completes.**
+`scripts/sdf_offset.py`. Convert the fragment to a distance field, move the level
+set, re-extract the surface. No direction is involved, so winding bugs cannot
+occur — and there is no fold-over limit (§3b).
 
-Recession currently displaces band vertices along a smoothed contact-relative
-direction. That works, but it approximates what is properly a **solid offset** —
-shrinking a closed body by a fixed distance.
+**The verdict took three attempts, and the first two were wrong. Recorded in full
+because the sequence is more instructive than the conclusion.**
 
-The right approach is a **signed-distance field**: convert the fragment to an SDF,
-subtract the recession distance, and re-extract the surface. Offsetting on a
-voxel grid rather than on raw triangles is what makes it robust — the operation
-becomes arithmetic on a field, so there is no winding to get wrong and no
-self-intersection to repair.
+**1 — rejected.** "Halves the relief and closes joins." Both symptoms were real
+measurements of a **sign-convention bug in my own code**: `mesh2sdf` is
+NEGATIVE-inside, and raising the level to shrink only shrinks when inside is
+POSITIVE, so every fragment was being *grown* (limb3 volume 0.000329 → 0.000412).
+The method was rejected for a defect in the file implementing it — and the method
+had been chosen specifically to eliminate sign errors.
 
-Switching would:
+It was caught only because the conservator asked whether a visual check had been
+done. It had not: the rejection rested on numbers alone, days after visual
+confirmation became mandatory for this exact class of operation. The numbers
+looked conclusive enough that the rule felt already satisfied — which is the
+reasoning the rule exists to override.
 
-- be mathematically correct rather than an approximation;
-- handle self-intersection properly, which vertex displacement cannot;
-- **remove the entire class of normal-winding bugs by construction** — an SDF
-  offset has no direction to invert (see §5, where exactly that cost three
-  validation rounds);
-- give a defensible definition of "how much material was lost" (a distance),
-  which currently has to be inferred.
+**2 — reconsidered.** With the sign fixed and volumes shrinking correctly, relief
+is *largely preserved* (blue_pot 0.208 against 0.218 original at grid 256). The
+"grid sampling destroys the fracture texture" argument was mostly wrong too. The
+genuine difference is that an SDF offset shrinks the **whole fragment uniformly**
+while displacement targets the **contact band**, so displacement puts all removed
+material into opening the join — ×1.38 against ×1.08 for the same distance. That
+also suits pottery better: a fresh break face is newly exposed and unprotected,
+while a finished or glazed outer surface wears far more slowly.
 
-### Candidate libraries
+**3 — current.** Displacement has a **fold-over ceiling** (§3b) that the SDF does
+not. So they are complementary:
 
-| library | why it is a candidate |
+| use | method | why |
+|---|---|---|
+| light–moderate wear | **displacement** | concentrates loss at the join, where wear concentrates |
+| heavy wear | **SDF offset** | no fold-over limit; uniform shrinkage matters less than a folded surface |
+| whole-fragment loss (e.g. chemical dissolution) | **SDF offset** | uniform shrinkage is the correct model |
+
+Backends tolerate non-watertight input, which matters: these are scanned
+fragments, and holes, self-intersections and inconsistent winding are normal —
+the last already caused one silent bug here.
+
+| library | note |
 |---|---|
-| [mesh_to_sdf](https://github.com/marian42/mesh_to_sdf) | explicitly handles **non-watertight, self-intersecting and non-manifold** meshes — which is what archaeological scans are |
-| [mesh2sdf](https://github.com/wang-ps/mesh2sdf) | same tolerance for imperfect input; simple mesh → SDF conversion |
-| [MeshLib](https://meshlib.io/feature/mesh-to-sdf/) | grows or shrinks an object by an *exact* distance "without causing the mesh to fold over itself" — precisely the guarantee vertex displacement cannot make |
-| [trimesh](https://github.com/mikedh/trimesh) | already a dependency here; has signed-distance support, so worth trying first |
+| [mesh_to_sdf](https://github.com/marian42/mesh_to_sdf) | handles non-watertight, self-intersecting, non-manifold meshes |
+| [mesh2sdf](https://github.com/wang-ps/mesh2sdf) | same tolerance; currently used |
+| [MeshLib](https://meshlib.io/feature/mesh-to-sdf/) | exact-distance shrink "without folding over itself" |
+| [trimesh](https://github.com/mikedh/trimesh) | already a dependency; has signed-distance support |
 
-**The non-watertight tolerance is the deciding factor.** These are scanned
-fragments, not modelled solids: holes, self-intersections and inconsistent
-winding are the norm — the last of which already caused one silent bug here. A
-library that assumes clean watertight input would fail on exactly the material
-this is built for.
-
-**Validate the replacement against the current implementation before switching**,
-the same way the 30× speedup was checked: the wear model is what every downstream
-dataset depends on, so a change here must be shown not to alter behaviour beyond
-the intended improvement. And render it — §5 exists because numbers alone missed
-a sign error three times.
-
----
+**Whatever replaces or extends this must be validated against the current
+implementation AND rendered.** Every downstream dataset depends on it, and §5 and
+§3b both exist because numbers alone missed a defect that a picture showed at
+once.
 
 ## 7. Usage
 
