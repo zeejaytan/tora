@@ -197,6 +197,34 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
             n = np.linalg.norm(away, axis=1, keepdims=True)
             away = np.divide(away, np.maximum(n, 1e-12))
 
+        # CAP the displacement by local feature size, or the surface folds.
+        #
+        # Vertex displacement cannot move a concave region inward further than
+        # its radius of curvature: past that the surface passes through itself
+        # and leaves spikes, which register as relief. This is the failure that
+        # SDF offsetting exists to avoid ("without causing the mesh to fold over
+        # itself").
+        #
+        # It is why worn_heavy (recession 0.0025) measured ROUGHER than the
+        # untouched sherd on 4 of 6 pots while worn_moderate (0.0010) passed
+        # everywhere -- and why loss_dominant, with MORE chipping and LESS
+        # smoothing, still came out smoother than worn_heavy. Chips were never
+        # the cause; three hypotheses were spent on them before the render made
+        # the folded geometry visible.
+        #
+        # Local feature size is estimated as the distance to the nearest surface
+        # point that is not an immediate neighbour -- for a thin sherd that is
+        # the opposite wall, for a concave dimple it is the curvature scale.
+        if len(idx) > 8:
+            k_probe = min(48, len(v))
+            dprobe, _ = cKDTree(v).query(v[idx], k=k_probe, workers=-1)
+            # skip the immediate ring; the far end of the local neighbourhood
+            # approximates the free space available to move into
+            local_feature = dprobe[:, -1]
+            cap = 0.35 * local_feature
+        else:
+            cap = np.full(len(idx), np.inf)
+
         # Smooth the displacement MAGNITUDE as well as its direction. The
         # feather weight varies per vertex, so an unsmoothed magnitude field
         # sculpts new undulation into the surface -- the displacement gradient
@@ -209,8 +237,9 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
                                            workers=-1)
             mag = mag[nbm].mean(axis=1)
 
+        amount = np.minimum((recession_frac * scale) * mag, cap)
         disp = np.zeros_like(v)
-        disp[idx] = away * (recession_frac * scale) * mag[:, None]
+        disp[idx] = away * amount[:, None]
         out.append((v + disp, f.copy()))
     return out
 
