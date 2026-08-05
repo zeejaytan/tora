@@ -64,7 +64,25 @@ def break_face_heightmap(pieces, idx, frame=None, res=260):
     np.add.at(cnt, (iy, ix), 1)
     ok = cnt > 0
     acc[ok] = sums[ok] / cnt[ok]
-    return acc, frame
+
+    # HIGH-PASS. Subtract the face's own large-scale form and keep only the fine
+    # texture, which is where wear actually lives.
+    #
+    # Without this the picture shows nothing: the raw height map is dominated by
+    # the overall undulation of the break face, which wear does NOT change
+    # (blue_pot std 0.0448 original vs 0.0444 worn_heavy) while the fine relief
+    # it DOES change moved 0.223 -> 0.164 on the same fragment. Against a colour
+    # range set by +/-0.045 of gross form, a 0.002 texture change is invisible.
+    #
+    # This is the same reason raking light reveals a worn surface and flat
+    # lighting does not: it shows texture, not form.
+    filled = np.where(ok, acc, 0.0)
+    from scipy.ndimage import uniform_filter
+    span = max(3, res // 18)
+    smooth = uniform_filter(filled, span) / np.maximum(
+        uniform_filter(ok.astype(float), span), 1e-6)
+    fine = np.where(ok, acc - smooth, np.nan)
+    return fine, frame
 
 
 def main() -> None:
@@ -106,7 +124,7 @@ def main() -> None:
             continue
         rel = float(np.nanstd(hm))
         maps.append((name, hm, rel))
-        print(f"  {name:<15s} surface variation {rel:.5f}", flush=True)
+        print(f"  {name:<15s} fine relief (texture only) {rel:.5f}", flush=True)
 
     if not maps:
         return
@@ -119,11 +137,11 @@ def main() -> None:
     if n == 1:
         axes = [axes]
     for ax, (name, hm, rel) in zip(axes, maps):
-        im = ax.imshow(hm, cmap="terrain", vmin=-lim, vmax=lim, origin="lower",
+        im = ax.imshow(hm, cmap="RdBu_r", vmin=-lim, vmax=lim, origin="lower",
                        interpolation="nearest")
         ax.set_title(f"{name}\nsurface variation {rel:.4f}", fontsize=10)
         ax.set_xticks([]); ax.set_yticks([])
-    fig.colorbar(im, ax=axes, fraction=0.02, label="height above mean plane")
+    fig.colorbar(im, ax=axes, fraction=0.02, label="fine relief (form removed)")
     fig.suptitle(f"{args.object}, fragment {idx}: the break face under each wear "
                  f"condition\n(like raking light on a sherd edge — mottling is "
                  f"fracture relief, smooth is abraded, dark pits are chips)")
