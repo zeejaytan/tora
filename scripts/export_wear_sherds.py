@@ -89,22 +89,56 @@ def main() -> None:
     ap.add_argument("--dataset", default="everyday")
     ap.add_argument("--object", default="Teacup")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--min-pieces", type=int, default=5)
+    ap.add_argument("--max-pieces", type=int, default=8)
     args = ap.parse_args()
 
+    # Breaking Bad nests four levels deep: category / shape / fractured_N / piece.
+    # An earlier version assumed category/piece and read a fracture INSTANCE as
+    # though it were a sherd.
     with h5py.File(args.src, "r") as h:
-        grp = h[args.dataset][args.object]
-        g = grp["pieces"] if "pieces" in grp else grp
-        keys = sorted(g.keys(), key=lambda s: int(s) if s.isdigit() else s)
-        pieces = [(np.asarray(g[k]["vertices"][:], dtype=np.float64),
-                   np.asarray(g[k]["faces"][:], dtype=np.int64)) for k in keys]
+        cat = h[args.dataset][args.object]
+        shape_key = sorted(cat.keys())[0]
+        shape = cat[shape_key]
+
+        # Pick a fracture with enough sherds to be worth inspecting, and with the
+        # pieces reasonably balanced -- many Breaking Bad fractures are one large
+        # remainder plus crumbs, which tells you little about break-face wear.
+        best, best_score = None, -1.0
+        for fk in sorted(shape.keys()):
+            fr = shape[fk]
+            pk = sorted(fr.keys(), key=lambda s: int(s) if s.isdigit() else s)
+            if not (args.min_pieces <= len(pk) <= args.max_pieces):
+                continue
+            sizes = []
+            ok = True
+            for k in pk:
+                if "vertices" not in fr[k]:
+                    ok = False
+                    break
+                sizes.append(fr[k]["vertices"].shape[0])
+            if not ok or min(sizes) < 300:
+                continue
+            balance = min(sizes) / max(sizes)          # 1.0 = all equal
+            if balance > best_score:
+                best, best_score = (fk, pk), balance
+        if best is None:
+            raise SystemExit(f"no suitable fracture found for {args.object} "
+                             f"({args.min_pieces}-{args.max_pieces} sherds, "
+                             f"none with usable piece sizes)")
+        fk, pk = best
+        fr = shape[fk]
+        pieces = [(np.asarray(fr[k]["vertices"][:], dtype=np.float64),
+                   np.asarray(fr[k]["faces"][:], dtype=np.int64)) for k in pk]
+        print(f"{args.object}/{shape_key[:8]}/{fk}: {len(pieces)} sherds, "
+              f"size balance {best_score:.2f}", flush=True)
 
     out = Path(args.out)
     (out / "assembled").mkdir(parents=True, exist_ok=True)
     for i in range(len(pieces)):
         (out / f"sherd_{i:02d}").mkdir(parents=True, exist_ok=True)
 
-    print(f"{args.object}: {len(pieces)} sherds, "
-          f"{sum(len(v) for v, _ in pieces)} vertices", flush=True)
+    print(f"  {sum(len(v) for v, _ in pieces)} vertices total", flush=True)
 
     relief_lines = []
     for name, kw in LEVELS:
