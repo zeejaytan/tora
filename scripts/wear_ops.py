@@ -571,6 +571,49 @@ WEAR_CONDITIONS = [
 ]
 
 
+# HOW OFTEN EACH CONDITION SHOULD APPEAR IN A DATASET
+#
+# Conservator's calibration after inspecting exported sherds (2026-08-05):
+# "in real archaeological sense, most wear falls between light and moderate."
+#
+# This matters more than it sounds. A dataset that over-represents severe wear
+# teaches the model to expect damage that is rare, at the cost of accuracy on the
+# material actually excavated. Sampling should follow the archaeological
+# distribution, not sweep the parameter range uniformly.
+#
+# Weights are relative, for sampling when a dataset is built. `fresh` is retained
+# because assemblages contain recent breaks and protected sherds; the heavy tail
+# is retained but rare, because it exists and the model should not be surprised
+# by it.
+#
+# Note the Juglet sits BEYOND this range (relief 0.171 against ~0.22-0.31 for
+# untouched real pots here). If most archaeological wear really is light-moderate,
+# the Juglet is an unusually hard case rather than a typical one — which would
+# mean a tool trained on this distribution could serve most material well while
+# still struggling with that particular pot.
+WEAR_SAMPLING_WEIGHTS = {
+    "fresh":          1.0,
+    "abraded_light":  3.0,
+    "abraded_heavy":  1.0,
+    "loss_dominant":  2.0,
+    "worn_moderate":  3.0,
+    "worn_heavy":     1.0,
+}
+
+
+def sample_wear_condition(rng):
+    """Draw a wear condition following the archaeological distribution.
+
+    Use this when building a dataset, rather than iterating WEAR_CONDITIONS
+    uniformly — see WEAR_SAMPLING_WEIGHTS for why.
+    """
+    conds = wear_conditions()
+    w = np.array([WEAR_SAMPLING_WEIGHTS.get(n, 1.0) for n, _ in conds], dtype=float)
+    w /= w.sum()
+    i = int(rng.choice(len(conds), p=w))
+    return conds[i]
+
+
 def wear_conditions(names=None):
     """The canonical wear conditions for building a dataset.
 
