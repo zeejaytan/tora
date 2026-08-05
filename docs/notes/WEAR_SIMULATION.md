@@ -114,6 +114,65 @@ the net loss from the mating face is not smoothed away.
 
 ---
 
+## 2b. Why this matters: the two axes do different work
+
+Conservator's synthesis (2026-08-05), and the conceptual core of the whole
+investigation:
+
+> Material loss is generally not terrible. **Smoothness is where the information
+> of how sherds lock into each other is diminished.** Thus GARF, which relies
+> only on the fracture surface, failed — and TORA, which also relies on the
+> object's overall shape, did better.
+
+The two axes are independent not merely because they are physically distinct,
+but because they **do different work**:
+
+| axis | what it changes | magnitude in real material |
+|---|---|---|
+| **material loss** | the GEOMETRY — sherds no longer meet, joins open | modest |
+| **smoothness** | the INFORMATION — how sherds lock into each other | this is where it goes |
+
+**This explains every measurement in the investigation, from a single principle.**
+
+- **GARF reads only the fracture surface.** Abrasion destroys precisely that, so
+  it goes blind: its encoder fires on 0.57% of Juglet points against 3.4% on
+  fresh ceramics, and it cannot separate true mates from non-mates at all
+  (1.04× across fifteen experiments).
+- **TORA reads the fracture surface AND whole-object form.** The surface channel
+  degrades identically (0.92 fresh → 0.71 worn), but the form channel holds
+  (0.88) — so it still separates true mates at 1.63×, p = 0.025.
+- **GARF's own authors name it**: "still struggles with … eroded fracture
+  surfaces" ([arXiv 2504.05400](https://arxiv.org/abs/2504.05400)).
+- **SARe (2026) likely inherits the same limit**, since it trains on Breaking
+  Bad's pristine fractures.
+
+### Consequences for building a dataset
+
+The two axes need different treatment, and conflating them is what produced a
+confused calibration earlier:
+
+- **Material loss: keep it REALISTIC.** Real sherds do not lose much. An
+  over-lossy dataset teaches the model to expect damage that is rare.
+- **Smoothness: SPAN THE RANGE.** This is the axis that breaks the methods, so it
+  is the axis the training data must cover. Under-representing smooth break faces
+  trains for a problem the field has already solved.
+
+So the sampling should not be a single "wear level" dial: wide coverage of
+smoothness, modest and realistic material loss.
+
+### And it reframes what a solution looks like
+
+If smoothness *removes* the interlocking information rather than merely obscuring
+it, then no amount of better break-surface perception recovers it — the signal is
+gone from the object, not hidden. What survives is **form**: profile continuity,
+wall curvature, how a sherd sits in the whole. TORA already partially exploits
+this and does measurably better for it; a method that exploited it deliberately
+should do better still.
+
+That is the same conclusion GARF's investigation reached from the opposite
+direction, and it is why this wear model matters: it lets the form channel be
+trained deliberately instead of by accident.
+
 ## 3. What it guarantees
 
 - **Ground-truth poses are never touched.** Geometry-only edits, so any dataset
