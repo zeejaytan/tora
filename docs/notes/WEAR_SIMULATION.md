@@ -252,6 +252,53 @@ implementation AND rendered.** Every downstream dataset depends on it, and §5 a
 §3b both exist because numbers alone missed a defect that a picture showed at
 once.
 
+## 6b. Validated state (2026-08-05)
+
+**All 30 arms pass — 6 objects x 5 conditions.** Job 28810949,
+`RESULT: conditions behave as intended`.
+
+| object | orig relief | abraded_heavy | worn_moderate | worn_heavy | gap (worn_heavy) |
+|---|---|---|---|---|---|
+| blue_pot | 0.223 | 0.111 | 0.159 | 0.164 | x1.67 |
+| coxae | 0.161 | 0.129 | 0.138 | 0.150 | x1.18 |
+| galli_pot | 0.460 | 0.280 | 0.384 | 0.343 | x1.40 |
+| limb3 | 0.309 | 0.176 | 0.221 | 0.198 | x1.11 |
+| plate | 0.336 | 0.232 | 0.283 | 0.259 | x1.29 |
+| vert9 | 0.211 | 0.168 | 0.183 | 0.178 | x1.30 |
+
+Relief falls below the untouched sherd under every wear condition, joins open on
+every object (x1.02-x1.67), and 99.8%+ of each fragment survives. Ceramics and
+bone both behave.
+
+**Visual confirmation done** (`artifacts/wear_viz/final/`): cross-sections stay
+coherent through every condition — no fragmentation, no spikes, no
+wrong-direction movement. Note what the view can and cannot do: at this zoom a
+displacement of ~0.002 is sub-pixel, so the cross-section confirms INTEGRITY
+while the separation histogram confirms the EFFECT. Neither alone is sufficient.
+That division is the point — the cross-section is what catches folded or
+inverted geometry, which is exactly what numbers missed three times.
+
+### What it cost, and what that teaches
+
+Five real defects were found. Two were caught by numbers; **three were not**:
+
+| defect | caught by |
+|---|---|
+| corrugation from raw-normal displacement | numbers (relief rose ~6x) |
+| rim recession left broad faces still mating | numbers (one pot's join closed) |
+| **inverted mesh normals** (7-17% wound inward) | **the render**, after 3 numeric rounds passed it |
+| **SDF sign convention** (grew fragments) | **being asked whether a visual check was done** |
+| **fold-over** at high recession | **the render**, after 3 wrong hypotheses about chips |
+
+The pattern is consistent: whenever a defect moved geometry the WRONG DIRECTION,
+the wrongly-moved points were the closest ones and therefore dominated every
+distance statistic — so a systematic error read as noise. **Numbers were reliable
+for "how much" and unreliable for "which way".**
+
+Worth recording that the visual rule was already written down when the SDF was
+rejected on numbers alone: the numbers looked conclusive enough that the rule
+felt satisfied. The rule only worked when a person applied it.
+
 ## 7. Usage
 
 ```python
