@@ -465,6 +465,7 @@ def wear_piece_set(pieces, strength: float, *, kernel_frac_max: float = 0.05,
 # ---------------------------------------------------------------------------
 
 def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05,
+               smoothing_passes: int = 1,
                recession: float = 0.0015, chip_count: int = 4,
                chip_size: float = 0.003, seed: int = 0):
     """Simulate archaeological wear on an assembled set of fragments.
@@ -521,9 +522,32 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
                               seed=seed, masks=masks)
 
     if smoothing and smoothing > 0:
-        sm = erode_fracture_band(cur, strength=smoothing,
-                                 kernel_frac_max=smoothing_kernel)
-        cur = [(sm[i], cur[i][1]) for i in range(len(cur))]
+        # REPEATED passes reach smoother surfaces than one deep pass, and this
+        # matters: smoothness is the axis that destroys the interlocking
+        # information, so it is the axis training data must span.
+        #
+        # Single-pass smoothing saturates -- galli_pot stalls at 0.288, plate at
+        # 0.234, against the Juglet's 0.171. Raising the KERNEL does not help
+        # (0.05 -> 0.12 gave 0.1707, 0.1789, 0.1820: no gain, slightly worse).
+        # Repeating at a fixed small kernel does, and is closer to how abrasion
+        # actually works -- many cycles, not one deep cut:
+        #
+        #   galli_pot  0.461 -> 0.276 -> 0.220 -> 0.213 -> 0.226 -> 0.231 -> 0.264
+        #   plate      0.341 -> 0.241 -> 0.209 -> 0.214 -> 0.229 -> 0.227 -> 0.233
+        #   limb3      0.314 -> 0.171 -> 0.154 -> 0.159 -> 0.166 -> 0.161 -> 0.204
+        #
+        # Note it REVERSES after pass 2-3: repeated resampling of an already
+        # averaged surface starts adding numerical artefacts, the same
+        # "more is worse" pattern as the kernel sweep. Hence the cap.
+        #
+        # Residual limit, worth stating: limb3 gets past the Juglet (0.154) but
+        # naturally-rough ceramics do not -- galli_pot bottoms at 0.213 and plate
+        # at 0.209. Some objects cannot be simulated as smooth as the real target.
+        passes = max(1, min(int(smoothing_passes), 3))
+        for _ in range(passes):
+            sm = erode_fracture_band(cur, strength=smoothing,
+                                     kernel_frac_max=smoothing_kernel)
+            cur = [(sm[i], cur[i][1]) for i in range(len(cur))]
 
     # Recession last: it is the net loss of material from the mating face, and
     # must not be undone by a later smoothing pass. Its mask is recomputed
