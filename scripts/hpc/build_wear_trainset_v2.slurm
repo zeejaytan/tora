@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=tora-wearset2
-#SBATCH --partition=cascade
+#SBATCH --partition=sapphire
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
