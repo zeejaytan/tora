@@ -1,0 +1,36 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# S3 v2 — wear-augmented fine-tuning, rebuilt on the validated wear model.
+#
+# v1 (`wear_finetune`) swept a single "wear level" dial, before we understood
+# what wear actually is. Two separate things were being conflated:
+#
+#   MATERIAL LOSS — how much of the sherd is gone. Real, but modest: 0.2-2.7%
+#   of volume on our measured conditions. Kept realistic here, not exaggerated.
+#
+#   SMOOTHNESS — how rounded the break face has become. This is where the
+#   information about how sherds lock together is destroyed, and therefore the
+#   axis these methods actually fail on. It is spanned as widely as the
+#   simulation allows (seven variants, including repeated smoothing passes).
+#
+# Known limit: smoothing saturates. limb3 can be pushed past the Juglet's
+# smoothness (0.171), but naturally-rough ceramics bottom out around 0.21, so
+# coverage of the hardest end is partial and object-dependent. The build script
+# prints achieved coverage; do not assume the range was reached.
+#
+# Synthetic replay (pig/rib) is retained from v1 — GARF's Exp 11-15 recipe —
+# because both earlier fine-tunes here ended up worse than the checkpoint they
+# started from.
+dataset_names: ["wear_trainset_v2", "pig", "rib"]
+
+batch_size: 8
+num_workers: 8
+min_dataset_size: 600
+limit_val_samples: 0
