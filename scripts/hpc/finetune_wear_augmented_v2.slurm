@@ -62,16 +62,15 @@ export WANDB_MODE=offline
 cd "$TORA_ROOT/repo"
 
 echo ""
-echo "### 1/3  build worn training data with the validated wear model ###"
+echo "### 1/3  check the worn training data is present ###"
+# Built separately on a CPU node -- see scripts/hpc/build_wear_trainset_v2.slurm.
+# It is pure mesh work and has no business occupying an A100.
 if [ ! -f "$DATA_ROOT/wear_trainset_v2.hdf5" ]; then
-    python scripts/build_wear_trainset_v2.py \
-        --src "$DATA_ROOT/real_finetune.hdf5" \
-        --src-dataset real_finetune \
-        --dataset-name wear_trainset_v2 \
-        --out-hdf5 "$DATA_ROOT/wear_trainset_v2.hdf5"
-else
-    echo "wear_trainset_v2.hdf5 already present, reusing"
+    echo "wear_trainset_v2.hdf5 is missing. Run the build job first:"
+    echo "  sbatch scripts/hpc/build_wear_trainset_v2.slurm"
+    exit 1
 fi
+ls -la "$DATA_ROOT/wear_trainset_v2.hdf5"
 
 echo ""
 echo "### 2/3  fine-tune with synthetic replay ###"
