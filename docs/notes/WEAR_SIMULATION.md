@@ -114,6 +114,56 @@ the net loss from the mating face is not smoothed away.
 
 ---
 
+## 2a. The thickness spectrum: eggshell and solid are two ends of one scale
+
+Conservator's correction (2026-08-06), after the model was found to make
+eggshell *rougher* instead of smoother:
+
+> Eggshell and solid object are two ends of a spectrum of the **thickness of the
+> fracture**. On eggshell, so thin there is barely any sharpness across the
+> thickness, wear is just a matter of reducing the sharpness **along its
+> circumference**. On a solid object the break becomes wholly blunt and smooth
+> **across the fracture surface**, and when severe, flat.
+
+This is a better model than the one in the code, and it explains the failure
+exactly. Our model has one operation — attenuate the relief of the break face
+using a patch 5% of the object's size. That presumes the break *has* a face with
+relief to attenuate.
+
+On an eggshell it does not. The fracture is a ribbon 1.2–1.6% of the object
+across; there is no interlocking relief through the thickness to smooth. So the
+operation finds nothing to work on at the break and instead grabs the body of the
+sherd, dragging the inner and outer wall together. Roughness rises because
+crumpling *creates* relief.
+
+The spectrum, and what wear should do at each end:
+
+| fracture thickness | what the break actually is | what wear does |
+|---|---|---|
+| shell (eggshell, thin vessel wall) | a ribbon; almost no surface | rounds the **perimeter** — blunts the sharp line where the break meets the inner and outer faces |
+| intermediate | a narrow surface with some relief | both, in proportion |
+| solid (bone, thick pot wall) | a genuine 2-D surface with interlocking relief | blunts the **whole break face**; in the limit it goes flat |
+
+Two consequences the current code violates:
+
+1. **The smoothing support must never be wider than the fracture is thick.** Once
+   it is, the operation stops describing wear and starts describing squeezing.
+2. **At the shell end the target is the perimeter, not the face.** Scaling the
+   kernel down is necessary but not sufficient — a smaller kernel on a ribbon
+   still has almost no relief to remove. The sharpness that a worn eggshell sherd
+   actually loses lives on its outline.
+
+This also explains why wall thickness alone did not predict which objects failed
+(survey job 28844050: crumpled 1.24–5.61%, intact 2.64–7.12%, overlapping).
+The deciding quantity is not the wall on its own but **how much break-face relief
+exists relative to the support of the smoothing**. `limb6` has a thin wall
+(2.64%) and survives because it starts genuinely rough (relief 0.313) — there is
+real relief to remove, and it swamps any crumpling. `limb2` has a slightly
+thicker wall (3.04%) and fails because it starts smooth (0.033) — nothing to
+remove, so the crumpling is all that is left.
+
+---
+
 ## 2b. Why this matters: the two axes do different work
 
 Conservator's synthesis (2026-08-05), and the conceptual core of the whole
