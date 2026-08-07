@@ -244,9 +244,137 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
     return out
 
 
+def _boundary_loops(faces):
+    """Ordered vertex loops around every opening in a mesh.
+
+    A boundary edge belongs to exactly one face. Walking those edges gives the
+    rim of each hole, in order, which is what a cap has to be built on.
+    """
+    e = np.sort(faces[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2), axis=1)
+    uniq, cnt = np.unique(e, axis=0, return_counts=True)
+    bedges = uniq[cnt == 1]
+    if not len(bedges):
+        return []
+
+    adj = {}
+    for a, b in bedges:
+        adj.setdefault(int(a), []).append(int(b))
+        adj.setdefault(int(b), []).append(int(a))
+
+    seen, loops = set(), []
+    for start in adj:
+        if start in seen:
+            continue
+        loop, cur, prev = [start], start, None
+        seen.add(start)
+        while True:
+            nxt = next((c for c in adj[cur] if c != prev and c not in seen), None)
+            if nxt is None:
+                break
+            loop.append(nxt)
+            seen.add(nxt)
+            prev, cur = cur, nxt
+        if len(loop) >= 3:
+            loops.append(np.asarray(loop, dtype=np.int64))
+    return loops
+
+
+def _seal_chip_scars(mv, mf, pre_boundary_pts, concavity: float = 0.35,
+                     verbose: bool = False):
+    """Close the openings our own face deletion made, leaving a concave scar.
+
+    Conservator's finding, 2026-08-07: the wear model punches holes. Both
+    material-loss effects work by deleting faces and nothing ever closed the
+    boundary, so every sherd came out open at every wear level when the scans
+    had arrived sealed. Confirmed by count -- holes equalled chips x sherds
+    exactly, and the largest reached 18.6% of the object's width.
+
+    A real chip does not perforate a sherd. It detaches a flake and leaves a
+    fresh concave scar, and the sherd is still a solid object afterwards. So the
+    rim is capped with a shallow dish pushed INWARD, not a flat lid (which would
+    read as a machined facet) and not an outward bulge (which would add material
+    that wear just removed).
+
+    Pre-existing openings are left alone. Some scans arrive with holes -- one of
+    four narrow_bottle3 sherds did -- and silently repairing the scanner's gaps
+    would change the source geometry while claiming only to simulate wear. Rims
+    are matched by POSITION against the untouched mesh, because deleting faces
+    renumbers the vertices.
+    """
+    loops = _boundary_loops(mf)
+    if not loops:
+        return mv, mf, 0, 0
+
+    pre_tree = cKDTree(pre_boundary_pts) if len(pre_boundary_pts) else None
+    scale = float(np.linalg.norm(mv.max(0) - mv.min(0))) + 1e-12
+
+    m = trimesh.Trimesh(vertices=mv, faces=mf, process=False)
+    try:
+        vn = np.asarray(m.vertex_normals)
+    except Exception:
+        vn = np.zeros_like(mv)
+
+    new_v, new_f = [mv], [mf]
+    n_next = len(mv)
+    sealed = skipped = 0
+
+    for loop in loops:
+        pts = mv[loop]
+        if pre_tree is not None:
+            d, _ = pre_tree.query(pts)
+            if (d < 1e-9 * scale + 1e-12).mean() > 0.5:
+                skipped += 1          # the scanner's hole, not ours
+                continue
+
+        centre = pts.mean(axis=0)
+        radius = float(np.linalg.norm(pts - centre, axis=1).mean())
+        if radius <= 0:
+            continue
+
+        outward = vn[loop].mean(axis=0)
+        n = float(np.linalg.norm(outward))
+        if n < 1e-12:
+            u, s, vt = np.linalg.svd(pts - centre, full_matrices=False)
+            outward = vt[2]
+            n = 1.0
+        outward = outward / n
+
+        apex = centre - outward * (concavity * radius)
+        ai = n_next
+        n_next += 1
+        new_v.append(apex[None, :])
+
+        k = len(loop)
+        tri = np.empty((k, 3), dtype=np.int64)
+        tri[:, 0] = loop
+        tri[:, 1] = np.roll(loop, -1)
+        tri[:, 2] = ai
+        new_f.append(tri)
+        sealed += 1
+
+    if sealed == 0:
+        return mv, mf, 0, skipped
+
+    out_v = np.concatenate(new_v, axis=0)
+    out_f = np.concatenate(new_f, axis=0)
+    # the fan is built from an unordered walk, so winding is not guaranteed;
+    # let trimesh make it consistent rather than trusting the traversal
+    try:
+        mm = trimesh.Trimesh(vertices=out_v, faces=out_f, process=False)
+        mm.fix_normals()
+        out_v = np.asarray(mm.vertices, dtype=np.float64)
+        out_f = np.asarray(mm.faces, dtype=np.int64)
+    except Exception:
+        pass
+    if verbose:
+        print(f"        sealed {sealed} chip scar(s), left {skipped} "
+              f"pre-existing opening(s) alone", flush=True)
+    return out_v, out_f, sealed, skipped
+
+
 def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
                     chip_frac: float = 0.010, seed: int = 0, verbose: bool = False,
-                    masks=None):
+                    masks=None, seal_scars: bool = True):
     """Material LOSS done properly: recede the fracture edge and chip the points.
 
     Conservator's description of what burial actually does to a sherd:
@@ -275,6 +403,13 @@ def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
     for i, (v, f) in enumerate(pieces):
         hard, feather = masks[i] if masks is not None else _band_mask(pieces, i, v)
         keep = np.ones(len(f), bool)
+
+        # Rims this mesh ALREADY had, recorded by position: deleting faces
+        # renumbers the vertices, so indices cannot be carried across.
+        e0 = np.sort(f[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2), axis=1)
+        u0, c0 = np.unique(e0, axis=0, return_counts=True)
+        pre_boundary = (v[np.unique(u0[c0 == 1])] if (c0 == 1).any()
+                        else np.empty((0, 3)))
 
         # --- edge recession: drop faces at the rim of the break surface ---
         # the rim is where the break face meets the original surface: partially
@@ -338,11 +473,23 @@ def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
                 m = trimesh.Trimesh(vertices=mv, faces=mf, process=False)
         except Exception:
             pass
+        ov = np.asarray(m.vertices, dtype=np.float64)
+        of = np.asarray(m.faces, dtype=np.int64)
+
+        # Close what we opened. The rims of the ORIGINAL mesh are passed in by
+        # position so a scanner's pre-existing hole is not quietly repaired and
+        # counted as wear.
+        if seal_scars:
+            ov, of, n_sealed, n_left = _seal_chip_scars(ov, of, pre_boundary)
+        else:
+            n_sealed = n_left = 0
+
         if verbose:
-            print(f"      piece {i}: faces {len(f)} -> {len(m.faces)} "
-                  f"({100 * (1 - len(m.faces) / len(f)):.1f}% removed)", flush=True)
-        out.append((np.asarray(m.vertices, dtype=np.float64),
-                    np.asarray(m.faces, dtype=np.int64)))
+            print(f"      piece {i}: faces {len(f)} -> {len(of)} "
+                  f"({100 * (1 - len(of) / len(f)):.1f}% removed), "
+                  f"sealed {n_sealed} scar(s), left {n_left} pre-existing",
+                  flush=True)
+        out.append((ov, of))
     return out
 
 
