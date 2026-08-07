@@ -617,7 +617,17 @@ def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
                 sharp = np.asarray(m.vertex_defects)     # angle deficit: high = pointy
             except Exception:
                 sharp = np.zeros(len(v))
-            cand = np.where(hard & (sharp > np.percentile(sharp[hard], 90))
+            # Never chip a scan artifact. A hole's rim is sharp, so it scores
+            # high on the same "pointy and exposed" test real protrusions do --
+            # and a chip landing there moved the rim, which defeated the check
+            # meant to leave pre-existing openings alone. narrow_bottle3 went
+            # from 2/4 sealed to 4/4, i.e. the scanner's gaps were quietly
+            # repaired and counted as wear.
+            on_boundary = np.zeros(len(v), bool)
+            if (c0 == 1).any():
+                on_boundary[np.unique(u0[c0 == 1])] = True
+            cand = np.where(hard & ~on_boundary
+                            & (sharp > np.percentile(sharp[hard], 90))
                             if hard.any() else np.zeros(len(v), bool))[0]
             if len(cand) > 0:
                 picks = rng.choice(cand, size=min(chip_count, len(cand)), replace=False)
@@ -635,6 +645,7 @@ def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
                 else:
                     v = _chip_dish(v, f, sites)
 
+        deleted_any = not bool(keep.all())
         nf = f[keep]
         if len(nf) < 16:                                 # never delete a piece
             out.append((v.copy(), f.copy()))
@@ -675,7 +686,12 @@ def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
         # Close what we opened. The rims of the ORIGINAL mesh are passed in by
         # position so a scanner's pre-existing hole is not quietly repaired and
         # counted as wear.
-        if seal_scars:
+        # Seal only if faces were actually deleted. The dish and the boolean cut
+        # both leave topology sound on their own, so running the sealer over
+        # them can only touch openings that were already there -- which is how
+        # the scanner's holes got repaired. Nothing of ours to close, so do not
+        # go looking.
+        if seal_scars and deleted_any:
             ov, of, n_sealed, n_left = _seal_chip_scars(
                 ov, of, pre_boundary,
                 orig_mesh=trimesh.Trimesh(vertices=v, faces=f, process=False))
