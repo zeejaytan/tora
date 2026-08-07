@@ -298,9 +298,20 @@ def _chip_dish(v, f, sites, depth_ratio: float = 0.45):
         except Exception:
             pass
 
+        # Never dish deeper than the sherd is thick. At the larger chip sizes
+        # the plate dropped to 5 of 6 sherds sealed -- the chip had gone clean
+        # through. A chip removes a flake from a surface; it does not perforate
+        # a pot. Local thickness comes from the nearest surface facing the other
+        # way, the same estimator that gave coherent walls in the survey.
+        depth = depth_ratio * r
+        opp = np.where(vn[idx] @ vn[centre_idx] < -0.5)[0]
+        if len(opp):
+            wall = float(np.min(np.linalg.norm(v[idx][opp] - v[centre_idx], axis=1)))
+            depth = min(depth, 0.6 * wall)
+
         dist = np.linalg.norm(v[idx] - v[centre_idx], axis=1)
         w = np.clip(1.0 - (dist / r) ** 2, 0.0, 1.0) ** 2   # 1 at centre, 0 at rim
-        v[idx] += into * (depth_ratio * r) * w[:, None]
+        v[idx] += into * depth * w[:, None]
     return v
 
 

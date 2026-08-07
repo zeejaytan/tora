@@ -24,15 +24,32 @@ def vertex_max_dihedral(mesh: trimesh.Trimesh) -> np.ndarray:
     return sharp
 
 
-def piece_relief_stats(verts: np.ndarray, faces: np.ndarray, radius_frac: float = 0.03, n_pts: int = 4000) -> dict:
-    """Scale-normalized surface relief (matches fracture_sharpness_analysis.py)."""
+def piece_relief_stats(verts: np.ndarray, faces: np.ndarray, radius_frac: float = 0.03,
+                       n_pts: int = 4000, seed: int = 0) -> dict:
+    """Scale-normalized surface relief (matches fracture_sharpness_analysis.py).
+
+    SEEDED, since 2026-08-07. The surface sampling was unseeded, so this
+    returned a different answer every call on identical geometry -- measured
+    at up to 5% drift between runs (blue_pot 0.2222 vs 0.2117, plate 0.3379
+    vs 0.3298, on meshes that had not been touched).
+
+    That is wide enough to have made several comparisons meaningless. Chip
+    method A "roughened by 7.3%" against method B's 4.7% when the two were
+    indistinguishable, and any before/after difference under roughly 10% was
+    being read as signal when it was sampling noise.
+
+    Absolute values shift slightly against numbers recorded before this
+    change; differences of a few percent against older figures are the seed,
+    not a real change. Large effects (eggs +200%, narrow_bottle3 +440%) are
+    far outside the noise and stand.
+    """
     from scipy.spatial import cKDTree
 
     m = trimesh.Trimesh(vertices=verts.astype(np.float64), faces=faces.astype(np.int64), process=False)
     scale = float(max(m.extents))
     if scale <= 0 or len(m.faces) < 8:
         return {"scale": scale, "relief_p90": 0.0, "relief_mean": 0.0, "sharp_frac": 0.0}
-    pts, fid = trimesh.sample.sample_surface(m, n_pts)
+    pts, fid = trimesh.sample.sample_surface(m, n_pts, seed=seed)
     fn = m.face_normals[fid]
     r = radius_frac * scale
     tree = cKDTree(pts)
