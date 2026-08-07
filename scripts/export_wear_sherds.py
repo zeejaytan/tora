@@ -93,11 +93,38 @@ def main() -> None:
     ap.add_argument("--max-pieces", type=int, default=8)
     args = ap.parse_args()
 
-    # Breaking Bad nests four levels deep: category / shape / fractured_N / piece.
-    # An earlier version assumed category/piece and read a fracture INSTANCE as
-    # though it were a sherd.
+    # Two layouts have to be handled, and assuming either one breaks the other.
+    #
+    #   Breaking Bad nests four levels: category / shape / fractured_N / piece.
+    #   (An earlier version assumed category/piece and read a fracture INSTANCE
+    #   as though it were a sherd.)
+    #
+    #   The real-scan sets are flat: object / pieces / N. Assuming BB nesting
+    #   here crashed with an unhelpful numpy error, because `"vertices" not in
+    #   fr[k]` was testing membership against a VERTEX ARRAY rather than a group.
     with h5py.File(args.src, "r") as h:
         cat = h[args.dataset][args.object]
+
+        def _is_piece_set(grp):
+            """True if grp's children are sherds, i.e. hold vertices directly."""
+            ks = [k for k in grp.keys()]
+            if not ks:
+                return False
+            first = grp[ks[0]]
+            return isinstance(first, h5py.Group) and "vertices" in first
+
+        flat = cat["pieces"] if "pieces" in cat and _is_piece_set(cat["pieces"]) \
+            else (cat if _is_piece_set(cat) else None)
+
+        if flat is not None:
+            pk = sorted(flat.keys(), key=lambda s: int(s) if s.isdigit() else s)
+            pieces = [(np.asarray(flat[k]["vertices"][:], dtype=np.float64),
+                       np.asarray(flat[k]["faces"][:], dtype=np.int64)) for k in pk]
+            if len(pieces) < 2:
+                raise SystemExit(f"{args.object}: only {len(pieces)} sherd(s)")
+            print(f"{args.object}: {len(pieces)} sherds (flat layout)", flush=True)
+            return _export(args, pieces)
+
         shape_key = sorted(cat.keys())[0]
         shape = cat[shape_key]
 
@@ -133,6 +160,10 @@ def main() -> None:
         print(f"{args.object}/{shape_key[:8]}/{fk}: {len(pieces)} sherds, "
               f"size balance {best_score:.2f}", flush=True)
 
+    return _export(args, pieces)
+
+
+def _export(args, pieces) -> None:
     out = Path(args.out)
     (out / "assembled").mkdir(parents=True, exist_ok=True)
     for i in range(len(pieces)):
