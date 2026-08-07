@@ -244,6 +244,66 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
     return out
 
 
+def _chip_dish(v, f, sites, depth_ratio: float = 0.45):
+    """A chip scar as a dish pressed into the surface — no topology change.
+
+    Chipping used to DELETE faces, which is why the conservator found holes: a
+    deleted patch is a perforation, and nothing closed it. Capping the rim
+    afterwards was tried and does not work either. A cap is a fan of triangles
+    to one apex, and on a rim that wraps a corner it bulges however the apex is
+    placed — measured at +0.12% volume on a 6% slab and +0.18% on a 3.5% one,
+    i.e. a chip that ADDED material. A boolean subtraction would be the clean
+    answer but neither this machine nor the cluster has a backend for it.
+
+    Displacing instead of deleting settles all of it at once. Topology never
+    changes, so a sealed sherd stays sealed by construction rather than by
+    repair; pressing the surface inward genuinely removes volume; and the result
+    is a concave scar, which is what a chip leaves.
+
+    This is NOT the earlier displacement approach that corrugated surfaces (job
+    28287699, relief up ~6x). That moved every band vertex along its own raw
+    normal on a noisy million-point scan. Here one direction serves a whole chip
+    and the falloff is smooth, so the patch cannot corrugate — it can only dish.
+
+    The direction is verified against the solid rather than trusted. These scans
+    have 7-15% of normals wound inward, and a flipped direction would raise a
+    blister where a chip belongs — the same defect, in a new place, that took
+    three rounds of numeric validation to catch last time.
+    """
+    if not sites:
+        return v
+    v = v.copy()
+    m = trimesh.Trimesh(vertices=v, faces=f, process=False)
+    try:
+        vn = np.asarray(m.vertex_normals, dtype=np.float64)
+    except Exception:
+        return v
+    tree = cKDTree(v)
+
+    for centre_idx, r in sites:
+        idx = np.asarray(tree.query_ball_point(v[centre_idx], r), dtype=np.int64)
+        if len(idx) < 8:
+            continue
+        d = vn[idx].mean(axis=0)
+        n = float(np.linalg.norm(d))
+        if n < 1e-12:
+            continue
+        into = -d / n
+
+        probe = v[centre_idx] + into * (0.25 * r)
+        try:
+            cp, _, fid = trimesh.proximity.closest_point(m, probe[None, :])
+            if float(((probe - cp[0]) * m.face_normals[fid[0]]).sum()) > 0:
+                into = -into           # normals were wound the wrong way here
+        except Exception:
+            pass
+
+        dist = np.linalg.norm(v[idx] - v[centre_idx], axis=1)
+        w = np.clip(1.0 - (dist / r) ** 2, 0.0, 1.0) ** 2   # 1 at centre, 0 at rim
+        v[idx] += into * (depth_ratio * r) * w[:, None]
+    return v
+
+
 def _boundary_loops(faces):
     """Ordered vertex loops around every opening in a mesh.
 
@@ -279,8 +339,35 @@ def _boundary_loops(faces):
     return loops
 
 
-def _seal_chip_scars(mv, mf, pre_boundary_pts, concavity: float = 0.35,
-                     verbose: bool = False):
+def _seal_chip_scars(mv, mf, pre_boundary_pts, orig_mesh=None,
+                     concavity: float = 0.35,
+                     verbose: bool = False, max_passes: int = 4):
+    """Seal repeatedly until nothing is left open.
+
+    One pass is not enough on thin walls. A chip there can punch clean through,
+    and the rims of the resulting opening meet at pinch points -- vertices where
+    more than two boundary edges join. The loop walk terminates early at such a
+    vertex and its closing edge never gets capped. Measured on a 3.5% slab: one
+    pass took 1125 open edges down to 13 rather than to zero, while a 6% slab
+    (no through-punching) sealed completely first time.
+
+    Re-deriving the boundary after each pass turns the leftovers into ordinary
+    loops, because the caps already added remove the junctions that broke the
+    walk. Bounded, and it reports if it ever fails to converge.
+    """
+    total_sealed = total_left = 0
+    for _ in range(max_passes):
+        mv, mf, sealed, left = _seal_once(mv, mf, pre_boundary_pts, orig_mesh,
+                                          concavity, verbose)
+        total_sealed += sealed
+        total_left = left
+        if sealed == 0:
+            break
+    return mv, mf, total_sealed, total_left
+
+
+def _seal_once(mv, mf, pre_boundary_pts, orig_mesh=None,
+               concavity: float = 0.35, verbose: bool = False):
     """Close the openings our own face deletion made, leaving a concave scar.
 
     Conservator's finding, 2026-08-07: the wear model punches holes. Both
@@ -339,7 +426,36 @@ def _seal_chip_scars(mv, mf, pre_boundary_pts, concavity: float = 0.35,
             n = 1.0
         outward = outward / n
 
+        # Which way is INTO the sherd?
+        #
+        # Dishing along -outward is right for an ordinary chip, whose rim lies
+        # on the surface with material behind it. It is wrong when the chip has
+        # punched clean through a thin wall: there are then two rims facing
+        # opposite ways, and dishing both inward builds a lens of NEW volume.
+        # Measured before this check: a 6% slab GAINED 0.12% and a 3.5% slab
+        # 0.18% — a chip that added material.
+        #
+        # So the candidate apex is tested against the untouched solid rather
+        # than assumed. The test is local (nearest surface point and its normal)
+        # so it survives the scans that are not watertight, which a containment
+        # test would not.
         apex = centre - outward * (concavity * radius)
+        if orig_mesh is not None:
+            try:
+                cp, _, fid = trimesh.proximity.closest_point(
+                    orig_mesh, np.vstack([apex, centre + outward * (concavity * radius)]))
+                fn0 = orig_mesh.face_normals[fid]
+                inside = ((np.vstack([apex, centre + outward * (concavity * radius)])
+                           - cp) * fn0).sum(axis=1) < 0
+                if not inside[0] and inside[1]:
+                    apex = centre + outward * (concavity * radius)
+                elif not inside[0] and not inside[1]:
+                    # punched through: neither side has material behind it, so
+                    # a flat cap is the honest close. It adds no volume and
+                    # keeps the sherd solid.
+                    apex = centre
+            except Exception:
+                pass
         ai = n_next
         n_next += 1
         new_v.append(apex[None, :])
@@ -433,11 +549,10 @@ def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
                             if hard.any() else np.zeros(len(v), bool))[0]
             if len(cand) > 0:
                 picks = rng.choice(cand, size=min(chip_count, len(cand)), replace=False)
-                fc = v[f].mean(axis=1)
-                ftree = cKDTree(fc)
-                for p in picks:
-                    r = chip_frac * scale * rng.uniform(0.5, 1.5)
-                    keep[ftree.query_ball_point(v[p], r)] = False
+                sites = [(int(p), chip_frac * scale * rng.uniform(0.5, 1.5))
+                         for p in picks]
+                # dish the scar in rather than punching it out; see _chip_dish
+                v = _chip_dish(v, f, sites)
 
         nf = f[keep]
         if len(nf) < 16:                                 # never delete a piece
@@ -480,7 +595,9 @@ def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
         # position so a scanner's pre-existing hole is not quietly repaired and
         # counted as wear.
         if seal_scars:
-            ov, of, n_sealed, n_left = _seal_chip_scars(ov, of, pre_boundary)
+            ov, of, n_sealed, n_left = _seal_chip_scars(
+                ov, of, pre_boundary,
+                orig_mesh=trimesh.Trimesh(vertices=v, faces=f, process=False))
         else:
             n_sealed = n_left = 0
 
