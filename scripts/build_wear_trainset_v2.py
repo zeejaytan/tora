@@ -48,22 +48,42 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fracture_mesh_ops import piece_relief_stats  # noqa: E402
-from wear_ops import apply_wear  # noqa: E402
+from wear_ops import apply_wear, sample_chip_level  # noqa: E402
 
 # Smoothness is spanned; material loss stays realistic throughout (0.2-2.7% of
 # volume, matching measurement on real sherds). Variants are named for what they
 # are, not for a "level".
+# Chip size is no longer written in here. It is SAMPLED per variant from the
+# conservator's distribution (wear_ops.CHIP_LEVELS): common through "double",
+# occasional "large", rare "very large". Fixing it per variant would give every
+# sherd in the set the same size of damage.
 VARIANTS = [
-    # name              smoothing passes  recession  chips  chip size
-    ("fresh",     dict(smoothing=0.0, smoothing_passes=1, recession=0.0,    chip_count=0, chip_size=0.0)),
-    ("smooth_1",  dict(smoothing=0.4, smoothing_passes=1, recession=0.0008, chip_count=2, chip_size=0.0018)),
-    ("smooth_2",  dict(smoothing=0.7, smoothing_passes=1, recession=0.0012, chip_count=3, chip_size=0.0020)),
-    ("smooth_3",  dict(smoothing=1.0, smoothing_passes=1, recession=0.0015, chip_count=3, chip_size=0.0022)),
-    ("smooth_4",  dict(smoothing=1.0, smoothing_passes=2, recession=0.0018, chip_count=4, chip_size=0.0022)),
-    ("smooth_5",  dict(smoothing=1.0, smoothing_passes=3, recession=0.0020, chip_count=4, chip_size=0.0022)),
-    # loss without much abrasion — real, and it isolates the other axis
-    ("loss_only", dict(smoothing=0.2, smoothing_passes=1, recession=0.0020, chip_count=5, chip_size=0.0028)),
+    # name              smoothing  passes  recession
+    ("fresh",     dict(smoothing=0.0, smoothing_passes=1, recession=0.0)),
+    ("smooth_1",  dict(smoothing=0.4, smoothing_passes=1, recession=0.0008)),
+    ("smooth_2",  dict(smoothing=0.7, smoothing_passes=1, recession=0.0012)),
+    ("smooth_3",  dict(smoothing=1.0, smoothing_passes=1, recession=0.0015)),
+    ("smooth_4",  dict(smoothing=1.0, smoothing_passes=2, recession=0.0018)),
+    ("smooth_5",  dict(smoothing=1.0, smoothing_passes=3, recession=0.0020)),
+    # loss without much abrasion - real, and it isolates the other axis
+    ("loss_only", dict(smoothing=0.2, smoothing_passes=1, recession=0.0020)),
 ]
+
+# Objects excluded, and why. Recorded here rather than filtered silently: a
+# dataset that quietly drops a tenth of its source is one nobody can reason
+# about later.
+#
+# The three eggs have 1.2-1.6% walls, far thinner than anything archaeological
+# here, and wear measures as running BACKWARDS on them - roughness rises
+# 200-440% where every pot falls. The conservator inspected all three at every
+# level and found them fine apart from the chip holes, which are now fixed. So
+# measurement and eye disagree, and neither has been shown wrong.
+#
+# They are excluded rather than chased: three of twenty-seven objects, not
+# pottery, and the anomaly is invisible at the scale a conservator inspects.
+# Redesigning the wear model around them would be fixing a problem nobody can
+# see, on material we do not study.
+EXCLUDE = ["egg__egg1", "egg__egg2", "egg__egg3"]
 
 
 def main() -> None:
@@ -86,7 +106,11 @@ def main() -> None:
 
     with h5py.File(src, "r") as fin:
         ds = fin[args.src_dataset]
-        objects = sorted(ds.keys())
+        objects = [o for o in sorted(ds.keys()) if o not in EXCLUDE]
+        dropped = [o for o in sorted(ds.keys()) if o in EXCLUDE]
+        if dropped:
+            print("excluded " + str(len(dropped)) + ": " + ", ".join(dropped))
+        rng = np.random.default_rng(args.seed)
 
         # which split each source object belongs to, so worn copies of a
         # validation object can never leak into training
@@ -111,10 +135,15 @@ def main() -> None:
                 print(f"{obj}: {len(pieces)} sherds", flush=True)
 
                 for vi, (vname, kw) in enumerate(VARIANTS):
-                    # vary chip placement per variant, so the model does not see
-                    # the same damage pattern repeated across the whole set
-                    worn = (pieces if vname == "fresh"
-                            else apply_wear(pieces, seed=args.seed + vi, **kw))
+                    # Chip size drawn per variant from the archaeological
+                    # distribution, placement varied by seed, so the set does not
+                    # repeat one damage pattern across every sherd.
+                    if vname == "fresh":
+                        worn, chip_name = pieces, "none"
+                    else:
+                        chip_name, chip_kw = sample_chip_level(rng)
+                        worn = apply_wear(pieces, seed=args.seed + vi,
+                                          **kw, **chip_kw)
                     rel = float(np.mean([piece_relief_stats(v, f)["relief_p90"]
                                          for v, f in worn]))
 
@@ -144,8 +173,10 @@ def main() -> None:
                     split_members.setdefault(src_split.get(obj, "train"), []).append(full)
                     manifest[tag] = {"object": obj, "variant": vname,
                                      "smoothness": rel, "n_pieces": len(worn),
+                                     "chip_level": chip_name,
                                      "split": src_split.get(obj, "train")}
-                    print(f"    {vname:<10s} smoothness {rel:.4f}", flush=True)
+                    print(f"    {vname:<10s} smoothness {rel:.4f}  "
+                          f"chips {chip_name}", flush=True)
 
             sgrp = fout.create_group("data_split").create_group(args.dataset_name)
             for split in ("train", "val", "test"):
