@@ -997,6 +997,48 @@ WEAR_SAMPLING_WEIGHTS = {
 }
 
 
+# HOW BIG A CHIP SHOULD BE
+#
+# Conservator's calibration after inspecting the chip-size series (2026-08-07):
+# "current-double is fine, very large is very rare, but large can happen."
+#
+# So chips ARE a minor effect on real sherds, which settles a question the
+# numbers had raised but could not answer: at the default setting a chip removes
+# 0.254% of a sherd against 0.252% for no chips at all, i.e. nothing. That looked
+# like a bug. It is not — it is what ordinary chipping does. Material loss on a
+# worn sherd comes from abrasion and edge recession; chips are a garnish.
+#
+# The tail is real though, and a dataset that never shows a large chip would
+# leave the model surprised by one. Weights follow the verdict directly: common
+# through "double", occasional at "large", rare at "very large".
+#
+# Sizes are radii as a fraction of object size. Measured loss on blue_pot, whole
+# object: 0.254% at current, 0.260% double, 0.562% large, 1.105% very large,
+# against 0.252% with no chips.
+CHIP_LEVELS = [
+    # name          count  size     weight
+    ("current",     3,     0.0022,  3.0),
+    ("double",      3,     0.0045,  3.0),
+    ("quadruple",   4,     0.0090,  2.0),
+    ("large",       5,     0.0180,  1.0),
+    ("very_large",  6,     0.0300,  0.25),
+]
+
+
+def sample_chip_level(rng):
+    """Draw a chip size following the conservator's distribution.
+
+    Returns (name, dict) ready to merge into an apply_wear call. Use when
+    building a dataset; iterating CHIP_LEVELS uniformly would make large chips
+    five times more common than they are.
+    """
+    w = np.array([c[3] for c in CHIP_LEVELS], dtype=float)
+    w /= w.sum()
+    i = int(rng.choice(len(CHIP_LEVELS), p=w))
+    name, count, size, _ = CHIP_LEVELS[i]
+    return name, dict(chip_count=count, chip_size=size)
+
+
 def sample_wear_condition(rng):
     """Draw a wear condition following the archaeological distribution.
 
