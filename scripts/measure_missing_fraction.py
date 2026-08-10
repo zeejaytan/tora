@@ -125,10 +125,25 @@ def main() -> None:
     rows = np.where(np.array([(hb == i).sum() for i in range(args.n_height)]) > 0)[0]
     lo, hi = rows.min() + 1, rows.max() - 1
 
+    # Only measure where the vessel is a WALL. Near a closed base it is a dome,
+    # not a ring, so probing around a circle at the median radius finds nothing
+    # and reports the base as entirely missing -- which is what the first fixed
+    # version did, claiming 100% loss across the bottom fifth of a pot that
+    # visibly has a base. A section counts as wall only if its material stays
+    # out at the wall instead of reaching in toward the axis.
+    inner = np.array([np.percentile(r[hb == i], 5) if (hb == i).any() else 0.0
+                      for i in range(args.n_height)])
+    is_wall = (med_r > 0) & (inner > 0.45 * med_r)
+    skipped = [i for i in range(lo, hi + 1) if not is_wall[i]]
+    if skipped:
+        print(f"  closed sections excluded (base/dome, not a ring): "
+              f"{100 * min(skipped) / args.n_height:.0f}%-"
+              f"{100 * max(skipped) / args.n_height:.0f}% of the height")
+
     tot = miss = 0.0
     per_row = []
     for i in range(lo, hi + 1):
-        if med_r[i] <= 0:
+        if not is_wall[i]:
             continue
         zc = zl + (i + 0.5) / args.n_height * span
         ang = (np.arange(args.n_angle) + 0.5) / args.n_angle * 2 * np.pi
