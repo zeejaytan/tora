@@ -168,9 +168,11 @@ def main() -> None:
              else [int(x) - 1 for x in args.attempts.split(",")])
 
     for k in which:
-        adir = out / f"attempt{k + 1:02d}"
-        adir.mkdir(parents=True, exist_ok=True)
-        scene, resid = [], []
+        # ONE file per attempt, with every sherd still a separate, selectable
+        # object. A merged PLY is useless for the actual task here -- the whole
+        # point is to pick a sherd up and turn it, and PLY has no notion of
+        # separate objects, so everything arrives fused into a single block.
+        scene, resid = trimesh.Scene(), []
         for i, (a, b) in enumerate(zip(bounds[:-1], bounds[1:])):
             R, t = solve_rigid(pts_gt[a:b], proposed[k][a:b])
             # check 2: does that transform actually reproduce the proposal?
@@ -180,32 +182,40 @@ def main() -> None:
 
             m = meshes[i].copy()
             m.vertices = np.asarray(m.vertices) @ R.T + t
-            m.visual.vertex_colors = np.tile(
-                np.array(PALETTE[i % len(PALETTE)] + (255,), dtype=np.uint8),
-                (len(m.vertices), 1))
-            m.export(adir / f"sherd_{i:02d}.ply")
-            scene.append(m)
+            colour = np.array(PALETTE[i % len(PALETTE)] + (255,), dtype=np.uint8)
+            m.visual = trimesh.visual.ColorVisuals(
+                mesh=m, vertex_colors=np.tile(colour, (len(m.vertices), 1)))
+            scene.add_geometry(m, node_name=f"sherd_{i:02d}",
+                               geom_name=f"sherd_{i:02d}")
 
-        trimesh.util.concatenate(scene).export(adir / "assembled.ply")
-        print(f"  attempt {k + 1}: wrote {len(scene)} sherds  "
-              f"(pose fit residual mean {np.mean(resid):.4f}% of object size)")
+        stem = out / f"attempt{k + 1:02d}"
+        for ext in ("glb", "obj"):
+            try:
+                scene.export(f"{stem}.{ext}")
+            except Exception as e:
+                print(f"      could not write .{ext}: {type(e).__name__}: {e}")
+        print(f"  attempt {k + 1}: {len(scene.geometry)} separately selectable "
+              f"sherds  (pose fit residual {np.mean(resid):.4f}% of object size)")
         if np.mean(resid) > 0.01:
             print("      ** residual should be ~0; the fitted pose does not")
             print("         reproduce the proposal, so treat these files as suspect **")
 
-    # the sherds as given, unmoved, for comparison in the same units
-    ref = out / "reference_scan_layout"
-    ref.mkdir(parents=True, exist_ok=True)
-    scene = []
+    # the sherds as given, unmoved, in the same units and the same form
+    scene = trimesh.Scene()
     for i, m in enumerate(meshes):
         mm = m.copy()
-        mm.visual.vertex_colors = np.tile(
-            np.array(PALETTE[i % len(PALETTE)] + (255,), dtype=np.uint8),
-            (len(mm.vertices), 1))
-        mm.export(ref / f"sherd_{i:02d}.ply")
-        scene.append(mm)
-    trimesh.util.concatenate(scene).export(ref / "assembled.ply")
-    print(f"  reference (scan layout, NOT a correct reassembly): {len(scene)} sherds")
+        colour = np.array(PALETTE[i % len(PALETTE)] + (255,), dtype=np.uint8)
+        mm.visual = trimesh.visual.ColorVisuals(
+            mesh=mm, vertex_colors=np.tile(colour, (len(mm.vertices), 1)))
+        scene.add_geometry(mm, node_name=f"sherd_{i:02d}",
+                           geom_name=f"sherd_{i:02d}")
+    for ext in ("glb", "obj"):
+        try:
+            scene.export(str(out / f"reference_scan_layout.{ext}"))
+        except Exception as e:
+            print(f"      could not write reference .{ext}: {e}")
+    print(f"  reference (scan layout, NOT a correct reassembly): "
+          f"{len(scene.geometry)} sherds")
 
     (out / "README.txt").write_text(f"""Proposed reassembly as meshes — {obj}
 ================================================================
