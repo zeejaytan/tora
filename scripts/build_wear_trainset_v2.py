@@ -108,10 +108,24 @@ EXCLUDE = ["egg__egg1", "egg__egg2", "egg__egg3"]
 # can distinguish the two, and it may be a large part of why pushing pieces
 # together does not help on the Juglet.
 #
-# Losses are biased to SMALL fragments, which is how it happens: small sherds
-# are the fragile ones and the ones that go unnoticed. The anchor is never
-# dropped (the dataset needs a fixed reference) and at least three fragments are
-# always kept, since below that the task stops being an assembly problem.
+# HOW BIG A PIECE GOES MISSING -- corrected 2026-08-10, from the conservator
+# reassembling the Juglet by hand: it is missing a VERY VISIBLE piece, not a
+# small one.
+#
+# The first version of this only lost small sherds, on the reasoning that small
+# ones are fragile and go unnoticed. That is one real mechanism, but it is not
+# the one that matters here, and training only on it would have taught the model
+# that gaps are always minor -- while the object we are trying to solve has a
+# substantial hole in it. The distribution now carries both:
+#
+#   attrition  small sherds vanish. Common: they are fragile, and easy to miss
+#              in the ground, in excavation and in storage.
+#   major      a substantial piece is simply absent. Less common but decisive,
+#              and it is the Juglet's actual situation.
+#
+# The anchor is never dropped (the dataset needs a fixed reference) and at least
+# three fragments are always kept, since below that the task stops being an
+# assembly problem.
 #
 # Ground truth survives untouched: removing a fragment does not move the others,
 # so the remaining poses stay exactly as correct as they were.
@@ -123,13 +137,20 @@ MISSING_LEVELS = [
     ("lost_three",   3,               0.5),
 ]
 
+# how the missing pieces are chosen, once the count is drawn
+LOSS_MODES = [("attrition", 0.6), ("major", 0.4)]
+
 
 def sample_missing(rng, pieces):
-    """Choose which fragments are absent, biased to the small ones.
+    """Choose which fragments are absent.
 
-    Returns (name, kept_indices). Selection is weighted by inverse fragment
-    size, so a large body sherd is unlikely to vanish while a small rim chip
-    often does -- which is the way assemblages actually arrive.
+    Returns (name, kept_indices). Two mechanisms, because both happen and they
+    leave very different holes:
+
+      attrition  weighted by inverse size, so small sherds vanish often and
+                 large ones rarely.
+      major      size-neutral among non-anchor fragments, so a substantial
+                 piece can simply be absent -- which is the Juglet's case.
     """
     w = np.array([m[2] for m in MISSING_LEVELS], dtype=float)
     w /= w.sum()
@@ -143,13 +164,22 @@ def sample_missing(rng, pieces):
     if n_drop == 0:
         return "complete", list(range(n))
 
+    mw = np.array([m[1] for m in LOSS_MODES], dtype=float)
+    mw /= mw.sum()
+    mode = LOSS_MODES[int(rng.choice(len(LOSS_MODES), p=mw))][0]
+
     cand = [i for i in range(n) if i != anchor]
-    pr = 1.0 / np.maximum(sizes[cand], 1.0)
+    if mode == "attrition":
+        pr = 1.0 / np.maximum(sizes[cand], 1.0)
+    else:
+        pr = np.ones(len(cand), dtype=float)
     pr = pr / pr.sum()
-    drop = set(rng.choice(cand, size=min(n_drop, len(cand)),
-                          replace=False, p=pr).tolist())
+    drop = sorted(rng.choice(cand, size=min(n_drop, len(cand)),
+                             replace=False, p=pr).tolist())
     kept = [i for i in range(n) if i not in drop]
-    return f"{name}({len(drop)})", kept
+    # record how much of the object went, not just how many pieces
+    lost_frac = 100.0 * sizes[drop].sum() / sizes.sum()
+    return f"{name}/{mode}({len(drop)},{lost_frac:.0f}%)", kept
 
 
 def main() -> None:
