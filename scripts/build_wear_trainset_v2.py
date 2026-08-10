@@ -86,6 +86,72 @@ VARIANTS = [
 EXCLUDE = ["egg__egg1", "egg__egg2", "egg__egg3"]
 
 
+# INCOMPLETE ASSEMBLAGES
+#
+# Conservator, 2026-08-10: the Juglet is also missing a few small pieces.
+#
+# This is not a detail. Every training example so far has been COMPLETE -- every
+# fragment has all its neighbours present, so every break face has a partner
+# somewhere in the set. The model has therefore only ever been asked to solve
+# puzzles where a mate always exists, and it behaves accordingly: it will seat a
+# fragment against something, because in its experience something always fits.
+#
+# A real assemblage is not like that. Small sherds are lost in the ground, in
+# excavation, and in storage, so faces exist with nothing left to join. The
+# model needs to learn that a face can have no partner and be left alone --
+# which is the difference between an honest gap in a reconstruction and a wrong
+# join that fills it.
+#
+# It also explains something we could not otherwise tell apart. In every render
+# so far, a fragment whose neighbour is MISSING looks exactly like a fragment
+# that was placed badly. Training on incomplete sets is the only way the model
+# can distinguish the two, and it may be a large part of why pushing pieces
+# together does not help on the Juglet.
+#
+# Losses are biased to SMALL fragments, which is how it happens: small sherds
+# are the fragile ones and the ones that go unnoticed. The anchor is never
+# dropped (the dataset needs a fixed reference) and at least three fragments are
+# always kept, since below that the task stops being an assembly problem.
+#
+# Ground truth survives untouched: removing a fragment does not move the others,
+# so the remaining poses stay exactly as correct as they were.
+MISSING_LEVELS = [
+    # name           pieces dropped   weight
+    ("complete",     0,               5.0),
+    ("lost_one",     1,               3.0),
+    ("lost_two",     2,               1.5),
+    ("lost_three",   3,               0.5),
+]
+
+
+def sample_missing(rng, pieces):
+    """Choose which fragments are absent, biased to the small ones.
+
+    Returns (name, kept_indices). Selection is weighted by inverse fragment
+    size, so a large body sherd is unlikely to vanish while a small rim chip
+    often does -- which is the way assemblages actually arrive.
+    """
+    w = np.array([m[2] for m in MISSING_LEVELS], dtype=float)
+    w /= w.sum()
+    name, n_drop, _ = MISSING_LEVELS[int(rng.choice(len(MISSING_LEVELS), p=w))]
+
+    n = len(pieces)
+    keep_min = 3
+    sizes = np.array([len(v) for v, _ in pieces], dtype=float)
+    anchor = int(np.argmax(sizes))
+    n_drop = min(n_drop, max(0, n - keep_min))
+    if n_drop == 0:
+        return "complete", list(range(n))
+
+    cand = [i for i in range(n) if i != anchor]
+    pr = 1.0 / np.maximum(sizes[cand], 1.0)
+    pr = pr / pr.sum()
+    drop = set(rng.choice(cand, size=min(n_drop, len(cand)),
+                          replace=False, p=pr).tolist())
+    kept = [i for i in range(n) if i not in drop]
+    return f"{name}({len(drop)})", kept
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--src", required=True)
@@ -144,6 +210,15 @@ def main() -> None:
                         chip_name, chip_kw = sample_chip_level(rng)
                         worn = apply_wear(pieces, seed=args.seed + vi,
                                           **kw, **chip_kw)
+
+                    # Remove fragments AFTER wearing, so the ones that remain
+                    # are worn exactly as they would have been in the whole
+                    # pot -- their break faces were shaped by neighbours that
+                    # are now gone, which is what a real gap looks like.
+                    miss_name, kept = sample_missing(rng, worn)
+                    worn = [worn[i] for i in kept]
+                    if len(worn) < 2:
+                        continue
                     rel = float(np.mean([piece_relief_stats(v, f)["relief_p90"]
                                          for v, f in worn]))
 
@@ -174,9 +249,11 @@ def main() -> None:
                     manifest[tag] = {"object": obj, "variant": vname,
                                      "smoothness": rel, "n_pieces": len(worn),
                                      "chip_level": chip_name,
+                                     "missing": miss_name,
+                                     "kept_pieces": kept,
                                      "split": src_split.get(obj, "train")}
                     print(f"    {vname:<10s} smoothness {rel:.4f}  "
-                          f"chips {chip_name}", flush=True)
+                          f"chips {chip_name:<12s} {miss_name}", flush=True)
 
             sgrp = fout.create_group("data_split").create_group(args.dataset_name)
             for split in ("train", "val", "test"):
