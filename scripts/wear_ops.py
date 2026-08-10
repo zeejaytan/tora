@@ -25,6 +25,24 @@ Consequences that matter for building a dataset:
     relief — that drove measured roughness ABOVE the untouched sherd
     (galli_pot 0.457 -> 0.681) until the order was corrected.
 
+WEAR IS ALSO SCALE-SELECTIVE, and this is the correction of 2026-08-10. A break
+face carries two different things at two different scales: the TEETH that
+interlock on a fresh break (sub-millimetre) and the CURVE of the face itself
+(centimetre). Wear blunts the teeth and leaves the curve — which is why a worn
+sherd can still be reassembled by hand, and why the curve, not the teeth, is
+what a model should be taught to read on real material.
+
+Measured on blue_pot before and after (same mesh, so no density confound), the
+mollification this replaced did the opposite at BOTH ends: it ADDED fine
+structure (0.073 -> 0.090) and REMOVED 14% of the curve (1.723 -> 1.483). Its
+kernel sits at 5% of the object, above the curve scale, so it was low-passing
+the feature that had to survive. `blunt_asperities` is the replacement and
+`apply_wear(mode=...)` selects between them.
+
+The acceptance test for any future change is the same measurement, on one
+object: fine-scale structure must FALL with wear level while coarse-scale
+structure holds, and the joins must open. `validate_wear_spectrum.py`.
+
 Ground-truth poses are never touched — geometry-only edits — so scoring stays
 valid and any dataset built here remains scoreable.
 
@@ -49,6 +67,7 @@ Entry points:
 """
 
 import sys
+from itertools import chain
 from pathlib import Path
 
 import numpy as np
@@ -127,6 +146,269 @@ def _smoothed_normals(v, f, mask, k: int = 16):
     return out
 
 
+def _local_mean(pts, query, radius, max_ref: int = 60000, seed: int = 0):
+    """The surface as it would be if everything finer than `radius` were gone.
+
+    Averaging the neighbours within a radius is a low-pass filter whose cutoff
+    IS that radius: structure smaller than it averages away, structure larger
+    survives untouched. That is the whole basis of scale-selective wear, and it
+    is why the cutoff is an explicit parameter rather than a tuning constant.
+
+    The reference set is subsampled -- an envelope is a smooth surface, and 60k
+    points describe it as well as 500k. The per-point mean is accumulated with
+    `reduceat` rather than a Python loop: on a 24k-vertex toy the loop version
+    did not finish in two minutes, and the real meshes are twenty times larger.
+    """
+    rng = np.random.default_rng(seed)
+    ref = pts
+    if len(ref) > max_ref:
+        ref = ref[rng.choice(len(ref), max_ref, replace=False)]
+
+    # Thin the reference until a ball holds about `per_ball` points. Without
+    # this the cost is set by the mesh's sampling density rather than by the
+    # cutoff: at a 4% radius on a densely scanned pot each ball holds ~800
+    # points, so a 100k-vertex band would materialise 80M indices. A uniform
+    # subsample leaves the mean unbiased -- an envelope needs coverage, not
+    # every point.
+    per_ball = 80
+    tree = cKDTree(ref)
+    probe = ref[rng.choice(len(ref), min(200, len(ref)), replace=False)]
+    occ = float(np.mean([len(x) for x in
+                         tree.query_ball_point(probe, radius, workers=-1)]))
+    if occ > per_ball * 1.5 and len(ref) > 2000:
+        keep = max(2000, int(len(ref) * per_ball / max(occ, 1.0)))
+        ref = ref[rng.choice(len(ref), keep, replace=False)]
+        tree = cKDTree(ref)
+
+    nb = tree.query_ball_point(query, radius, workers=-1, return_sorted=False)
+
+    lens = np.fromiter((len(x) for x in nb), dtype=np.int64, count=len(nb))
+    out = query.copy()
+    ok = np.where(lens >= 4)[0]
+    if not len(ok):
+        return out
+    lo = lens[ok]
+    flat = np.fromiter(chain.from_iterable(nb[i] for i in ok),
+                       dtype=np.int64, count=int(lo.sum()))
+    starts = np.zeros(len(lo), dtype=np.int64)
+    np.cumsum(lo[:-1], out=starts[1:])
+    out[ok] = np.add.reduceat(ref[flat], starts, axis=0) / lo[:, None]
+    return out
+
+
+def _outward_directions(v, idx, obj_scale, k_fit: int = 24,
+                        smooth_k: int = 16):
+    """Which way is OUT of the sherd, decided by where the material is.
+
+    Every previous wear operation took this from the mesh winding, and the
+    winding is exactly what cannot be trusted on these scans -- 7-15% of band
+    normals are wound inward, and each time, wear ran backwards there.
+
+    The replacement asks a question winding cannot corrupt: material lies on the
+    INSIDE. Fit a plane to the local neighbourhood, which fixes the normal up to
+    sign, then count the piece's own surface points on each side within a radius
+    of the wall thickness. The side carrying less of the sherd is outside.
+    Works on a thin wall (the far wall sits inward) and on a solid (the bulk
+    sits inward) without being told which it is dealing with.
+
+    This also replaces the direction taken from the nearest point on the
+    NEIGHBOURING fragment, which turned out to be unusable for the case it was
+    written for. Two mating break faces are the same surface, so the nearest
+    point on the other fragment is the vertex itself: the difference vector is
+    zero, or tangential noise, and after smoothing it cancels. On a synthetic
+    pair with an exactly shared interface it produced no displacement at all.
+    """
+    q = v[idx]
+    tree = cKDTree(v)
+
+    # local plane fit -> normal up to sign
+    _, nb = tree.query(q, k=min(k_fit, len(v)), workers=-1)
+    P = v[nb] - q[:, None, :]
+    C = np.einsum("nki,nkj->nij", P, P)
+    n = np.linalg.eigh(C)[1][:, :, 0]              # smallest-variance direction
+
+    # Which side holds the material? The centre of mass of the piece's own
+    # surface near the vertex lies INWARD, so the normal pointing away from it
+    # is outward.
+    #
+    # AT WHICH RADIUS, though. This is the whole difficulty, and it is the
+    # conservator's thickness spectrum again: on an eggshell sherd the far wall
+    # is a fraction of a percent away, on a solid bone there is no wall at all
+    # and the nearest material asymmetry is the bulk of the piece, tens of
+    # percent away. Two fixed radii were tried and each failed on the case the
+    # other handled -- too small and the neighbourhood is just the break face,
+    # symmetric, so the sign falls out of rounding noise (41% of vertices sent
+    # the wrong way on the synthetic pair); too large and a genuinely thin wall
+    # is swamped by the sherd's overall curvature.
+    #
+    # So the radius is not chosen in advance. The test runs at a ladder of
+    # radii and each vertex takes its answer from the radius where the material
+    # is most decisively one-sided, measured as offset relative to the radius
+    # itself so the scales are comparable. Nothing needs to know whether it is
+    # looking at a wall or a solid.
+    best = np.zeros(len(q))
+    sign = np.ones(len(q))
+    for rf in (0.01, 0.02, 0.04, 0.08, 0.16, 0.32):
+        proj = np.einsum("ni,ni->n", _local_mean(v, q, rf * obj_scale) - q, n)
+        conf = np.abs(proj) / (rf * obj_scale)
+        take = conf > best
+        best[take] = conf[take]
+        sign[take] = -np.sign(proj[take])          # away from the material
+    n *= np.where(sign == 0, 1.0, sign)[:, None]
+
+    # smooth the field, aligning signs first so opposing normals do not cancel
+    if len(idx) > smooth_k:
+        _, nn = cKDTree(q).query(q, k=min(smooth_k, len(q)), workers=-1)
+        ref = n[nn]
+        ref *= np.sign(np.einsum("nki,ni->nk", ref, n))[:, :, None]
+        n = ref.mean(axis=1)
+    ln = np.linalg.norm(n, axis=1, keepdims=True)
+    return n / np.maximum(ln, 1e-12)
+
+
+def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
+                     passes: int = 2, exposure: float = 0.5, masks=None,
+                     seed: int = 0):
+    """Blunt the TEETH and leave the CURVE — wear as one-sided peak truncation.
+
+    Replaces mollification as the micro-scale term, for three faults the scale
+    spectrum exposed on 2026-08-10 (blue_pot, same mesh before and after, so the
+    comparison is free of the mesh-density confound that invalidated the
+    cross-object one):
+
+      1. IT MOVED MATERIAL BOTH WAYS. Averaging a vertex toward its neighbours
+         pushes roughly half of them OUTWARD, into the space the neighbouring
+         sherd occupies. Abrasion cannot add material. Truncation only removes,
+         so joins open monotonically and the inward-normal class of bug cannot
+         recur.
+
+      2. IT ATE THE CURVE. At the heavy setting coarse-scale structure fell
+         1.723 -> 1.483, a 14% loss of exactly the feature that must survive.
+         The mollifier's kernel is 5% of the object, which is ABOVE the curve
+         scale; it was low-passing the thing it was supposed to preserve.
+
+      3. IT FILLED VALLEYS AS READILY AS IT CUT PEAKS. An abrasive contacts the
+         high points first: real wear truncates asperity tips and leaves the
+         troughs. Symmetric averaging produces a surface that is smooth by
+         statistic and wrong by shape.
+
+    Conservator's framing, which this implements literally (2026-08-10): "it
+    blunts the teeth and preserves the curve".
+
+    Method. Each band vertex is compared with the local envelope at the cutoff
+    radius -- the surface with everything finer than the cutoff removed. The
+    part of the vertex standing PROUD of that envelope, measured along the
+    direction away from the neighbouring fragment, is the asperity; a fraction
+    of it is removed. Material below the envelope is never touched, so nothing
+    moves toward the neighbour and no valley is filled.
+
+    Structure coarser than the cutoff lives in the envelope itself and is
+    invisible to the operation, which is what makes the curve safe by
+    construction rather than by choosing a gentle dose.
+
+    Wear is also UNEVEN, and the unevenness carries information: exposed
+    protrusions abrade faster than sheltered hollows, which is why chips form at
+    the pointy ends. The rate is scaled by how far the neighbourhood stands
+    proud at a coarser scale, so a worn face ends up blunter where it was
+    exposed -- a texture no uniform operation can produce.
+
+    Args:
+        cut_frac: cutoff radius as a fraction of object size, and the knob that
+            sets SEVERITY -- heavier wear blunts larger asperities. It must stay
+            well below the curve, and "well below" is quantitative here: a
+            disc-mean envelope rolls off slowly, so a cutoff at 1% still passes
+            41% of a 3.2% feature into the residual and would truncate it. At
+            0.4% that falls to 5%. Hence the default: the cutoff sits at the
+            finest scale the spectrum probes, and the curve is untouched.
+        strength: fraction of the sub-cutoff relief removed, 0-1. At 1.0 the
+            face lands exactly on its own envelope.
+        passes: refinement iterations. The budget is fixed from the untouched
+            surface, so extra passes converge on that target rather than cutting
+            deeper -- unlike repeated mollification, which reversed after pass
+            2-3 and started adding artefacts.
+        exposure: how strongly the rate follows local exposure. 0 = uniform.
+    """
+    allv = np.concatenate([v for v, _ in pieces], axis=0)
+    scale = float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-9
+    R = cut_frac * scale
+    out = []
+
+    for i, (v, f) in enumerate(pieces):
+        hard, feather = masks[i] if masks is not None else _band_mask(pieces, i, v)
+        band = feather > 0.02
+        if not band.any() or strength <= 0 or passes < 1:
+            out.append((v.copy(), f.copy()))
+            continue
+
+        v = v.copy()
+        idx = np.where(band)[0]
+        away = _outward_directions(v, idx, scale)
+
+        # How exposed each vertex is, measured once on the untouched shape: how
+        # far its neighbourhood stands proud of a coarser envelope. Positive on
+        # a bump, negative in a hollow.
+        expo = np.ones(len(idx))
+        if exposure > 0:
+            coarse = _local_mean(v[idx], v[idx], 4.0 * R, seed=seed)
+            hm = ((v[idx] - coarse) * away).sum(axis=1)
+            s = float(np.std(hm)) + 1e-12
+            expo = np.clip(1.0 + exposure * (hm / s), 0.3, 1.8)
+
+        # A BUDGET, fixed from the untouched surface: no vertex may be cut below
+        # the envelope it started above. Without it the operation runs away --
+        # each pass recomputes the envelope on an already-lowered surface, so
+        # the envelope descends and there is always more to cut. Measured on the
+        # synthetic pair, three passes at full strength drove the teeth to
+        # amplitude x-0.17: the peaks had been cut so deep they became troughs.
+        # Wear blunts an asperity; it does not carve a mirror image of it.
+        #
+        # It also puts severity on the right knob. More wear means blunting
+        # reaches LARGER asperities -- raise `cut_frac` -- not that the same
+        # small ones get cut deeper. That is the module's own framing of wear as
+        # loss moving up the scales, applied to the micro term.
+        env0 = _local_mean(v[idx], v[idx], R, seed=seed)
+        budget = (strength * feather[idx] * expo
+                  * np.maximum(((v[idx] - env0) * away).sum(axis=1), 0.0))
+        removed = np.zeros(len(idx))
+        for _ in range(max(1, int(passes))):
+            env = _local_mean(v[idx], v[idx], R, seed=seed)
+            h = ((v[idx] - env) * away).sum(axis=1)
+            step = np.clip(np.maximum(h, 0.0), 0.0, budget - removed)
+            if not np.any(step > 0):
+                break
+            v[idx] -= away * step[:, None]
+            removed += step
+        out.append((v, f.copy()))
+    return out
+
+
+def band_limit(pieces, spacing_frac: float = 0.005):
+    """Blur away detail no real scan resolves. This models the SCANNER, not wear.
+
+    Conservator's flag, 2026-08-10: fine fracture detail on a scanned real object
+    is unreliable, so an assembly cannot honestly rest on it. That cuts both
+    ways. Our simulated FRESH breaks carry crisp teeth at a scale no scan of a
+    real sherd ever delivers, so a model trained on them learns to read detail
+    that will not be there at inference -- a domain gap pointing the wrong way,
+    and one no amount of wear simulation fixes because it is present before any
+    wear is applied.
+
+    Deliberately TWO-SIDED, unlike `blunt_asperities`. Wear removes material;
+    a measurement limit does not. It blurs symmetrically, because that is what
+    finite resolution does.
+
+    Default spacing is the Juglet's own mesh spacing (0.535% of object size),
+    the one measured figure available for real scanned material here.
+    """
+    allv = np.concatenate([v for v, _ in pieces], axis=0)
+    scale = float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-9
+    R = spacing_frac * scale
+    out = []
+    for v, f in pieces:
+        out.append((_local_mean(v, v.copy(), R), f.copy()))
+    return out
+
+
 def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, masks=None):
     """Retreat the MATING SURFACE so worn sherds no longer meet tightly.
 
@@ -165,37 +447,20 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
         # Moving away from the nearest point on another fragment is correct by
         # construction, whatever the winding: material is lost AT the contact, so
         # the surface retreats FROM the contact.
+        # Retreat direction, revised 2026-08-10. It used to be "away from the
+        # nearest point on another fragment", which was itself a fix for mesh
+        # normals being wound inward on 7-15% of the band. That fix has a hole
+        # in it: two mating break faces are the SAME surface, so on closely
+        # sampled fragments the nearest point on the neighbour is the vertex
+        # itself. The difference vector is then zero or tangential noise, and
+        # smoothing cancels what is left. On a synthetic pair with an exactly
+        # shared interface it produced no displacement at all -- recession would
+        # have been silently doing nothing.
+        #
+        # `_outward_directions` asks where the sherd's own material is instead,
+        # which needs neither the winding nor the neighbour.
         idx = np.where(band)[0]
-        nearest = None
-        best = np.full(len(idx), np.inf)
-        for j, (w, _) in enumerate(pieces):
-            if j == i:
-                continue
-            ref = w if len(w) <= 80000 else w[::max(1, len(w) // 80000)]
-            d_, k_ = cKDTree(ref).query(v[idx], workers=-1)
-            upd = d_ < best
-            if upd.any():
-                pts = ref[k_[upd]]
-                if nearest is None:
-                    nearest = np.zeros((len(idx), 3))
-                nearest[upd] = pts
-                best[upd] = d_[upd]
-        if nearest is None:
-            out.append((v.copy(), f.copy()))
-            continue
-
-        away = v[idx] - nearest
-        n = np.linalg.norm(away, axis=1, keepdims=True)
-        away = np.divide(away, np.maximum(n, 1e-12))
-
-        # Smooth the direction field, for the reason the original normals were
-        # smoothed: an unsmoothed per-vertex direction corrugates the surface
-        # instead of retreating it (relief blew up ~6x, job 28287699).
-        if len(idx) > 8:
-            _, nb = cKDTree(v[idx]).query(v[idx], k=min(normal_k, len(idx)), workers=-1)
-            away = away[nb].mean(axis=1)
-            n = np.linalg.norm(away, axis=1, keepdims=True)
-            away = np.divide(away, np.maximum(n, 1e-12))
+        away = _outward_directions(v, idx, scale, smooth_k=normal_k)
 
         # CAP the displacement by local feature size, or the surface folds.
         #
@@ -839,8 +1104,24 @@ def wear_piece_set(pieces, strength: float, *, kernel_frac_max: float = 0.05,
 def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05,
                smoothing_passes: int = 1,
                recession: float = 0.0015, chip_count: int = 4,
-               chip_size: float = 0.003, seed: int = 0):
+               chip_size: float = 0.003, seed: int = 0,
+               mode: str = "blunt", blunt_cut: float = 0.004,
+               scan_spacing: float = 0.0):
     """Simulate archaeological wear on an assembled set of fragments.
+
+    MODE, added 2026-08-10, and the default CHANGED with it:
+
+      "blunt"   the micro term is one-sided peak truncation at a cutoff between
+                the teeth and the curve (`blunt_asperities`). This is the model
+                that matches what wear physically does.
+      "legacy"  the micro term is symmetric mollification. Kept so results built
+                before this date can be reproduced. It moves material both ways
+                and removes 14% of the curve at the heavy setting; do not use it
+                for new datasets.
+
+    Datasets built either side of this change are NOT comparable, and anything
+    trained on "legacy" data was trained on break faces whose coarse shape had
+    been partly filtered away.
 
     Three independent, physically-named effects, applied in the order burial
     causes them. All edit geometry only — assembled poses and the ground-truth
@@ -893,7 +1174,14 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
                               chip_count=chip_count, chip_frac=chip_size,
                               seed=seed, masks=masks)
 
-    if smoothing and smoothing > 0:
+    if smoothing and smoothing > 0 and mode == "blunt":
+        # Blunt the teeth, leave the curve. `smoothing` is reused as the dose so
+        # every existing call site keeps working, but it now means "fraction of
+        # each asperity removed per pass" rather than a mollification strength.
+        cur = blunt_asperities(cur, cut_frac=blunt_cut, strength=smoothing,
+                               passes=max(1, int(smoothing_passes)), seed=seed)
+
+    elif smoothing and smoothing > 0:
         # REPEATED passes reach smoother surfaces than one deep pass, and this
         # matters: smoothness is the axis that destroys the interlocking
         # information, so it is the axis training data must span.
@@ -926,6 +1214,13 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
     # because chipping changed the vertex arrays.
     if recession and recession > 0:
         cur = recede_surface(cur, recession_frac=recession)
+
+    # The scanner comes last, because it is not part of the object's history --
+    # it is how the object was measured. Off by default: turning it on changes
+    # the fresh control too, which is the point, but it must be a deliberate
+    # choice rather than something that quietly appears in one dataset.
+    if scan_spacing and scan_spacing > 0:
+        cur = band_limit(cur, spacing_frac=scan_spacing)
 
     return cur
 
