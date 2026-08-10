@@ -110,26 +110,51 @@ def main() -> None:
     for name, V in gt_groups.items():
         by_count.setdefault(len(V), []).append((name, V))
 
-    placed, resid = [], []
+    # The OBJ was reassembled from meshes exported in the dataloader's frame,
+    # which is the source scaled by a single factor. So the fragments differ
+    # from the file by a SIMILARITY, not a rigid motion, and fitting only a
+    # rotation fails -- which the check caught rather than letting a distorted
+    # assembly through.
+    #
+    # The scale is recovered per fragment and then required to AGREE across all
+    # of them. It has to: one global factor was applied to the whole object, so
+    # nine independent estimates disagreeing would mean the fragments had been
+    # individually resized, and the reassembly could not be trusted.
+    pairs = []
     for i, (v, f) in enumerate(pieces):
         cand = by_count.get(len(v))
         if not cand:
             print(f"  ** fragment {i} has {len(v)} vertices, nothing in the OBJ "
                   f"matches. Aborting. **")
             return
-        name, G = cand.pop(0)
+        pairs.append((i, v, f) + cand.pop(0))
 
-        # Same vertices in the same order would make this exact. Verify rather
-        # than assume: if the order was shuffled, fall back to nearest-point
-        # correspondence and say so.
-        R, t = solve_rigid(v, G)
-        err = float(np.linalg.norm(v @ R.T + t - G, axis=1).mean())
+    scales = [float(np.sqrt(((G - G.mean(0)) ** 2).sum()
+                            / max(((v - v.mean(0)) ** 2).sum(), 1e-30)))
+              for _, v, _, _, G in pairs]
+    s_med = float(np.median(scales))
+    spread = (max(scales) - min(scales)) / s_med * 100.0
+    print(f"  scale between the file and the reassembly: {s_med:.4f} "
+          f"(spread across fragments {spread:.4f}%)")
+    if spread > 0.5:
+        print("  ** fragments disagree on scale, so they were resized "
+              "individually. The reassembly cannot be trusted. Aborting. **")
+        return
+
+    placed, resid = [], []
+    for i, v, f, name, G in pairs:
+        vs = v * s_med
+        # Same vertices in the same order makes this exact. Verify rather than
+        # assume; fall back to proximity matching, and say so, if it was
+        # shuffled in the round trip through Blender.
+        R, t = solve_rigid(vs, G)
+        err = float(np.linalg.norm(vs @ R.T + t - G, axis=1).mean())
         if err > 1e-6 * max(np.ptp(G, axis=0).max(), 1e-9):
-            _, idx = cKDTree(G).query(v)
-            R, t = solve_rigid(v, G[idx])
-            err = float(np.linalg.norm(v @ R.T + t - G[idx], axis=1).mean())
+            _, idx = cKDTree(G).query(vs)
+            R, t = solve_rigid(vs, G[idx])
+            err = float(np.linalg.norm(vs @ R.T + t - G[idx], axis=1).mean())
             print(f"  fragment {i}: order not preserved, matched by proximity")
-        placed.append((v @ R.T + t, f))
+        placed.append((vs @ R.T + t, f))
         resid.append(err)
         ang = np.degrees(np.arccos(np.clip((np.trace(R) - 1) / 2, -1, 1)))
         print(f"  fragment {i} <- {name:<24s} rotated {ang:6.1f}°, "
