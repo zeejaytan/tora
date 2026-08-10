@@ -101,10 +101,15 @@ def main() -> None:
 
     out = _outward_directions(v0, idx, size)
     disp = ((v1[idx] - v0[idx]) * out).sum(axis=1) / size * 100     # % of object
-    h_before = ((v0[idx] - _local_mean(v0[idx], v0[idx], args.cut * size))
-                * out).sum(axis=1) / size * 100
-    h_after = ((v1[idx] - _local_mean(v1[idx], v1[idx], args.cut * size))
-               * out).sum(axis=1) / size * 100
+    # ONE ruler, taken from the untouched surface, for both readings. Measuring
+    # "after" against a freshly recomputed envelope compares it with a ruler
+    # that moved: removing material lowers the envelope, so a face truncated
+    # perfectly flat still reads as standing proud of its new mean. That is how
+    # a first version reported peaks "keeping 81% of their height" on a surface
+    # whose peaks had genuinely been cut.
+    env0 = _local_mean(v0[idx], v0[idx], args.cut * size)
+    h_before = ((v0[idx] - env0) * out).sum(axis=1) / size * 100
+    h_after = ((v1[idx] - env0) * out).sum(axis=1) / size * 100
 
     added = int((disp > 1e-9).sum())
     moved = int((disp < -1e-12).sum())

@@ -107,14 +107,24 @@ def scale_spectrum(pts, size):
     return out
 
 
-def measure(pieces, band_frac=0.02, max_pts=40000, seed=0):
-    """Break-face spectrum and mean join gap, averaged over touching pairs."""
+def measure(pieces, band_frac=0.02, max_pts=250000, seed=0):
+    """Break-face spectrum and mean join gap, averaged over touching pairs.
+
+    `max_pts` is 250k, not the 40k it started at, and the reason is the whole
+    lesson of this file. Subsampling a 435k-vertex scan to 40k thins the point
+    spacing to ~0.47% of object size, so the 0.4% probe sat BELOW the spacing of
+    the very cloud it was measuring and the 0.8% probe was under two spacings.
+    Both teeth columns were reading sampling density rather than geometry --
+    inside the instrument built to replace a comparison invalidated by exactly
+    that confound. The spacing is now reported and under-resolved radii are
+    blanked rather than printed as though they meant something.
+    """
     allv = np.concatenate([v for v, _ in pieces], axis=0)
     size = float(np.linalg.norm(allv.max(0) - allv.min(0)))
     rng = np.random.default_rng(seed)
     tau = band_frac * size
 
-    spectra, gaps = [], []
+    spectra, gaps, spacings = [], [], []
     for i, (vi, _) in enumerate(pieces):
         for j, (vj, _) in enumerate(pieces):
             if j <= i:
@@ -127,10 +137,14 @@ def measure(pieces, band_frac=0.02, max_pts=40000, seed=0):
                 continue
             spectra.append(scale_spectrum(band, size))
             gaps.append(float(d[d < tau].mean()) / size * 100)
+            # how finely this cloud is actually sampled -- a probe radius near
+            # it is measuring the sampling, not the surface
+            nn, _ = cKDTree(band).query(band, k=2, workers=-1)
+            spacings.append(float(np.median(nn[:, 1])) / size * 100)
     if not spectra:
-        return None, None, 0
+        return None, None, 0, float("nan")
     return (np.nanmean(np.array(spectra), axis=0), float(np.mean(gaps)),
-            len(spectra))
+            len(spectra), float(np.mean(spacings)))
 
 
 def main() -> None:
@@ -165,12 +179,22 @@ def main() -> None:
     fresh = (apply_wear(pieces, smoothing=0.0, recession=0.0, chip_count=0,
                         chip_size=0.0, **kw0)
              if args.scan_spacing else pieces)
-    s0, g0, n0 = measure(fresh)
+    s0, g0, n0, sp0 = measure(fresh)
     if s0 is None:
         print("  no touching pairs -- cannot measure this object")
         return
     print(f"  {'fresh':<10s} " + "  ".join(f"{v:6.3f}" for v in s0)
           + f"   {g0:5.3f}%   {n0}")
+
+    # A probe radius near the point spacing measures the sampling, not the
+    # surface. Say which columns those are, and refuse to judge them.
+    resolved = [rf >= 2.0 * sp0 / 100.0 for rf in RADII]
+    print(f"\n  point spacing on the break face: {sp0:.3f}% of object size"
+          f"  ->  radii below {2 * sp0:.2f}% cannot be read")
+    if not all(resolved):
+        print("  UNRESOLVED, not judged: "
+              + ", ".join(f"{100 * rf:.1f}%"
+                          for rf, ok in zip(RADII, resolved) if not ok))
 
     rows = []
     for name, kw in LEVELS:
@@ -179,7 +203,7 @@ def main() -> None:
             kw["blunt_cut"] = args.blunt_cut       # override the whole sweep
         if args.no_chips:
             kw["chip_count"], kw["chip_size"] = 0, 0.0
-        s, g, n = measure(apply_wear(pieces, seed=0, **kw, **kw0))
+        s, g, n, _ = measure(apply_wear(pieces, seed=0, **kw, **kw0))
         rows.append((name, s, g))
         print(f"  {name:<10s} " + "  ".join(f"{v:6.3f}" for v in s)
               + f"   {g:5.3f}%   {n}")
@@ -188,7 +212,13 @@ def main() -> None:
     print("\n  Verdict, against what the conservator says wear does:")
     ok = True
 
+    judged = 0
     for k in TEETH:
+        if not resolved[k]:
+            print(f"    teeth at {100 * RADII[k]:.1f}%: NOT JUDGED -- below "
+                  f"the point spacing, so any verdict would be about sampling")
+            continue
+        judged += 1
         seq = [s0[k]] + [r[1][k] for r in rows]
         mono = all(b <= a * 1.001 for a, b in zip(seq, seq[1:]))
         drop = 100 * (1 - seq[-1] / max(seq[0], 1e-12))
@@ -213,9 +243,15 @@ def main() -> None:
     print(f"    join gap: {'OPENS' if gmono else 'DOES NOT OPEN'} "
           f"({g0:.3f}% -> {gseq[-1]:.3f}%)")
 
-    print(f"\n  {'PASS' if ok else 'FAIL'} -- "
-          + ("teeth blunted, curve preserved, joins opened."
-             if ok else "this wear model does not behave like wear."))
+    if judged == 0:
+        print("\n  NO VERDICT -- this mesh is not sampled finely enough to say")
+        print("  anything about the teeth. Not a pass and not a failure:")
+        print("  the object cannot answer the question that was asked of it.")
+        ok = False
+    else:
+        print(f"\n  {'PASS' if ok else 'FAIL'} -- "
+              + ("teeth blunted, curve preserved, joins opened."
+                 if ok else "this wear model does not behave like wear."))
     print("  One object. Run it on several before treating a pass as general;")
     print("  the failure it is built to catch was visible on every object, but")
     print("  a pass on one proves only that one.")
