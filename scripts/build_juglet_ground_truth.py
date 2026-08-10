@@ -75,6 +75,45 @@ def solve_rigid(src, dst):
     return R, cd - R @ cs
 
 
+def align_without_correspondence(src, dst):
+    """Recover the pose of an identical shape whose vertex order was shuffled.
+
+    Needed because Blender preserved vertex order for seven of the nine sherds
+    and shuffled it for two. Matching nearest points directly does not work
+    there: the fragments start in completely different poses, so "nearest" is
+    meaningless and the fit lands 20% of the object away.
+
+    The shapes are identical, so their principal axes must coincide. That fixes
+    the rotation up to which axis points which way -- four possibilities with a
+    proper rotation -- and each is tried and refined, keeping whichever actually
+    fits. No initial guess is required and nothing is assumed about the order.
+    """
+    cs, cd = src.mean(0), dst.mean(0)
+    A, B = src - cs, dst - cd
+    Ua = np.linalg.svd(A.T @ A)[0]
+    Ub = np.linalg.svd(B.T @ B)[0]
+
+    best = None
+    for sx in (1.0, -1.0):
+        for sy in (1.0, -1.0):
+            D = np.diag([sx, sy, sx * sy])          # det = +1, a real rotation
+            R = Ub @ D @ Ua.T
+            if np.linalg.det(R) < 0:
+                continue
+            t = cd - R @ cs
+            cur = src @ R.T + t
+            for _ in range(30):                      # refine
+                _, idx = cKDTree(dst).query(cur)
+                dR, dt = solve_rigid(cur, dst[idx])
+                cur = cur @ dR.T + dt
+                R, t = dR @ R, dR @ t + dt
+            err = float(np.linalg.norm(cur - dst[cKDTree(dst).query(cur)[1]],
+                                       axis=1).mean())
+            if best is None or err < best[0]:
+                best = (err, R, t)
+    return best[1], best[2], best[0]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--obj", required=True)
@@ -150,10 +189,9 @@ def main() -> None:
         R, t = solve_rigid(vs, G)
         err = float(np.linalg.norm(vs @ R.T + t - G, axis=1).mean())
         if err > 1e-6 * max(np.ptp(G, axis=0).max(), 1e-9):
-            _, idx = cKDTree(G).query(vs)
-            R, t = solve_rigid(vs, G[idx])
-            err = float(np.linalg.norm(vs @ R.T + t - G[idx], axis=1).mean())
-            print(f"  fragment {i}: order not preserved, matched by proximity")
+            R, t, err = align_without_correspondence(vs, G)
+            print(f"  fragment {i}: vertex order shuffled, pose recovered from "
+                  f"the shape itself")
         placed.append((vs @ R.T + t, f))
         resid.append(err)
         ang = np.degrees(np.arccos(np.clip((np.trace(R) - 1) / 2, -1, 1)))
