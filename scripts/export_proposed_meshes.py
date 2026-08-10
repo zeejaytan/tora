@@ -102,9 +102,26 @@ def main() -> None:
               f"{len(ppp)} in the npz. Cannot pair them; aborting. **")
         return
 
-    # the dataloader divides the assembled object by one global factor
-    for m in meshes:
-        m.vertices = np.asarray(m.vertices) / scale
+    # The dataloader puts the object in its CENTRE-OF-MASS frame and then
+    # divides by one global factor. The factor is saved in the npz; the centring
+    # is not, and assuming it was the vertex mean gave a 540% mismatch on the
+    # first attempt -- the reference points are an AREA-weighted surface sample,
+    # whose centre is not the mean of the vertices.
+    #
+    # Rather than guess, solve for it. Scale is known, so only a translation is
+    # unknown, and a translation is recovered by walking the meshes onto the
+    # reference points a few times. The check below then confirms it or aborts.
+    verts_all = [np.asarray(m.vertices, dtype=np.float64) for m in meshes]
+    com = np.concatenate(verts_all, axis=0).mean(axis=0)
+    for _ in range(24):
+        placed = [(v - com) / scale for v in verts_all]
+        tree = cKDTree(np.concatenate(placed, axis=0))
+        dist, idx = tree.query(pts_gt)
+        nearest = np.concatenate(placed, axis=0)[idx]
+        com = com - (nearest - pts_gt).mean(axis=0) * scale
+    for m, v in zip(meshes, verts_all):
+        m.vertices = (v - com) / scale
+    print(f"  recovered centring: {com}")
 
     bounds = np.concatenate([[0], np.cumsum(ppp)])
     out = Path(args.out)
