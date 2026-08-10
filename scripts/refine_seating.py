@@ -125,6 +125,13 @@ def main() -> None:
     ap.add_argument("--reg", type=float, default=0.15)
     ap.add_argument("--push", type=float, default=0.004)
     ap.add_argument("--out-json", default=None)
+    ap.add_argument(
+        "--save-refined", default=None,
+        help="Directory to write npz files with the refined poses in place "
+             "of the model's, so they can be exported as meshes and looked "
+             "at. Needed for objects with no valid ground truth, where the "
+             "scores printed here mean nothing and the geometry is the "
+             "entire result.")
     args = ap.parse_args()
 
     rows = []
@@ -142,12 +149,23 @@ def main() -> None:
         sizes = [b - a for a, b in slices]
         anchor = int(np.argmax(sizes))          # dataset uses the largest part
 
-        before, after = [], []
+        before, after, refined = [], [], []
         for g in z["generations_proposed"]:
+            r = refine(g, slices, anchor, args.iters, args.max_corr,
+                       args.reg, args.push)
+            refined.append(r)
             before.append(part_accuracy(g, gt, slices, thr))
-            after.append(part_accuracy(
-                refine(g, slices, anchor, args.iters, args.max_corr, args.reg, args.push),
-                gt, slices, thr))
+            after.append(part_accuracy(r, gt, slices, thr))
+
+        if args.save_refined:
+            os.makedirs(args.save_refined, exist_ok=True)
+            # Copy the file through with the refined poses substituted, so
+            # the mesh exporter needs no special case: it reads exactly the
+            # same fields and cannot tell the difference.
+            payload = {k: z[k] for k in z.files}
+            payload["generations_proposed"] = np.stack(refined)
+            np.savez(os.path.join(args.save_refined,
+                                  os.path.basename(fp)), **payload)
         k = len(slices)
         seat = lambda pa: (pa * k - 1.0) / (k - 1.0)
         rows.append({"name": str(z["name"]), "k": k,
