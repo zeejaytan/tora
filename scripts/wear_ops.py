@@ -366,9 +366,17 @@ def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
         # reaches LARGER asperities -- raise `cut_frac` -- not that the same
         # small ones get cut deeper. That is the module's own framing of wear as
         # loss moving up the scales, applied to the micro term.
+        # The FRACTION removed is capped at 1, not just the passes. Exposure
+        # reaches 1.8, so an exposed peak was being given a budget of 1.8x its
+        # own height above the envelope -- and spent it. Measured on real
+        # scans: peaks ended at -49.5% of their starting height, i.e. cut clean
+        # through the envelope and left as pits, while hollows sat untouched at
+        # 100%. One-sidedness was working perfectly and the magnitude was not.
+        # Pits are fresh fine-scale relief, which is why the teeth were still
+        # creeping UP at the finest scale on an abrasion-only run.
         env0 = _local_mean(v[idx], v[idx], R, seed=seed)
-        budget = (strength * feather[idx] * expo
-                  * np.maximum(((v[idx] - env0) * away).sum(axis=1), 0.0))
+        frac = np.clip(strength * feather[idx] * expo, 0.0, 1.0)
+        budget = frac * np.maximum(((v[idx] - env0) * away).sum(axis=1), 0.0)
         removed = np.zeros(len(idx))
         for _ in range(max(1, int(passes))):
             env = _local_mean(v[idx], v[idx], R, seed=seed)
