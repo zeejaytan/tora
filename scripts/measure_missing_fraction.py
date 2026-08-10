@@ -85,7 +85,7 @@ def main() -> None:
 
     # A handle sticks out well beyond the wall at its own height. Flag points
     # whose radius is far above the median for their height and set them aside.
-    hb = np.clip(((z - z.min()) / (z.ptp() + 1e-12) * args.n_height).astype(int),
+    hb = np.clip(((z - z.min()) / (np.ptp(z) + 1e-12) * args.n_height).astype(int),
                  0, args.n_height - 1)
     med_r = np.array([np.median(r[hb == i]) if (hb == i).any() else 0.0
                       for i in range(args.n_height)])
