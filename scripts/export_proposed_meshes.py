@@ -102,28 +102,50 @@ def main() -> None:
               f"{len(ppp)} in the npz. Cannot pair them; aborting. **")
         return
 
-    # The dataloader puts the object in its CENTRE-OF-MASS frame and then
-    # divides by one global factor. The factor is saved in the npz; the centring
-    # is not, and assuming it was the vertex mean gave a 540% mismatch on the
-    # first attempt -- the reference points are an AREA-weighted surface sample,
-    # whose centre is not the mean of the vertices.
+    # Put the meshes into the same frame as the saved arrays.
     #
-    # Rather than guess, solve for it. Scale is known, so only a translation is
-    # unknown, and a translation is recovered by walking the meshes onto the
-    # reference points a few times. The check below then confirms it or aborts.
-    verts_all = [np.asarray(m.vertices, dtype=np.float64) for m in meshes]
-    com = np.concatenate(verts_all, axis=0).mean(axis=0)
-    for _ in range(24):
-        placed = [(v - com) / scale for v in verts_all]
-        tree = cKDTree(np.concatenate(placed, axis=0))
-        dist, idx = tree.query(pts_gt)
-        nearest = np.concatenate(placed, axis=0)[idx]
-        com = com - (nearest - pts_gt).mean(axis=0) * scale
-    for m, v in zip(meshes, verts_all):
-        m.vertices = (v - com) / scale
-    print(f"  recovered centring: {com}")
-
+    # The dataloader centres the object on its centre of mass and divides by one
+    # global factor. The factor is in the npz; the centring is not, and two
+    # guesses at it failed loudly before this worked -- assuming the vertex mean
+    # left a 540% mismatch (the reference points are an AREA-weighted surface
+    # sample, whose centre is elsewhere), and a hand-rolled translation search
+    # left 25% because its update had the sign inverted.
+    #
+    # Both failures were caught by the check below rather than shipped, which is
+    # the argument for keeping the check ahead of the export instead of after it.
+    #
+    # Fitted properly here: fragment i in the npz IS fragment i in the file, so
+    # the nine centroid pairs give an exact correspondence, and a similarity fit
+    # over them recovers scale, rotation and translation in one step. Each
+    # fragment is then snapped onto its own points to absorb the small
+    # difference between a vertex centroid and a surface-sample centroid.
     bounds = np.concatenate([[0], np.cumsum(ppp)])
+    verts_all = [np.asarray(m.vertices, dtype=np.float64) for m in meshes]
+    gt_parts = [pts_gt[a:b] for a, b in zip(bounds[:-1], bounds[1:])]
+
+    A = np.array([v.mean(axis=0) for v in verts_all])
+    B = np.array([p.mean(axis=0) for p in gt_parts])
+    ca, cb = A.mean(axis=0), B.mean(axis=0)
+    H = (A - ca).T @ (B - cb)
+    U, S, Vt = np.linalg.svd(H)
+    Rg = Vt.T @ np.diag([1.0, 1.0, np.sign(np.linalg.det(Vt.T @ U.T))]) @ U.T
+    sg = float(np.sqrt(((B - cb) ** 2).sum() / max(((A - ca) ** 2).sum(), 1e-30)))
+    print(f"  global fit: scale {sg:.3f} (npz implies {1.0 / scale:.3f}), "
+          f"rotation {'identity' if np.allclose(Rg, np.eye(3), atol=0.05) else 'non-trivial'}")
+
+    placed = [(v - ca) @ Rg.T * sg + cb for v in verts_all]
+
+    # per-fragment rigid snap onto its own reference points
+    for i, (v, pts) in enumerate(zip(placed, gt_parts)):
+        for _ in range(8):
+            _, idx = cKDTree(v).query(pts)
+            R, t = solve_rigid(v[idx], pts)
+            v = v @ R.T + t
+        placed[i] = v
+
+    for m, v in zip(meshes, placed):
+        m.vertices = v
+
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
