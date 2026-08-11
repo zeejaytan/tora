@@ -56,6 +56,17 @@ for OBJ in blue_pot plate coxae vert9; do
         --mode blunt --no-chips --no-recession || true
 
     echo ""
+    echo "----- $OBJ -- RECESSION ALONE, dose sweep -----"
+    # Blunting now preserves the curve on every object and recession is the
+    # only term still damaging it. Characterise it rather than argue: if the
+    # damage scales with the dose there is a usable setting below tolerance;
+    # if it does not, the term is structurally wrong and turning it down would
+    # only hide that.
+    python scripts/validate_wear_spectrum.py \
+        --src "$DATA" --dataset real_heldout_norm --object "$OBJ" \
+        --mode blunt --no-chips --sweep recession || true
+
+    echo ""
     echo "----- $OBJ -- blunting + recession, no chips -----"
     python scripts/validate_wear_spectrum.py \
         --src "$DATA" --dataset real_heldout_norm --object "$OBJ" \

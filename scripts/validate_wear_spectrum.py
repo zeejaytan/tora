@@ -78,6 +78,30 @@ LEVELS = [
 ]
 
 
+# Recession ALONE, at rising doses. Everything else off.
+#
+# With the measurement window fixed, blunting preserves the curve on every
+# object and recession is the only term still damaging it: -7.3% on coxae,
+# -8.9% on blue_pot, -20.8% on the plate, at the coarse scale.
+#
+# That is not what a uniform offset does. A constant retreat along the surface
+# normal changes coarse relief by roughly the retreat divided by the radius of
+# curvature -- for blue_pot, 0.2% of object against a radius of about 19%, so
+# near 1%. Measured is nine times that on the same object, so either the offset
+# is not uniform or it is not along the normal, and no amount of reasoning from
+# here settles which.
+#
+# So: characterise the term instead of arguing about it. If the damage scales
+# with the dose there is a usable setting below the tolerance; if it does not,
+# the term is structurally wrong and reducing it only hides the problem.
+RECESSION_SWEEP = [
+    ("rec 0.02%", dict(smoothing=0.0, recession=0.0002, chip_count=0, chip_size=0.0)),
+    ("rec 0.05%", dict(smoothing=0.0, recession=0.0005, chip_count=0, chip_size=0.0)),
+    ("rec 0.10%", dict(smoothing=0.0, recession=0.0010, chip_count=0, chip_size=0.0)),
+    ("rec 0.20%", dict(smoothing=0.0, recession=0.0020, chip_count=0, chip_size=0.0)),
+]
+
+
 def load(path, dsname, want=""):
     with h5py.File(path, "r") as h:
         ds = h[dsname]
@@ -170,13 +194,26 @@ def measure(pieces, band_frac=0.02, max_pts=250000, seed=0, pairs=None,
             # patch extends. Coarse structure appeared to collapse (plate
             # -25.9%) when what changed was the size of the window it was being
             # read through. Same fault as the pair set, one level down.
+            # Reuse is keyed on the FULL vertex counts, not on the length of
+            # the sampled array. Both pots have more vertices than the 250k
+            # sample cap, so the sampled arrays are 250k long whatever the
+            # geometry -- and boolean chipping rebuilds the mesh into an
+            # entirely different set of points at exactly the same length. The
+            # fresh mask was being applied to unrelated geometry, which is what
+            # produced a reported join gap of 13.7% against a fresh 0.9%.
+            #
+            # Chipped runs therefore fall back to selecting by distance, which
+            # reintroduces the shrinking-window confound for those runs alone.
+            # Said plainly rather than hidden: their coarse-scale numbers are
+            # not comparable with the fresh ones.
             key = (i, j)
-            if bands is not None and key in bands and len(bands[key]) == len(a):
-                sel = bands[key]
+            prev = bands.get(key) if bands is not None else None
+            if prev is not None and prev[0] == len(vi) and prev[1] == len(vj):
+                sel = prev[2]
             else:
                 sel = d < tau
             band = a[sel]
-            band_sel[key] = sel
+            band_sel[key] = (len(vi), len(vj), sel)
             # WHICH PAIRS is decided once, on the fresh object, and reused.
             # Wear opens joins, so a pair sitting near the 300-point threshold
             # can drop in or out between conditions: blue_pot was averaged over
@@ -218,6 +255,9 @@ def main() -> None:
     ap.add_argument("--no-chips", action="store_true",
                     help="abrasion only, so chip scars cannot mask whether the "
                          "abrasion term itself is correct")
+    ap.add_argument("--sweep", default="wear", choices=["wear", "recession"],
+                    help="'recession' characterises that term alone at rising "
+                         "doses, with blunting and chips off")
     ap.add_argument("--no-recession", action="store_true",
                     help="blunting alone. Recession displaces the whole band by "
                          "an amount that varies across it, and a varying "
@@ -268,7 +308,8 @@ def main() -> None:
                           for rf, ok in zip(RADII, resolved) if not ok))
 
     rows = []
-    for name, kw in LEVELS:
+    levels = RECESSION_SWEEP if args.sweep == "recession" else LEVELS
+    for name, kw in levels:
         kw = dict(kw)
         if args.blunt_cut > 0:
             kw["blunt_cut"] = args.blunt_cut       # override the whole sweep
