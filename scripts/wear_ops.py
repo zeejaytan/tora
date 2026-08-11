@@ -510,9 +510,25 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
                                            workers=-1)
             mag = mag[nbm].mean(axis=1)
 
+        # MINUS. `_outward_directions` points away from the sherd's own
+        # material, i.e. out of the solid and therefore TOWARD the neighbouring
+        # fragment. Recession is material lost from the break face, so the face
+        # must retreat INTO the sherd, against that direction.
+        #
+        # The old direction vector pointed the other way -- away from the
+        # neighbour, hence into the sherd -- so swapping the direction field
+        # silently inverted this term. It reintroduced, in the same function,
+        # the exact defect that was found by rendering the join in 2026-08:
+        # recession pushing surfaces toward their neighbour.
+        #
+        # Caught by isolating the terms rather than by inspection. Blunting
+        # alone opened blue_pot's joins 0.891% -> 0.905%; adding recession took
+        # that straight back to 0.891%, i.e. the term whose entire purpose is to
+        # open joins was closing them, and it raised coarse structure 10.2% by
+        # bulging the face outward as it went.
         amount = np.minimum((recession_frac * scale) * mag, cap)
         disp = np.zeros_like(v)
-        disp[idx] = away * amount[:, None]
+        disp[idx] = -away * amount[:, None]
         out.append((v + disp, f.copy()))
     return out
 
