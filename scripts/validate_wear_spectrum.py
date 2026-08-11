@@ -132,7 +132,8 @@ def scale_spectrum(pts, size, normals=None):
     return nrm, tan
 
 
-def measure(pieces, band_frac=0.02, max_pts=250000, seed=0, pairs=None):
+def measure(pieces, band_frac=0.02, max_pts=250000, seed=0, pairs=None,
+            bands=None):
     """Break-face spectrum and mean join gap, averaged over touching pairs.
 
     `max_pts` is 250k, not the 40k it started at, and the reason is the whole
@@ -150,6 +151,7 @@ def measure(pieces, band_frac=0.02, max_pts=250000, seed=0, pairs=None):
     tau = band_frac * size
 
     spectra, tangential, gaps, spacings, used = [], [], [], [], []
+    band_sel = {}
     for i, (vi, _) in enumerate(pieces):
         for j, (vj, _) in enumerate(pieces):
             if j <= i:
@@ -157,7 +159,24 @@ def measure(pieces, band_frac=0.02, max_pts=250000, seed=0, pairs=None):
             a = vi if len(vi) <= max_pts else vi[rng.choice(len(vi), max_pts, False)]
             b = vj if len(vj) <= max_pts else vj[rng.choice(len(vj), max_pts, False)]
             d, _ = cKDTree(b).query(a, workers=-1)
-            band = a[d < tau]
+            # WHICH POINTS form the break face is decided once, on the fresh
+            # object, and the same points are measured afterwards.
+            #
+            # Selecting them by "within 2% of the other fragment" re-derives the
+            # set from the WORN geometry, and recession retreats both faces --
+            # so points drop out of the band exactly where the most material was
+            # removed. The region being measured then shrinks with the dose, and
+            # at the 3.2-6.4% radii the measured value depends on how far the
+            # patch extends. Coarse structure appeared to collapse (plate
+            # -25.9%) when what changed was the size of the window it was being
+            # read through. Same fault as the pair set, one level down.
+            key = (i, j)
+            if bands is not None and key in bands and len(bands[key]) == len(a):
+                sel = bands[key]
+            else:
+                sel = d < tau
+            band = a[sel]
+            band_sel[key] = sel
             # WHICH PAIRS is decided once, on the fresh object, and reused.
             # Wear opens joins, so a pair sitting near the 300-point threshold
             # can drop in or out between conditions: blue_pot was averaged over
@@ -174,16 +193,16 @@ def measure(pieces, band_frac=0.02, max_pts=250000, seed=0, pairs=None):
             sn, st = scale_spectrum(band, size)
             spectra.append(sn)
             tangential.append(st)
-            gaps.append(float(d[d < tau].mean()) / size * 100)
+            gaps.append(float(d[sel].mean()) / size * 100)
             # how finely this cloud is actually sampled -- a probe radius near
             # it is measuring the sampling, not the surface
             nn, _ = cKDTree(band).query(band, k=2, workers=-1)
             spacings.append(float(np.median(nn[:, 1])) / size * 100)
     if not spectra:
-        return None, None, 0, float("nan"), None, set()
+        return None, None, 0, float("nan"), None, set(), {}
     return (np.nanmean(np.array(spectra), axis=0), float(np.mean(gaps)),
             len(spectra), float(np.mean(spacings)),
-            np.nanmean(np.array(tangential), axis=0), set(used))
+            np.nanmean(np.array(tangential), axis=0), set(used), band_sel)
 
 
 def main() -> None:
@@ -226,7 +245,7 @@ def main() -> None:
     fresh = (apply_wear(pieces, smoothing=0.0, recession=0.0, chip_count=0,
                         chip_size=0.0, **kw0)
              if args.scan_spacing else pieces)
-    s0, g0, n0, sp0, t0, pairset = measure(fresh)
+    s0, g0, n0, sp0, t0, pairset, bandsel = measure(fresh)
     if s0 is None:
         print("  no touching pairs -- cannot measure this object")
         return
@@ -257,8 +276,9 @@ def main() -> None:
             kw["chip_count"], kw["chip_size"] = 0, 0.0
         if args.no_recession:
             kw["recession"] = 0.0
-        s, g, n, _, t, _u = measure(apply_wear(pieces, seed=0, **kw, **kw0),
-                                    pairs=pairset)
+        s, g, n, _, t, _u, _b = measure(
+            apply_wear(pieces, seed=0, **kw, **kw0),
+            pairs=pairset, bands=bandsel)
         rows.append((name, s, g, t))
         print(f"  {name:<10s} " + "  ".join(f"{v:6.3f}" for v in s)
               + f"   {g:5.3f}%   {n}")
