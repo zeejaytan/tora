@@ -266,6 +266,37 @@ def _outward_directions(v, idx, obj_scale, k_fit: int = 24,
     return n / np.maximum(ln, 1e-12)
 
 
+def _wall_estimate(v, f, idx, sample: int = 4000, ref_pts: int = 20000,
+                   seed: int = 0):
+    """How thick the sherd is at the break, from the surface facing back at it.
+
+    Returns 0 when there is no facing-back surface within reach, which is the
+    honest answer for a solid: a bone has no wall, and the conservator's point
+    about the thickness spectrum is that an estimator must be allowed to say so
+    rather than return the nearest number it can find.
+
+    The reference set is thinned to a KNOWN density first. Querying the k
+    nearest vertices of a full scan cannot reach the far wall -- they all sit on
+    the near surface -- which is exactly how the estimator this replaces ended
+    up reporting mesh spacing as though it were thickness.
+    """
+    rng = np.random.default_rng(seed)
+    sel = idx if len(idx) <= sample else rng.choice(idx, sample, replace=False)
+    try:
+        m = trimesh.Trimesh(vertices=v, faces=f, process=False)
+        vn = np.asarray(m.vertex_normals, dtype=np.float64)
+    except Exception:
+        return 0.0
+    ref_i = (np.arange(len(v)) if len(v) <= ref_pts
+             else rng.choice(len(v), ref_pts, replace=False))
+    d, nb = cKDTree(v[ref_i]).query(v[sel], k=min(64, len(ref_i)), workers=-1)
+    facing = (vn[ref_i][nb] * vn[sel][:, None, :]).sum(axis=-1) < -0.5
+    d = np.where(facing, d, np.inf)
+    thick = d.min(axis=1)
+    thick = thick[np.isfinite(thick)]
+    return float(np.median(thick)) if len(thick) >= 20 else 0.0
+
+
 def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
                      passes: int = 2, exposure: float = 0.5, masks=None,
                      seed: int = 0):
@@ -488,15 +519,26 @@ def recede_surface(pieces, recession_frac: float = 0.0015, normal_k: int = 16, m
         # Local feature size is estimated as the distance to the nearest surface
         # point that is not an immediate neighbour -- for a thin sherd that is
         # the opposite wall, for a concave dimple it is the curvature scale.
-        if len(idx) > 8:
-            k_probe = min(48, len(v))
-            dprobe, _ = cKDTree(v).query(v[idx], k=k_probe, workers=-1)
-            # skip the immediate ring; the far end of the local neighbourhood
-            # approximates the free space available to move into
-            local_feature = dprobe[:, -1]
-            cap = 0.35 * local_feature
-        else:
-            cap = np.full(len(idx), np.inf)
+        # ONE cap for the whole piece, from a real wall estimate.
+        #
+        # It used to be 0.35 x the distance to the 48th nearest vertex, per
+        # vertex, and that is a sampling-density figure wearing a geometry
+        # label: on blue_pot the 48th neighbour sits 0.32% of the object away,
+        # so the cap came out at 0.11% and BOUND every displacement -- the
+        # requested recession never applied, and what did apply varied from
+        # vertex to vertex with the local mesh density.
+        #
+        # A displacement that varies across a surface IS relief. That is the
+        # whole mechanism, and it is measured: recession alone added 18% at the
+        # teeth scales and took 10% off the curve, on a term whose only job is
+        # to retreat the face by a thin uniform layer. A constant offset along
+        # a smooth normal field adds no structure at any scale, which is what
+        # this restores.
+        #
+        # Same error class as the other three found today: an estimator reading
+        # how finely the mesh was sampled rather than how thick the sherd is.
+        wall = _wall_estimate(v, f, idx)
+        cap = np.full(len(idx), 0.6 * wall if wall > 0 else np.inf)
 
         # Smooth the displacement MAGNITUDE as well as its direction. The
         # feather weight varies per vertex, so an unsmoothed magnitude field

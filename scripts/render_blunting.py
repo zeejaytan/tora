@@ -50,7 +50,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wear_ops import (_band_mask, _local_mean, _outward_directions,  # noqa: E402
-                      blunt_asperities)
+                      _wall_estimate, blunt_asperities)
 
 import matplotlib
 matplotlib.use("Agg")
@@ -98,6 +98,17 @@ def main() -> None:
     idx = np.where(band)[0]
     print(f"{obj}: fragment {i} of {len(pieces)}, {len(idx)} band vertices "
           f"of {len(v0)}; object size {size:.4f}")
+
+    # Does the wall estimator actually find a wall here? It caps recession, and
+    # the estimator it replaced was reporting mesh spacing as thickness. A 0 is
+    # a legitimate answer for a solid -- a bone has no wall -- but a 0 on a
+    # thin-walled pot would mean recession is running uncapped.
+    for k, (vv, ff) in enumerate(pieces):
+        hk = masks[k][1] > 0.02
+        w = _wall_estimate(vv, ff, np.where(hk)[0])
+        print(f"    fragment {k}: wall "
+              + (f"{100 * w / size:.2f}% of object" if w > 0
+                 else "not found (reads as solid -> recession uncapped)"))
 
     out = _outward_directions(v0, idx, size)
     disp = ((v1[idx] - v0[idx]) * out).sum(axis=1) / size * 100     # % of object
