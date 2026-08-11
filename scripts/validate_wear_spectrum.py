@@ -68,13 +68,16 @@ CURVE = [3, 4]          # ... and as the curve
 # this module's framing of wear as loss moving up the scales, and it is also
 # what keeps the operation bounded -- at strength 1.0 the face lands on its own
 # envelope and stops, instead of carving past it.
+# Recession is retired -- see the dose table in wear_ops.WEAR_CONDITIONS.
+# Blunting alone opens joins by more than any recession dose that keeps the
+# curve within tolerance, so severity rides on the cutoff alone.
 LEVELS = [
     ("light",    dict(smoothing=0.5, smoothing_passes=2, blunt_cut=0.003,
-                      recession=0.0006, chip_count=2, chip_size=0.0022)),
+                      recession=0.0, chip_count=2, chip_size=0.0022)),
     ("moderate", dict(smoothing=0.8, smoothing_passes=2, blunt_cut=0.004,
-                      recession=0.0012, chip_count=3, chip_size=0.0045)),
+                      recession=0.0, chip_count=3, chip_size=0.0045)),
     ("heavy",    dict(smoothing=1.0, smoothing_passes=3, blunt_cut=0.005,
-                      recession=0.0020, chip_count=4, chip_size=0.0090)),
+                      recession=0.0, chip_count=4, chip_size=0.0090)),
 ]
 
 

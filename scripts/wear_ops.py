@@ -1169,7 +1169,7 @@ def wear_piece_set(pieces, strength: float, *, kernel_frac_max: float = 0.05,
 
 def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05,
                smoothing_passes: int = 1,
-               recession: float = 0.0015, chip_count: int = 4,
+               recession: float = 0.0, chip_count: int = 4,
                chip_size: float = 0.003, seed: int = 0,
                mode: str = "blunt", blunt_cut: float = 0.004,
                scan_spacing: float = 0.0):
@@ -1317,14 +1317,48 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
 # "heavy wear" produced ROUGHER break faces than the untouched sherd. Ragged chip
 # boundaries are themselves relief. Chips must stay small enough to read as
 # missing material rather than as added texture.
+# RECESSION IS RETIRED, 2026-08-12, on a measured dose response rather than a
+# judgement. It is kept in the code and reachable, but no canonical condition
+# uses it.
+#
+# Recession alone, curve at the 6.4% scale, against the join opening it buys:
+#
+#     dose     blue_pot curve   plate curve   join opening
+#     0.02%        -1.0%           -2.0%          +1.1%
+#     0.05%        -2.5%           -5.3%          +2.9%
+#     0.10%        -5.3%          -11.6%          +5.8%
+#     0.20%       -11.7%          -26.3%         +12.4%
+#
+# The cost is linear in the dose, so a setting below tolerance does exist. It
+# is not worth having: BLUNTING ALONE opens the joins by more than any safe
+# recession dose -- blue_pot +4.4%, plate +6.4%, against +1.1% and +1.5% at the
+# largest recession that keeps the curve within 4% -- and it does so while
+# leaving the curve intact and blunting the teeth, which recession does not.
+# Recession also ADDS fine relief (+11% at 0.4% on blue_pot), the opposite of
+# what abrasion does.
+#
+# Severity therefore rides entirely on the blunting CUTOFF, which is this
+# module's own framing of wear as loss moving up the scales. That is a smaller
+# model than before and a better-evidenced one. What it gives up: recession was
+# the only term that could open a join by a large amount, so if real worn
+# sherds turn out to sit much looser than blunting produces, this needs
+# revisiting with a term that retreats the face WITHOUT tapering across it --
+# the taper is the suspected mechanism, since it lays a ramp across the contact
+# band at exactly the scale the curve is measured at.
 WEAR_CONDITIONS = [
-    # name             smoothing  recession  chips  chip size
-    ("fresh",          dict(smoothing=0.0, recession=0.0,    chip_count=0, chip_size=0.0)),
-    ("abraded_light",  dict(smoothing=0.5, recession=0.0,    chip_count=0, chip_size=0.0)),
-    ("abraded_heavy",  dict(smoothing=1.0, recession=0.0,    chip_count=0, chip_size=0.0)),
-    ("loss_dominant",  dict(smoothing=0.3, recession=0.0015, chip_count=4, chip_size=0.0030)),
-    ("worn_moderate",  dict(smoothing=0.7, recession=0.0010, chip_count=3, chip_size=0.0025)),
-    ("worn_heavy",     dict(smoothing=1.0, recession=0.0025, chip_count=4, chip_size=0.0022)),
+    # name             smoothing  cutoff   chips  chip size
+    ("fresh",          dict(smoothing=0.0, recession=0.0, blunt_cut=0.003,
+                            chip_count=0, chip_size=0.0)),
+    ("abraded_light",  dict(smoothing=0.5, recession=0.0, blunt_cut=0.003,
+                            chip_count=0, chip_size=0.0)),
+    ("abraded_heavy",  dict(smoothing=1.0, recession=0.0, blunt_cut=0.005,
+                            chip_count=0, chip_size=0.0)),
+    ("loss_dominant",  dict(smoothing=0.5, recession=0.0, blunt_cut=0.003,
+                            chip_count=4, chip_size=0.0030)),
+    ("worn_moderate",  dict(smoothing=0.8, recession=0.0, blunt_cut=0.004,
+                            chip_count=3, chip_size=0.0025)),
+    ("worn_heavy",     dict(smoothing=1.0, recession=0.0, blunt_cut=0.005,
+                            chip_count=4, chip_size=0.0022)),
 ]
 
 
