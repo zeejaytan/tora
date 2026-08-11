@@ -43,8 +43,20 @@ python -c "import trimesh, scipy, numpy; print('trimesh', trimesh.__version__)"
 for OBJ in blue_pot plate coxae vert9; do
     echo ""
     echo "##################################################################"
-    echo "##  $OBJ  -- abrasion alone (chips off), NEW one-sided blunting  ##"
+    echo "##  $OBJ  -- BLUNTING ONLY: no chips, no recession               ##"
     echo "##################################################################"
+    # The purest test there is of the abrasion term. With all three effects
+    # running, coarse structure that GREW on the plate (+8.4%) and coxae
+    # (+5.8%) cannot be attributed: blunting only removes material, so
+    # something else is adding shape, and recession is the obvious suspect --
+    # it displaces the whole band by an amount that varies across it, and a
+    # varying displacement sculpts new undulation.
+    python scripts/validate_wear_spectrum.py \
+        --src "$DATA" --dataset real_heldout_norm --object "$OBJ" \
+        --mode blunt --no-chips --no-recession || true
+
+    echo ""
+    echo "----- $OBJ -- blunting + recession, no chips -----"
     python scripts/validate_wear_spectrum.py \
         --src "$DATA" --dataset real_heldout_norm --object "$OBJ" \
         --mode blunt --no-chips || true
