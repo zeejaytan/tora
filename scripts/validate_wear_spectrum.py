@@ -89,22 +89,47 @@ def load(path, dsname, want=""):
                       np.asarray(g[k]["faces"][:], dtype=np.int64)) for k in keys]
 
 
-def scale_spectrum(pts, size):
+def plane_normals(pts, k=24):
+    """Local surface direction from a plane fit. Sign is irrelevant here."""
+    _, nb = cKDTree(pts).query(pts, k=min(k, len(pts)), workers=-1)
+    P = pts[nb] - pts[:, None, :]
+    return np.linalg.eigh(np.einsum("nki,nkj->nij", P, P))[1][:, :, 0]
+
+
+def scale_spectrum(pts, size, normals=None):
     """Structure remaining at each scale, as a percentage of object size.
 
+    SPLIT INTO NORMAL AND TANGENTIAL, added after the two instruments in this
+    validation disagreed. The render said the peaks had been flattened onto
+    their envelope -- peaks keeping 5% of their height, hollows untouched at
+    100% -- while this spectrum said fine structure had barely moved. Both
+    cannot be right about the same geometry.
+
+    The suspect is this function. It measured |v - local_mean|, the full 3D
+    distance, and wear only moves material along the surface normal. Anything
+    that displaces the local mean sideways -- uneven sampling, the edge of the
+    contact band where the neighbourhood is one-sided -- lands in that distance
+    and cannot be removed by any amount of blunting. If the tangential part
+    dominates, this was never measuring relief.
+
+    Relief at a scale is the NORMAL deviation. Both are reported so the
+    question is answered rather than assumed.
+
     The smoothed surface comes from `wear_ops._local_mean`, which bounds how
-    many points a ball may hold. That matters here as much as in the wear model
-    itself: at the 6.4% radius on a densely scanned pot an unbounded query
-    materialises tens of millions of indices, and the earlier per-point Python
-    loop did not finish in two minutes on a 24k-vertex toy.
+    many points a ball may hold: at the 6.4% radius on a densely scanned pot an
+    unbounded query materialises tens of millions of indices.
     """
-    out = []
+    if normals is None:
+        normals = plane_normals(pts)
+    nrm, tan = [], []
     for rf in RADII:
         sm = _local_mean(pts, pts.copy(), rf * size)
-        moved = np.linalg.norm(pts - sm, axis=1)
-        out.append(float(moved.mean()) / size * 100 if len(moved) >= 50
-                   else float("nan"))
-    return out
+        d = pts - sm
+        along = (d * normals).sum(axis=1)
+        nrm.append(float(np.abs(along).mean()) / size * 100)
+        tan.append(float(np.linalg.norm(d - normals * along[:, None],
+                                        axis=1).mean()) / size * 100)
+    return nrm, tan
 
 
 def measure(pieces, band_frac=0.02, max_pts=250000, seed=0):
@@ -124,7 +149,7 @@ def measure(pieces, band_frac=0.02, max_pts=250000, seed=0):
     rng = np.random.default_rng(seed)
     tau = band_frac * size
 
-    spectra, gaps, spacings = [], [], []
+    spectra, tangential, gaps, spacings = [], [], [], []
     for i, (vi, _) in enumerate(pieces):
         for j, (vj, _) in enumerate(pieces):
             if j <= i:
@@ -135,16 +160,19 @@ def measure(pieces, band_frac=0.02, max_pts=250000, seed=0):
             band = a[d < tau]
             if len(band) < 300:
                 continue
-            spectra.append(scale_spectrum(band, size))
+            sn, st = scale_spectrum(band, size)
+            spectra.append(sn)
+            tangential.append(st)
             gaps.append(float(d[d < tau].mean()) / size * 100)
             # how finely this cloud is actually sampled -- a probe radius near
             # it is measuring the sampling, not the surface
             nn, _ = cKDTree(band).query(band, k=2, workers=-1)
             spacings.append(float(np.median(nn[:, 1])) / size * 100)
     if not spectra:
-        return None, None, 0, float("nan")
+        return None, None, 0, float("nan"), None
     return (np.nanmean(np.array(spectra), axis=0), float(np.mean(gaps)),
-            len(spectra), float(np.mean(spacings)))
+            len(spectra), float(np.mean(spacings)),
+            np.nanmean(np.array(tangential), axis=0))
 
 
 def main() -> None:
@@ -179,7 +207,7 @@ def main() -> None:
     fresh = (apply_wear(pieces, smoothing=0.0, recession=0.0, chip_count=0,
                         chip_size=0.0, **kw0)
              if args.scan_spacing else pieces)
-    s0, g0, n0, sp0 = measure(fresh)
+    s0, g0, n0, sp0, t0 = measure(fresh)
     if s0 is None:
         print("  no touching pairs -- cannot measure this object")
         return
@@ -188,6 +216,11 @@ def main() -> None:
 
     # A probe radius near the point spacing measures the sampling, not the
     # surface. Say which columns those are, and refuse to judge them.
+    print(f"  {'(sideways)':<10s} " + "  ".join(f"{v:6.3f}" for v in t0)
+          + "   <- NOT relief: the local mean displaced along the surface,")
+    print(f"  {'':<10s} " + " " * 40
+          + "   which no amount of wear can remove")
+
     resolved = [rf >= 2.0 * sp0 / 100.0 for rf in RADII]
     print(f"\n  point spacing on the break face: {sp0:.3f}% of object size"
           f"  ->  radii below {2 * sp0:.2f}% cannot be read")
@@ -203,8 +236,8 @@ def main() -> None:
             kw["blunt_cut"] = args.blunt_cut       # override the whole sweep
         if args.no_chips:
             kw["chip_count"], kw["chip_size"] = 0, 0.0
-        s, g, n, _ = measure(apply_wear(pieces, seed=0, **kw, **kw0))
-        rows.append((name, s, g))
+        s, g, n, _, t = measure(apply_wear(pieces, seed=0, **kw, **kw0))
+        rows.append((name, s, g, t))
         print(f"  {name:<10s} " + "  ".join(f"{v:6.3f}" for v in s)
               + f"   {g:5.3f}%   {n}")
 

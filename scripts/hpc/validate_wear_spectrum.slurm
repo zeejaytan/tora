@@ -49,11 +49,16 @@ for OBJ in blue_pot plate coxae vert9; do
         --src "$DATA" --dataset real_heldout_norm --object "$OBJ" \
         --mode blunt --no-chips || true
 
-    echo ""
-    echo "----- $OBJ -- the OLD model, same object, for comparison -----"
-    python scripts/validate_wear_spectrum.py \
-        --src "$DATA" --dataset real_heldout_norm --object "$OBJ" \
-        --mode legacy --no-chips || true
+    # The old model has now been measured twice on all four objects with
+    # consistent results (curve down 8-28%, teeth up 33-57%). Keeping it on one
+    # object as a control rather than paying for it on all four.
+    if [ "$OBJ" = "blue_pot" ]; then
+        echo ""
+        echo "----- $OBJ -- the OLD model, as a control -----"
+        python scripts/validate_wear_spectrum.py \
+            --src "$DATA" --dataset real_heldout_norm --object "$OBJ" \
+            --mode legacy --no-chips || true
+    fi
 
     echo ""
     echo "----- $OBJ -- new model WITH chips (the dataset setting) -----"
