@@ -904,7 +904,25 @@ def _seal_once(mv, mf, pre_boundary_pts, orig_mesh=None,
 def recede_and_chip(pieces, recession_frac: float = 0.004, chip_count: int = 6,
                     chip_frac: float = 0.010, seed: int = 0, verbose: bool = False,
                     masks=None, seal_scars: bool = True,
-                    chip_method: str = "auto"):
+                    chip_method: str = "dish"):
+    # DISH BY DEFAULT since 2026-08-12, for two independent reasons.
+    #
+    # GARF trains on `shared_faces` labels, which name the faces of the
+    # original mesh. A boolean subtraction rebuilds the mesh, so those labels
+    # no longer refer to anything and the fine-tune would be training on
+    # mislabelled geometry. That alone settles it for the GARF work.
+    #
+    # It also makes wear MEASURABLE. Boolean chipping changes the vertex set,
+    # so before and after cannot be compared vertex for vertex, and the
+    # validation falls back to picking break-face points by distance -- which
+    # re-derives them from the worn geometry and shrinks the measured window as
+    # the dose rises. That is what made chipped runs report joins CLOSING on
+    # coxae and vert9 while the same settings opened them on every run where
+    # topology was preserved.
+    #
+    # Boolean remains reachable and is still the more faithful account of what
+    # a flake detaching does. It is not the default because a chip we cannot
+    # measure and cannot label is worth less than one we can.
     """Material LOSS done properly: recede the fracture edge and chip the points.
 
     Conservator's description of what burial actually does to a sherd:
