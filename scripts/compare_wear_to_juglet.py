@@ -31,13 +31,22 @@ Relief is the normal deviation from the local mean, never the full distance --
 the sideways component is two to three times larger at fine scales on these
 meshes and no wear can remove it.
 
-WHAT WOULD COUNT AS A PASS. The real worn Juglet should sit at a LOWER
-fine-to-coarse ratio than a fresh break, and one of our wear levels should land
-near it. If our heaviest wear cannot reach the Juglet's ratio, the model is too
-gentle for this material and the dataset would not contain the case we care
-about. If fresh already sits at the Juglet's ratio, the Juglet is not
-distinguishable from a fresh break by this measure and the comparison says
-nothing either way.
+WHAT WOULD HAVE COUNTED AS A PASS, and why nothing can. The real worn Juglet
+should have sat at a lower fine-to-coarse ratio than a fresh break, with one of
+our wear levels landing near it. It does not: it sits at 0.169, inside the
+0.167-0.386 range that three FRESH pots occupy.
+
+The reason is not that the model failed. The Juglet's break faces are sampled at
+0.243% of object size, so nothing finer than about 0.5% is recorded, and our
+blunting works at 0.3-0.5%. Every scale this comparison can reach lies ABOVE
+where the wear acts. It cannot confirm the model and it cannot refute it, and no
+wear setting changes that -- it is a property of the scan.
+
+Settling it needs a scan of real worn material finer than 0.1% of object size,
+or a fresh and a worn scan of the SAME pot so the between-pot variation cancels.
+Neither exists here. The script is kept because knowing which question the data
+cannot answer is worth as much as an answer, and because the next person will
+otherwise try this again.
 
 Usage:
   python scripts/compare_wear_to_juglet.py \
