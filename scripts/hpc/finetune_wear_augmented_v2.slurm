@@ -113,6 +113,19 @@ for TAG in "baseline:$CKPT" "wear_v1:$WEAR_V1" "wear_v2:$BEST"; do
         data=zeroshot/real_heldout_norm data.batch_size=4 \
         log_dir="$LOG_ROOT/wearft2_fresh_${NAME}_${SLURM_JOB_ID}" \
         model.n_generations=3 || true
+
+    echo ""
+    echo "########## $NAME : THE JUGLET, against the real ground truth ##########"
+    # Scored against the conservator's hand reassembly, not the scan-table
+    # layout every earlier Juglet number was measured against. This is the only
+    # real worn archaeological pot here with a valid answer key.
+    #
+    # Read it knowing a piece is MISSING: leaving that gap open is correct, and
+    # any metric that rewards contact everywhere will punish the right answer.
+    python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
+        data=zeroshot/juglet_gt data.batch_size=1 \
+        log_dir="$LOG_ROOT/wearft2_jugletgt_${NAME}_${SLURM_JOB_ID}" \
+        model.n_generations=5 || true
 done
 
 echo ""

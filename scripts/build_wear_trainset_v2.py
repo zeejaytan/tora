@@ -25,12 +25,45 @@ So the axes get different treatment:
   axis that breaks the methods. Under-representing smooth break faces trains for
   a problem the field has already solved.
 
-Known limit, carried forward honestly: smoothing saturates, and repeated passes
-help only to a point (reversing after 2-3). limb3 reaches past the Juglet's
-0.171, but naturally-rough ceramics bottom out around 0.21. Some objects cannot
-be made as smooth as the real target, so coverage of the critical axis is partial
-and varies by object. The per-object achieved smoothness is recorded so training
-can be weighted, or gaps acknowledged, rather than assumed away.
+REBUILT 2026-08-14 on the new wear model. What changed, and why it matters for
+anything trained on this file:
+
+  ABRASION IS NOW ONE-SIDED PEAK TRUNCATION, not mollification. It removes only
+  the part of a break-face point standing proud of the surface's own local
+  envelope, so material can never be added, and structure coarser than the
+  cutoff is invisible to the operation. Validated on four objects spanning
+  thin-walled ceramic to solid bone: teeth blunted, curve preserved within
+  about 2%, joins opened, and not one vertex gaining material. The model this
+  replaces destroyed 8-28% of the curve -- the feature a person reads when the
+  teeth are gone.
+
+  RECESSION IS GONE, on a measured dose response rather than a judgement. At
+  every dose that kept the curve inside tolerance it opened joins LESS than
+  blunting alone already does, while ADDING the fine relief abrasion is
+  supposed to remove. Severity now rides on the blunting cutoff, which is this
+  project's own framing of wear as loss moving up the scales.
+
+  HALF THE VARIANTS ARE BLURRED TO SCAN RESOLUTION -- see SCAN_SPACING below.
+
+Datasets built before and after this date are NOT comparable.
+
+Known limits, carried forward honestly rather than discovered later:
+
+  Blunting is bounded by construction -- at full strength a face lands on its
+  own envelope and stops -- so there is a floor to how smooth a given object
+  can be made and it differs by object. The achieved smoothness per object is
+  recorded so training can be weighted, or the gaps acknowledged.
+
+  Within about one cutoff of the EDGE of a break face, only 7-9% of the
+  available relief is removed, against 93-99% well inside it. Roughly a quarter
+  of break-face points sit in that zone, so every fracture in this set carries a
+  slightly under-worn rim.
+
+  On thin-walled objects the 2% contact band may be counting intact vessel
+  surface as break face. The plate's band is 57% of the whole fragment against
+  40% for blue_pot, and a section through it shows long stretches with no
+  fracture relief at all. Unresolved, and it would mean wear is being applied
+  to sound pot.
 
 Usage:
   python scripts/build_wear_trainset_v2.py \
@@ -57,16 +90,56 @@ from wear_ops import apply_wear, sample_chip_level  # noqa: E402
 # conservator's distribution (wear_ops.CHIP_LEVELS): common through "double",
 # occasional "large", rare "very large". Fixing it per variant would give every
 # sherd in the set the same size of damage.
+# HOW FINELY A REAL SCAN RESOLVES A BREAK FACE, measured on the Juglet.
+#
+# Its break faces are sampled at 0.243% of object size, so nothing finer than
+# about 0.5% is recorded at all. Our blunting works at 0.3-0.5%, and the source
+# meshes here are sampled four times finer than the Juglet -- blue_pot at
+# 0.068%. So a model trained on this material learns to read fracture detail
+# that will simply not exist in a scan of the pot we are trying to reassemble.
+#
+# That is a domain gap present BEFORE any wear is applied, and no wear setting
+# closes it. Half the variants are therefore blurred to scan resolution, so the
+# model sees both the crisp fracture surfaces the simulation can produce and
+# the softer ones real equipment returns. Keeping both matters: the crisp ones
+# are honest for freshly broken material scanned well, and dropping them would
+# trade one domain gap for another.
+#
+# Conservator, 2026-08-10, before any of this was measured: "the potential
+# scanning artifact can be introduced, so just relying on the fine detail of
+# the fracture is unreliable for a real object."
+SCAN_SPACING = 0.0025
+
 VARIANTS = [
-    # name              smoothing  passes  recession
-    ("fresh",     dict(smoothing=0.0, smoothing_passes=1, recession=0.0)),
-    ("smooth_1",  dict(smoothing=0.4, smoothing_passes=1, recession=0.0008)),
-    ("smooth_2",  dict(smoothing=0.7, smoothing_passes=1, recession=0.0012)),
-    ("smooth_3",  dict(smoothing=1.0, smoothing_passes=1, recession=0.0015)),
-    ("smooth_4",  dict(smoothing=1.0, smoothing_passes=2, recession=0.0018)),
-    ("smooth_5",  dict(smoothing=1.0, smoothing_passes=3, recession=0.0020)),
+    # name             strength  passes  cutoff   chips  scan-limited
+    ("fresh",       dict(smoothing=0.0, smoothing_passes=1, blunt_cut=0.003,
+                         recession=0.0, _chips=False)),
+    ("smooth_1",    dict(smoothing=0.4, smoothing_passes=1, blunt_cut=0.0030,
+                         recession=0.0)),
+    ("smooth_2",    dict(smoothing=0.6, smoothing_passes=2, blunt_cut=0.0035,
+                         recession=0.0)),
+    ("smooth_3",    dict(smoothing=0.8, smoothing_passes=2, blunt_cut=0.0040,
+                         recession=0.0)),
+    ("smooth_4",    dict(smoothing=1.0, smoothing_passes=3, blunt_cut=0.0045,
+                         recession=0.0)),
+    ("smooth_5",    dict(smoothing=1.0, smoothing_passes=3, blunt_cut=0.0050,
+                         recession=0.0)),
     # loss without much abrasion - real, and it isolates the other axis
-    ("loss_only", dict(smoothing=0.2, smoothing_passes=1, recession=0.0020)),
+    ("loss_only",   dict(smoothing=0.2, smoothing_passes=1, blunt_cut=0.0030,
+                         recession=0.0)),
+
+    # SCAN-REALISTIC COUNTERPARTS. Same wear, then blurred to the resolution a
+    # real scan of a real pot actually delivers.
+    ("fresh_scan",     dict(smoothing=0.0, smoothing_passes=1, blunt_cut=0.003,
+                            recession=0.0, _chips=False, scan_spacing=SCAN_SPACING)),
+    ("smooth_2_scan",  dict(smoothing=0.6, smoothing_passes=2, blunt_cut=0.0035,
+                            recession=0.0, scan_spacing=SCAN_SPACING)),
+    ("smooth_4_scan",  dict(smoothing=1.0, smoothing_passes=3, blunt_cut=0.0045,
+                            recession=0.0, scan_spacing=SCAN_SPACING)),
+    ("smooth_5_scan",  dict(smoothing=1.0, smoothing_passes=3, blunt_cut=0.0050,
+                            recession=0.0, scan_spacing=SCAN_SPACING)),
+    ("loss_only_scan", dict(smoothing=0.2, smoothing_passes=1, blunt_cut=0.0030,
+                            recession=0.0, scan_spacing=SCAN_SPACING)),
 ]
 
 # Objects excluded, and why. Recorded here rather than filtered silently: a
@@ -234,12 +307,18 @@ def main() -> None:
                     # Chip size drawn per variant from the archaeological
                     # distribution, placement varied by seed, so the set does not
                     # repeat one damage pattern across every sherd.
-                    if vname == "fresh":
-                        worn, chip_name = pieces, "none"
-                    else:
+                    kw = dict(kw)
+                    if kw.pop("_chips", True):
                         chip_name, chip_kw = sample_chip_level(rng)
-                        worn = apply_wear(pieces, seed=args.seed + vi,
-                                          **kw, **chip_kw)
+                    else:
+                        chip_name = "none"
+                        chip_kw = dict(chip_count=0, chip_size=0.0)
+                    # Always through apply_wear, including the untouched
+                    # variants: the scan-limited ones do their work there and
+                    # nowhere else, and short-circuiting "fresh" would silently
+                    # skip the blur on fresh_scan.
+                    worn = apply_wear(pieces, seed=args.seed + vi,
+                                      **kw, **chip_kw)
 
                     # Remove fragments AFTER wearing, so the ones that remain
                     # are worn exactly as they would have been in the whole

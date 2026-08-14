@@ -1,0 +1,32 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: true
+multi_anchor: false
+
+data_root: ${data_root}
+# The Palestinian Juglet scored against the CONSERVATOR'S OWN HAND REASSEMBLY,
+# built by scripts/build_juglet_ground_truth.py from groundtruth.obj.
+#
+# Every earlier number for this pot was scored against the scan-table layout --
+# the arrangement the sherds happened to be in when they were scanned, which is
+# not a reassembly at all. The rotations between that layout and the real
+# assembly run from 26 to 177 degrees, so no part-accuracy, rotation error or
+# chamfer distance ever computed for the Juglet meant anything. Use this
+# dataset, not `juglet_norm`, whenever a score is wanted.
+#
+# Two things it still cannot tell you, and they matter for reading any result:
+#
+#   A PIECE IS MISSING. The pot is incomplete, visibly so. A reconstruction
+#   that leaves that gap open is CORRECT and one that closes it is wrong, so
+#   any metric rewarding contact everywhere will mislead here.
+#
+#   IT IS ONE POT, reassembled once, by one person. Authoritative in a way
+#   nothing else here is, and still a single reading of a single object.
+dataset_names: ["juglet_gt"]
+
+batch_size: 1
+num_workers: 4
+limit_val_samples: 0
