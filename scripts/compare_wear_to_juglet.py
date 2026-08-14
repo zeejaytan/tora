@@ -17,11 +17,15 @@ geometry. Two fixes make it answerable:
      measured by the same ruler.
 
   2. A dimensionless ratio is reported alongside the raw figures: fine relief
-     divided by coarse relief. Absolute roughness differs between pots for
-     reasons that have nothing to do with wear -- fabric, forming, firing --
-     but the BALANCE between fine texture and the overall shape of the face is
-     what wear changes, and it can be compared across objects. Wear should
-     lower it: teeth go, curve stays.
+     divided by coarse relief.
+
+     THIS DID NOT WORK, and the file is kept as the record of why. The idea was
+     that absolute roughness differs between pots for reasons unrelated to wear
+     -- fabric, forming, firing -- while the BALANCE between fine texture and
+     the shape of the face is what wear changes, so the ratio should be
+     comparable across objects. Measured on three fresh pots it spans 0.167 to
+     0.386, and the real worn Juglet sits at 0.169, inside that range. The
+     between-pot variation is larger than the effect being looked for.
 
 Relief is the normal deviation from the local mean, never the full distance --
 the sideways component is two to three times larger at fine scales on these
@@ -208,36 +212,36 @@ def main() -> None:
     fresh = ratios.get(f"fresh ({name_s})")
     if real is None or fresh is None:
         return
-    print(f"\n  VERDICT")
-    if real >= fresh:
-        print(f"  The real worn pot ({real:.3f}) is NOT below a fresh break "
-              f"({fresh:.3f}).")
-        print("  This measure cannot tell them apart, so it cannot judge the")
-        print("  simulation either. Nothing here supports or refutes the model.")
-        return
-    print(f"  Real worn {real:.3f} vs fresh {fresh:.3f} -- the real pot does sit")
-    print(f"  lower, so the measure sees wear.")
-    best, bestd = None, np.inf
-    for lname, _ in LEVELS:
-        v = ratios.get(f"our {lname}")
-        if v is None:
-            continue
-        if abs(v - real) < bestd:
-            best, bestd = lname, abs(v - real)
-    span = [ratios.get(f"our {l}") for l, _ in LEVELS]
-    span = [v for v in span if v is not None]
-    print(f"  Closest of our levels: {best} "
-          f"({ratios.get('our ' + best):.3f} against {real:.3f}).")
-    if span and min(span) > real:
-        print("  ** Our heaviest wear does not reach the real pot. The model is")
-        print("     too gentle for this material and a dataset built from it")
-        print("     would not contain the case the Juglet represents. **")
-    else:
-        print("  Our range brackets the real pot, so a dataset built across")
-        print("  these levels contains material like it.")
-    print("\n  One pot, one conservator's reassembly. It is the only real worn")
-    print("  object here with a valid answer key, and it is still one object.")
 
+    # THE VERDICT THIS USED TO PRINT WAS WRONG, and it is worth keeping the
+    # reason where the next person will see it.
+    #
+    # It compared the real worn Juglet against ONE fresh pot and concluded from
+    # the difference that our wear was too gentle. Run against three, the fresh
+    # pots span 0.167 (blue_pot), 0.229 (galli_pot) and 0.386 (plate) -- and the
+    # real worn Juglet sits at 0.169, at the bottom of that range and
+    # indistinguishable from fresh blue_pot. The ratio varies far more between
+    # one pot and another than it does with wear. It reads which pot it is.
+    #
+    # So the "dimensionless, survives the two pots being different pots" claim
+    # in this file's own docstring is false, and every conclusion that rested on
+    # it goes with it.
+    print(f"\n  VERDICT: NONE AVAILABLE, and not because the model failed.")
+    print(f"  real worn {real:.3f} against this fresh pot {fresh:.3f}.")
+    print("  Run this on several fresh objects before reading anything into")
+    print("  that gap: measured across blue_pot, galli_pot and plate the fresh")
+    print("  ratio spans 0.167 to 0.386, and the real worn Juglet sits inside")
+    print("  that range. Between-pot variation swamps the effect of wear.")
+    print()
+    print("  The deeper reason no verdict is possible here: the Juglet's break")
+    print("  faces are sampled at 0.243% of object size, so nothing finer than")
+    print("  about 0.5% is recorded. Our blunting works at 0.3-0.5%. Every")
+    print("  scale this comparison can reach lies ABOVE where the wear acts, so")
+    print("  it cannot confirm the model and cannot refute it. That is a limit")
+    print("  of the scan, not of the simulation, and no wear setting changes it.")
+    print()
+    print("  What would settle it: a scan of a real worn sherd resolving better")
+    print("  than 0.1% of object size, or a fresh and worn scan of the SAME pot.")
 
 if __name__ == "__main__":
     main()
