@@ -299,7 +299,7 @@ def _wall_estimate(v, f, idx, sample: int = 4000, ref_pts: int = 20000,
 
 def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
                      passes: int = 2, exposure: float = 0.5, masks=None,
-                     seed: int = 0):
+                     seed: int = 0, dirs=None):
     """Blunt the TEETH and leave the CURVE — wear as one-sided peak truncation.
 
     Replaces mollification as the micro-scale term, for three faults the scale
@@ -373,7 +373,14 @@ def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
 
         v = v.copy()
         idx = np.where(band)[0]
-        away = _outward_directions(v, idx, scale)
+        # The outward field is the expensive part of this function -- a ladder
+        # of six radius queries per piece -- and it is identical for every wear
+        # variant of the same object, because every variant starts from the
+        # same fresh geometry. Chipping runs first and moves a few vertices,
+        # but a chip is a local dimple three orders of magnitude smaller than
+        # the radii this ladder uses, so the field it returns is unchanged.
+        # Recomputing it per variant made the training-set build time out.
+        away = dirs[i] if dirs is not None else _outward_directions(v, idx, scale)
 
         # How exposed each vertex is, measured once on the untouched shape: how
         # far its neighbourhood stands proud of a coarser envelope. Positive on
@@ -419,6 +426,29 @@ def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
             removed += step
         out.append((v, f.copy()))
     return out
+
+
+def wear_context(pieces, band_tau_frac: float = 0.02):
+    """Everything `apply_wear` can reuse across variants of the same object.
+
+    Contact bands and outward directions depend only on the fresh geometry, so
+    computing them per variant is pure waste -- and not a small one. The
+    outward field alone is a ladder of six radius queries per piece, and with
+    twelve variants per object the first build on this model timed out after
+    six hours having finished eighteen of twenty-four objects.
+
+    Returns (masks, dirs) to hand straight to `apply_wear`.
+    """
+    allv = np.concatenate([v for v, _ in pieces], axis=0)
+    scale = float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-9
+    masks = [_band_mask(pieces, i, pieces[i][0], band_tau_frac=band_tau_frac)
+             for i in range(len(pieces))]
+    dirs = []
+    for i, (v, _) in enumerate(pieces):
+        idx = np.where(masks[i][1] > 0.02)[0]
+        dirs.append(_outward_directions(v, idx, scale) if len(idx)
+                    else np.zeros((0, 3)))
+    return masks, dirs
 
 
 def band_limit(pieces, spacing_frac: float = 0.005):
@@ -1190,7 +1220,7 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
                recession: float = 0.0, chip_count: int = 4,
                chip_size: float = 0.003, seed: int = 0,
                mode: str = "blunt", blunt_cut: float = 0.004,
-               scan_spacing: float = 0.0):
+               scan_spacing: float = 0.0, masks=None, dirs=None):
     """Simulate archaeological wear on an assembled set of fragments.
 
     MODE, added 2026-08-10, and the default CHANGED with it:
@@ -1253,7 +1283,8 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
     # sharp chip boundaries are themselves relief. Chipping first lets the
     # smoothing pass round them, as burial does.
     if chip_count and chip_count > 0 and chip_size > 0:
-        masks = [_band_mask(cur, i, cur[i][0]) for i in range(len(cur))]
+        if masks is None:
+            masks = [_band_mask(cur, i, cur[i][0]) for i in range(len(cur))]
         cur = recede_and_chip(cur, recession_frac=0.0,
                               chip_count=chip_count, chip_frac=chip_size,
                               seed=seed, masks=masks)
@@ -1263,7 +1294,8 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
         # every existing call site keeps working, but it now means "fraction of
         # each asperity removed per pass" rather than a mollification strength.
         cur = blunt_asperities(cur, cut_frac=blunt_cut, strength=smoothing,
-                               passes=max(1, int(smoothing_passes)), seed=seed)
+                               passes=max(1, int(smoothing_passes)), seed=seed,
+                               masks=masks, dirs=dirs)
 
     elif smoothing and smoothing > 0:
         # REPEATED passes reach smoother surfaces than one deep pass, and this

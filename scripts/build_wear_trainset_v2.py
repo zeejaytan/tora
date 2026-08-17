@@ -81,7 +81,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fracture_mesh_ops import piece_relief_stats  # noqa: E402
-from wear_ops import apply_wear, sample_chip_level  # noqa: E402
+from wear_ops import apply_wear, sample_chip_level, wear_context  # noqa: E402
 
 # Smoothness is spanned; material loss stays realistic throughout (0.2-2.7% of
 # volume, matching measurement on real sherds). Variants are named for what they
@@ -302,6 +302,12 @@ def main() -> None:
                 if len(pieces) < 2:
                     continue
                 print(f"{obj}: {len(pieces)} sherds", flush=True)
+                # Contact bands and outward directions depend only on the fresh
+                # geometry, so they are computed once and reused by all twelve
+                # variants. Recomputing them per variant is what made the first
+                # build on this model run out of wall time with a quarter of
+                # the objects still to do.
+                ctx_masks, ctx_dirs = wear_context(pieces)
 
                 for vi, (vname, kw) in enumerate(VARIANTS):
                     # Chip size drawn per variant from the archaeological
@@ -318,6 +324,7 @@ def main() -> None:
                     # nowhere else, and short-circuiting "fresh" would silently
                     # skip the blur on fresh_scan.
                     worn = apply_wear(pieces, seed=args.seed + vi,
+                                      masks=ctx_masks, dirs=ctx_dirs,
                                       **kw, **chip_kw)
 
                     # Remove fragments AFTER wearing, so the ones that remain

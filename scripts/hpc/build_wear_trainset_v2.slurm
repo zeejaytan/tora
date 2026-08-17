@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
-#SBATCH --time=06:00:00
+#SBATCH --time=20:00:00
 #SBATCH --output=/data/gpfs/projects/punim2657/TORA/tora_wearset2_%j.log
 
 set -euo pipefail
