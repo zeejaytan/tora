@@ -50,6 +50,11 @@ import numpy as np
 import trimesh
 from scipy.spatial import cKDTree
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wear_ops import _local_mean  # noqa: E402
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -92,24 +97,25 @@ def fracture_mask(v, f):
 
 
 def spectrum_mm(pts, radii, k=24):
-    """Relief at each absolute radius, in millimetres."""
+    """Relief at each absolute radius, in millimetres.
+
+    The local mean comes from `wear_ops._local_mean`, which thins the reference
+    until a ball holds a bounded number of points. That is not an optimisation
+    here, it is the difference between running and not: at a 6.4 mm radius on
+    0.1 mm spacing an unbounded query wants about four thousand points per ball
+    across a hundred thousand points, and the first version of this script was
+    killed for it.
+    """
     tree = cKDTree(pts)
     _, nb = tree.query(pts, k=min(k, len(pts)), workers=-1)
     P = pts[nb] - pts[:, None, :]
     nrm = np.linalg.eigh(np.einsum("nki,nkj->nij", P, P))[1][:, :, 0]
     out = []
     for R in radii:
-        idx = tree.query_ball_point(pts, R, workers=-1, return_sorted=False)
-        lens = np.fromiter((len(x) for x in idx), dtype=np.int64, count=len(idx))
-        ok = np.where(lens >= 5)[0]
-        if len(ok) < 100:
-            out.append(float("nan"))
-            continue
-        sm = np.empty((len(ok), 3))
-        for i, j in enumerate(ok):
-            sm[i] = pts[idx[j]].mean(axis=0)
-        d = pts[ok] - sm
-        out.append(float(np.abs((d * nrm[ok]).sum(axis=1)).mean()))
+        sm = _local_mean(pts, pts.copy(), R)
+        d = pts - sm
+        moved = np.abs((d * nrm).sum(axis=1))
+        out.append(float(moved.mean()) if len(moved) >= 100 else float("nan"))
     return out
 
 
