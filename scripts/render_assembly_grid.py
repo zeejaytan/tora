@@ -80,6 +80,10 @@ def main() -> None:
     ap.add_argument("--runs", nargs="+", required=True,
                     help="label=/path/to/clouds")
     ap.add_argument("--attempt", type=int, default=0)
+    ap.add_argument("--match", default="",
+                    help="only objects whose name contains this, so a 30-object "
+                         "sweep can be split into figures that can actually be "
+                         "read rather than one strip 22000 pixels tall")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -99,7 +103,7 @@ def main() -> None:
             here[name.split("/")[-1]] = f
         index[label] = here
         common = set(here) if common is None else (common & set(here))
-    objs = sorted(common or [])
+    objs = sorted(o for o in (common or []) if args.match in o)
     print(f"{len(objs)} objects in every run: {', '.join(objs)}")
     if not objs:
         return
