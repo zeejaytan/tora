@@ -96,26 +96,56 @@ def fracture_mask(v, f):
     return facing < 0.45, plane_n
 
 
-def spectrum_mm(pts, radii, k=24):
-    """Relief at each absolute radius, in millimetres.
+def spectrum_mm(pts, radii, k=24, max_probe=20000, seed=0):
+    """TEXTURE at each absolute radius, in millimetres, with shape removed.
 
-    The local mean comes from `wear_ops._local_mean`, which thins the reference
-    until a ball holds a bounded number of points. That is not an optimisation
-    here, it is the difference between running and not: at a 6.4 mm radius on
-    0.1 mm spacing an unbounded query wants about four thousand points per ball
-    across a hundred thousand points, and the first version of this script was
-    killed for it.
+    Deviation from the LOCAL MEAN was the first attempt and it does not measure
+    fracture texture on these fragments -- it measures the shape of the plaque.
+    A rim curving around a perimeter of radius rho departs from its own chord by
+    R^2 / 2*rho, and with rho about 40 mm that predicts 0.51 mm at a 6.4 mm
+    radius against 0.49 mm measured. Almost the whole signal was the outline.
+    The exponent came out at 1.75, against 2.0 for a perfectly smooth curve and
+    0.4-0.8 for a real fracture surface: the curve, not the fracture.
+
+    So the reference is a QUADRIC fitted to each neighbourhood, not its mean.
+    A quadric absorbs curvature exactly, by construction, and what is left over
+    is texture. This is the same distinction as blunting the teeth while keeping
+    the curve, applied to the instrument rather than the model.
+
+    Fitted at a subsample of probe points because a least-squares solve per
+    vertex over a hundred thousand vertices and seven radii is not affordable,
+    and texture is a statistic -- twenty thousand probes describe it as well as
+    all of them.
     """
+    rng = np.random.default_rng(seed)
     tree = cKDTree(pts)
-    _, nb = tree.query(pts, k=min(k, len(pts)), workers=-1)
-    P = pts[nb] - pts[:, None, :]
-    nrm = np.linalg.eigh(np.einsum("nki,nkj->nij", P, P))[1][:, :, 0]
+    probe_i = (np.arange(len(pts)) if len(pts) <= max_probe
+               else rng.choice(len(pts), max_probe, replace=False))
+
     out = []
     for R in radii:
-        sm = _local_mean(pts, pts.copy(), R)
-        d = pts - sm
-        moved = np.abs((d * nrm).sum(axis=1))
-        out.append(float(moved.mean()) if len(moved) >= 100 else float("nan"))
+        idx = tree.query_ball_point(pts[probe_i], R, workers=-1,
+                                    return_sorted=False)
+        res = []
+        for n, nb in zip(probe_i, idx):
+            if len(nb) < 12:
+                continue
+            q = pts[nb] if len(nb) <= 400 else pts[rng.choice(nb, 400, False)]
+            c = q.mean(axis=0)
+            Q = q - c
+            # local frame: two in-surface directions and a normal
+            u = np.linalg.eigh(Q.T @ Q)[1]
+            a, b, nrm = u[:, 2], u[:, 1], u[:, 0]
+            x, y = Q @ a, Q @ b
+            z = Q @ nrm
+            # z = c0 + c1 x + c2 y + c3 x^2 + c4 xy + c5 y^2
+            A = np.column_stack([np.ones_like(x), x, y, x * x, x * y, y * y])
+            try:
+                coef, *_ = np.linalg.lstsq(A, z, rcond=None)
+            except np.linalg.LinAlgError:
+                continue
+            res.append(float(np.abs(z - A @ coef).mean()))
+        out.append(float(np.mean(res)) if len(res) >= 50 else float("nan"))
     return out
 
 
@@ -199,7 +229,7 @@ def main() -> None:
     print(f"\nwrote {outd / 'repair_fracture_classification.png'}")
 
     # ---- the spectrum ----------------------------------------------------
-    print(f"\n  RELIEF ON REAL ERODED FRACTURE, in millimetres")
+    print(f"\n  TEXTURE ON REAL ERODED FRACTURE, in millimetres (shape removed)")
     print("  " + "{:<22s}".format("fragment")
           + "".join("{:>9s}".format(f"{r:.2f}mm") for r in RADII_MM))
     print("  " + "-" * (22 + 9 * len(RADII_MM)))
@@ -224,8 +254,8 @@ def main() -> None:
             "below the\nscan resolution", fontsize=8, color="0.35")
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_xlabel("scale (mm)")
-    ax.set_ylabel("relief (mm)")
-    ax.set_title("Real eroded fracture: relief against scale\n"
+    ax.set_ylabel("texture (mm), curvature removed")
+    ax.set_title("Real eroded fracture: TEXTURE against scale\n"
                  f"{len(rows)} Pompeii fresco fragments, ~2000 years of burial",
                  fontsize=11)
     ax.legend(fontsize=9)
@@ -233,10 +263,17 @@ def main() -> None:
     fig.tight_layout()
     fig.savefig(outd / "repair_fracture_spectrum.png", dpi=140)
     print(f"wrote {outd / 'repair_fracture_spectrum.png'}")
-    print("\n  A KINK in this curve would be the erosion signature -- a scale")
-    print("  below which structure has been removed. A straight line on log")
-    print("  axes means no characteristic scale, and would say the signature")
-    print("  is not visible even at this resolution.")
+    print("\n  READ IT AGAINST WHAT A FRACTURE SHOULD LOOK LIKE. Fracture")
+    print("  surfaces are self-affine with a roughness exponent of 0.4-0.8")
+    print("  across metals, ceramics and rocks, so texture should rise as")
+    print("  R^0.4 to R^0.8. An exponent far above that means the fine")
+    print("  roughness is gone and only smooth shape remains -- the erosion")
+    print("  signature. An exponent in that band means it is still there.")
+    print()
+    print("  The previous version of this measurement used deviation from the")
+    print("  local MEAN and returned 1.75, which turned out to be the plaque's")
+    print("  own outline curvature almost exactly. Fitting a quadric removes")
+    print("  that by construction.")
 
 
 if __name__ == "__main__":
