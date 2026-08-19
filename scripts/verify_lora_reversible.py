@@ -39,24 +39,47 @@ from tora.modeling.lora import (LoRALinear, add_lora, lora_state_dict,  # noqa: 
 
 
 def build_model(ckpt_path):
-    """The DiT alone, on CPU, with weights if a checkpoint is given."""
+    """The DiT alone, on CPU, with its shape INFERRED from the checkpoint.
+
+    Hard-coding the dimensions was the first attempt and it failed against every
+    tensor in the file: the real model is 512 wide, not 256. Guessing an
+    architecture to test a checkpoint against is how a verification passes on
+    something that is not the model in use.
+    """
     from tora.modeling.flow_model.dit import PointCloudDiT
     torch.manual_seed(0)
-    model = PointCloudDiT(
-        in_dim=3, out_dim=3, embed_dim=256, num_layers=4, num_heads=8,
-        use_vanilla_attn=True,
-    )
+
+    inner, embed_dim, n_layers, n_heads = {}, 512, 4, 8
     if ckpt_path:
         sd = torch.load(ckpt_path, map_location="cpu", weights_only=False)
         sd = sd.get("state_dict", sd)
         inner = {k.split("flow_model.", 1)[1]: v for k, v in sd.items()
                  if "flow_model." in k}
         if inner:
-            missing = model.load_state_dict(inner, strict=False)
-            print(f"loaded checkpoint weights "
-                  f"({len(inner)} tensors, {len(missing.missing_keys)} missing)")
-        else:
-            print("checkpoint had no flow_model.* tensors; using random weights")
+            embed_dim = int(inner["final_mlp.0.weight"].shape[0])
+            idx = [int(k.split(".")[1]) for k in inner
+                   if k.startswith("transformer_layers.")]
+            n_layers = max(idx) + 1 if idx else n_layers
+            g = next((v for k, v in inner.items() if k.endswith("q_norm.gamma")),
+                     None)
+            if g is not None:
+                n_heads = int(g.shape[0])
+            print(f"inferred from checkpoint: embed_dim {embed_dim}, "
+                  f"{n_layers} layers, {n_heads} heads")
+
+    model = PointCloudDiT(
+        in_dim=3, out_dim=3, embed_dim=embed_dim, num_layers=n_layers,
+        num_heads=n_heads, use_vanilla_attn=True,
+    )
+    if inner:
+        res = model.load_state_dict(inner, strict=False)
+        bad = [k for k in res.missing_keys if "lora" not in k]
+        print(f"loaded {len(inner)} tensors, {len(bad)} missing, "
+              f"{len(res.unexpected_keys)} unexpected")
+        if len(bad) > 8:
+            print("  ** too many missing tensors; the architecture still does "
+                  "not match and this verification would be meaningless **")
+            sys.exit(2)
     model.eval()
     return model
 
