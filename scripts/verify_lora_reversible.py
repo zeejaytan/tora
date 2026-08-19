@@ -181,15 +181,29 @@ def main() -> None:
     sd = lora_state_dict(model)
     nbytes = sum(v.numel() * v.element_size() for v in sd.values())
     before = run()
+    snapshot = {k: v.clone() for k, v in sd.items()}
     with torch.no_grad():
         for m in model.modules():
             if isinstance(m, LoRALinear):
                 m.lora_B.zero_()
-    model.load_state_dict(sd, strict=False)
+    wiped = run()
+    res = model.load_state_dict(sd, strict=False)
     after = run()
+    restored = lora_state_dict(model)
+    w_max = max((snapshot[k] - restored[k]).abs().max().item()
+                for k in snapshot)
     ok_rt = torch.equal(before, after)
-    print(f"   {len(sd)} tensors, {nbytes / 1e6:.1f} MB -> "
+    print(f"   {len(sd)} tensors, {nbytes / 1e6:.1f} MB")
+    print(f"   zeroing changed the output by "
+          f"{(wiped - before).abs().max().item():.3e} (should be non-zero)")
+    print(f"   adapter tensors restored to within {w_max:.3e} "
+          f"(should be exactly 0)")
+    print(f"   output difference after reload "
+          f"{(after - before).abs().max().item():.3e} -> "
           f"{'PASS (exact)' if ok_rt else 'FAIL'}")
+    if not ok_rt and w_max == 0.0:
+        print("   NOTE: the weights came back exactly but the output did not, "
+              "so the difference is in the forward pass, not the file.")
 
     allok = ok_place and ok_id and ok_eff and ok_off and ok_rt
     print(f"\n{'ALL PASS' if allok else 'FAILED'} -- an adapter that cannot be "
