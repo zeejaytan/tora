@@ -54,8 +54,8 @@ import trimesh
 from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from wear_ops import (_band_mask, _local_mean, _outward_directions,  # noqa: E402
-                      blunt_asperities)
+from wear_ops import (_band_mask, _outward_directions,  # noqa: E402
+                      _proud_height, blunt_asperities)
 
 import matplotlib
 matplotlib.use("Agg")
@@ -132,8 +132,13 @@ def main() -> None:
           f"{len(idx)} band vertices of {len(v0)}, object size {size:.4f}")
 
     out = _outward_directions(v0, idx, size)
-    env0 = _local_mean(v0[idx], v0[idx], R)
-    available = np.maximum(((v0[idx] - env0) * out).sum(axis=1), 0.0)
+    # THE SAME RULER THE MODEL USES. This measured `available` against the mean
+    # of the neighbours while blunting had moved to a fitted plane, and the two
+    # disagree exactly where the fix matters -- the mean is dragged inward at a
+    # boundary and under-reports how proud a point is. The efficiency column
+    # then read 122% and 132%, more material removed than was available, which
+    # is impossible and is the signature of a ruler that moved.
+    available = np.maximum(_proud_height(v0, idx, out, R), 0.0)
     removed = -((v1[idx] - v0[idx]) * out).sum(axis=1)
     removed = np.maximum(removed, 0.0)
 
