@@ -49,7 +49,7 @@ def build_model(ckpt_path):
     from tora.modeling.flow_model.dit import PointCloudDiT
     torch.manual_seed(0)
 
-    inner, embed_dim, n_layers, n_heads = {}, 512, 4, 8
+    inner, embed_dim, n_layers, n_heads, in_dim = {}, 512, 4, 8, 3
     if ckpt_path:
         sd = torch.load(ckpt_path, map_location="cpu", weights_only=False)
         sd = sd.get("state_dict", sd)
@@ -57,6 +57,14 @@ def build_model(ckpt_path):
                  if "flow_model." in k}
         if inner:
             embed_dim = int(inner["final_mlp.0.weight"].shape[0])
+            # emb_proj takes in_dim plus four positional encodings: three 3-D
+            # ones (coord, noise, normal) and one scalar (scale), each of width
+            # d*(1 + 2*multires). At the default multires of 10 that is 210, so
+            # the feature width the flow model actually consumes falls out of
+            # the checkpoint rather than being assumed to be 3 -- it is 64.
+            emb_in = int(inner["encoding_manager.emb_proj.weight"].shape[1])
+            pos = 3 * (1 + 2 * 10) * 3 + 1 * (1 + 2 * 10)
+            in_dim = max(1, emb_in - pos)
             idx = [int(k.split(".")[1]) for k in inner
                    if k.startswith("transformer_layers.")]
             n_layers = max(idx) + 1 if idx else n_layers
@@ -65,10 +73,10 @@ def build_model(ckpt_path):
             if g is not None:
                 n_heads = int(g.shape[0])
             print(f"inferred from checkpoint: embed_dim {embed_dim}, "
-                  f"{n_layers} layers, {n_heads} heads")
+                  f"{n_layers} layers, {n_heads} heads, in_dim {in_dim}")
 
     model = PointCloudDiT(
-        in_dim=3, out_dim=3, embed_dim=embed_dim, num_layers=n_layers,
+        in_dim=in_dim, out_dim=3, embed_dim=embed_dim, num_layers=n_layers,
         num_heads=n_heads, use_vanilla_attn=True,
     )
     if inner:
@@ -94,17 +102,28 @@ def main() -> None:
     model = build_model(args.ckpt)
 
     torch.manual_seed(1)
-    B, N = 2, 64
+    # A real forward pass, with the signature the model actually has:
+    # (x, timesteps, latent, scales, anchor_indices). Inventing a simpler call
+    # and catching TypeError -- the first version of this script -- would have
+    # tested a fallback path rather than the model.
+    B, N, P = 1, 128, 2
+    cfg = model.encoding_manager
     x = torch.randn(B, N, 3)
     t = torch.rand(B)
-    ppp = torch.tensor([[N // 2, N // 2], [N // 2, N // 2]], dtype=torch.long)
+    latent = {
+        "coord": torch.randn(N, 3),
+        "normal": torch.nn.functional.normalize(torch.randn(N, 3), dim=-1),
+        "feat": torch.randn(N, cfg.in_dim),
+        "batch": torch.arange(P).repeat_interleave(N // P),
+    }
+    scales = torch.rand(B) + 0.5
+    anchor = torch.zeros(B, N, dtype=torch.bool)
+    anchor[:, : N // P] = True
 
     def run():
         with torch.no_grad():
-            try:
-                return model(x, t, ppp)
-            except TypeError:
-                return model(x, t)
+            out = model(x, t, latent, scales, anchor)
+            return (out[0] if isinstance(out, (tuple, list)) else out).clone()
 
     base = run().clone()
     print(f"base output {tuple(base.shape)}, "
