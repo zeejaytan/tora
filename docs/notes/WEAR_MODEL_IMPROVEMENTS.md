@@ -32,26 +32,46 @@ throwing away signal.
 
 ---
 
-## 2. Fix the under-worn rim
+## 2. ~~Fix the under-worn rim~~ — WITHDRAWN, there was no defect
 
-**Evidence: strong, measured on two objects.** Within about one cutoff of the
-edge of a break face, blunting removes only **7–9%** of the available relief,
-against **93–99%** well inside it. Roughly a quarter of break-face points sit in
-that zone, so every fracture in the training set carries a rim that is barely
-worn.
+**Measured 2026-08-19, and the item was a misdiagnosis.** The observation was
+real: blunting removes 7% of the available relief within one cutoff of the
+break-region boundary against 93% well inside it. The interpretation was wrong.
 
-**Cause:** the local envelope is one-sided near a region boundary — a point's
-neighbours all lie inward — so the height it appears to stand proud of that
-envelope is underestimated and almost nothing is removed.
+Reporting the FEATHER beside the efficiency settles it:
 
-**Fix:** replace the local mean with a locally fitted **plane or quadric**,
-which does not care that the neighbours are all on one side. Gate A already
-showed a quadric fit doing exactly this job on real fragments, so the machinery
-exists and is tested.
+| distance from edge | efficiency (plate) | feather | efficiency (blue_pot) | feather |
+|---|---|---|---|---|
+| under ½ cutoff | 6.4% | 0.057 | 7.0% | 0.063 |
+| ½ to 1 | 14.0% | 0.124 | 15.1% | 0.135 |
+| 1 to 2 | 24.0% | 0.216 | 25.2% | 0.225 |
+| 2 to 4 | 45.6% | 0.400 | 45.0% | 0.402 |
+| beyond 4 | 93.9% | 0.903 | 92.8% | 0.918 |
 
-This is the same fix as §1 of the instrument work, applied to the model.
+Efficiency **is** the feather value, to within a few percent, in every bin on
+both objects. `blunt_asperities` scales its budget by `strength * feather *
+exposure`, so this is the taper doing exactly what it was written to do.
 
----
+And the taper is right. The region boundary those distances are measured from
+sits about 6% of object size from the mating surface — that is the pot's own
+outer surface, not fracture face. Wearing it would be the bug. On the actual
+fracture face, where feather is ~0.9, wear runs at **93% efficiency**.
+
+**What was actually changed, and why it is kept anyway.** The fix attempted here
+replaced the mean-of-neighbours envelope with a locally fitted plane
+(`_proud_height`), on the theory that a one-sided neighbourhood biased the
+height estimate. That theory is refuted — the gradient did not move at all. But
+the change is a clear improvement for an unrelated reason: on the synthetic pair
+it removes as much texture as the mean envelope (teeth −39.1% against −39.8%)
+while cutting curve damage tenfold (−0.3% against −3.1%), and on real objects
+the spectrum now passes on blue_pot, coxae and vert9 with the plate failing only
+on monotonicity. Kept on that evidence, not on the reasoning that produced it.
+
+**The lesson, which is the transferable part:** a real measurement (7% vs 93%)
+was attached to a wrong cause for three days. Nothing about the number was
+false; the story told about it was. Reporting the suspected mechanism's own
+value alongside the symptom is what settled it, and would have settled it
+immediately.
 
 ## 3. Settle whether the contact band is counting intact pot
 
