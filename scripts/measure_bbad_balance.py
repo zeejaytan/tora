@@ -103,6 +103,36 @@ def main() -> None:
         print(f"    ~{k} pieces  {eff_hist[k]:>6d}  {share:>5.1f}%  "
               f"{'#' * int(share / 2)}")
 
+    # ---- the number that decides Gate B ---------------------------------
+    # Whether the corpus is worth anything is not how many INSTANCES are
+    # balanced but how many distinct SHAPES those instances come from. The gap
+    # being filled is shape variety: a thousand good breaks of the same four
+    # vases would not fill it.
+    print("\n  USABLE SUBSET: how many distinct objects have at least one")
+    print("  well-balanced break, scanning every object and every instance")
+    for thresh in (3.0, 4.0, 5.0):
+        objs_ok, inst_ok, objs_seen = 0, 0, 0
+        for c in CATS:
+            if c not in ev:
+                continue
+            for o in sorted(ev[c].keys()):
+                objs_seen += 1
+                node = ev[c][o]
+                hits = 0
+                for fr in node.keys():
+                    sz = sizes_of(node[fr])
+                    if len(sz) < 3 or sz.sum() <= 0:
+                        continue
+                    share = sz / sz.sum()
+                    if 1.0 / float((share ** 2).sum()) >= thresh:
+                        hits += 1
+                if hits:
+                    objs_ok += 1
+                    inst_ok += hits
+        print(f"    effective pieces >= {thresh:.0f}:  "
+              f"{objs_ok:>4d} of {objs_seen} objects,  {inst_ok:>6d} instances")
+    print("    (against 8 ceramic vessels in the fine-tuning source)")
+
     print("\n  The Juglet is nine sherds of broadly comparable size, so its")
     print("  effective count is close to nine. An effective count near 1 means")
     print("  one remnant and some chips -- a different problem entirely, and")
