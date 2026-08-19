@@ -111,28 +111,30 @@ from wear_ops import apply_wear, sample_chip_level, wear_context  # noqa: E402
 SCAN_SPACING = 0.0025
 
 VARIANTS = [
-    # name             strength  passes  cutoff   chips  scan-limited
-    ("fresh",       dict(smoothing=0.0, smoothing_passes=1, blunt_cut=0.003,
-                         recession=0.0, _chips=False)),
-    ("smooth_1",    dict(smoothing=0.4, smoothing_passes=1, blunt_cut=0.0030,
-                         recession=0.0)),
-    ("smooth_2",    dict(smoothing=0.6, smoothing_passes=2, blunt_cut=0.0035,
-                         recession=0.0)),
-    ("smooth_3",    dict(smoothing=0.8, smoothing_passes=2, blunt_cut=0.0040,
-                         recession=0.0)),
-    ("smooth_4",    dict(smoothing=1.0, smoothing_passes=3, blunt_cut=0.0045,
-                         recession=0.0)),
-    ("smooth_5",    dict(smoothing=1.0, smoothing_passes=3, blunt_cut=0.0050,
-                         recession=0.0)),
-    # loss without much abrasion - real, and it isolates the other axis
-    ("loss_only",   dict(smoothing=0.2, smoothing_passes=1, blunt_cut=0.0030,
-                         recession=0.0)),
-
-    # SCAN-REALISTIC COUNTERPARTS. Same wear, then blurred to the resolution a
-    # real scan of a real pot actually delivers.
+    # SCAN-REALISTIC IS NOW THE DEFAULT, seven of ten variants, and the reason
+    # is measured rather than assumed. Gate A took 20 real eroded archaeological
+    # fragments, scanned far finer than anything of ours, and found NO
+    # fracture-like roughness at any scale those scans resolve: texture rising
+    # as R^1.7 where a fracture surface rises as R^0.4-0.8
+    # (docs/notes/GATE_A_RESULT.md).
+    #
+    # Whether the ground removed that roughness or the scanner never recorded
+    # it cannot be separated with the data that exists, and for training it does
+    # not matter which: it is not in the file, and the file is what the model
+    # sees. Crisp variants carrying self-affine fracture texture at 0.4-6.4 mm
+    # teach it to read a signal that will not be there at inference.
+    #
+    # Three crisp variants are KEPT as controls, not out of caution but because
+    # dropping them would trade one domain gap for another -- a freshly broken
+    # object scanned well does carry that detail, and a model that has never
+    # seen it would be equally mismatched in the other direction.
     ("fresh_scan",     dict(smoothing=0.0, smoothing_passes=1, blunt_cut=0.003,
                             recession=0.0, _chips=False, scan_spacing=SCAN_SPACING)),
+    ("smooth_1_scan",  dict(smoothing=0.4, smoothing_passes=1, blunt_cut=0.0030,
+                            recession=0.0, scan_spacing=SCAN_SPACING)),
     ("smooth_2_scan",  dict(smoothing=0.6, smoothing_passes=2, blunt_cut=0.0035,
+                            recession=0.0, scan_spacing=SCAN_SPACING)),
+    ("smooth_3_scan",  dict(smoothing=0.8, smoothing_passes=2, blunt_cut=0.0040,
                             recession=0.0, scan_spacing=SCAN_SPACING)),
     ("smooth_4_scan",  dict(smoothing=1.0, smoothing_passes=3, blunt_cut=0.0045,
                             recession=0.0, scan_spacing=SCAN_SPACING)),
@@ -140,6 +142,14 @@ VARIANTS = [
                             recession=0.0, scan_spacing=SCAN_SPACING)),
     ("loss_only_scan", dict(smoothing=0.2, smoothing_passes=1, blunt_cut=0.0030,
                             recession=0.0, scan_spacing=SCAN_SPACING)),
+
+    # crisp controls
+    ("fresh",       dict(smoothing=0.0, smoothing_passes=1, blunt_cut=0.003,
+                         recession=0.0, _chips=False)),
+    ("smooth_3",    dict(smoothing=0.8, smoothing_passes=2, blunt_cut=0.0040,
+                         recession=0.0)),
+    ("loss_only",   dict(smoothing=0.2, smoothing_passes=1, blunt_cut=0.0030,
+                         recession=0.0)),
 ]
 
 # Objects excluded, and why. Recorded here rather than filtered silently: a

@@ -196,6 +196,91 @@ def _local_mean(pts, query, radius, max_ref: int = 60000, seed: int = 0):
     return out
 
 
+def _proud_height(v, idx, nrm, radius, order: int = 1, k: int = 64,
+                  chunk: int = 20000, max_ref: int = 60000, seed: int = 0):
+    """How far each point stands proud of a QUADRIC fitted to its neighbourhood.
+
+    Replaces the local mean, and the reason is measured. Near the edge of a
+    break face a point's neighbours all lie inward, so their mean is dragged
+    inward with them and the point looks far less proud than it is. Blunting
+    then removes almost nothing there: 7-9% of the available relief within one
+    cutoff of an edge, against 93-99% well inside it, on roughly a quarter of
+    all break-face points. Every fracture in the training set carried an
+    under-worn rim because of it.
+
+    A fitted surface does not care that the samples are one-sided -- it
+    extrapolates -- so the bias goes away. A QUADRIC rather than a plane because
+    the surface curves, and a plane fit would push that curvature into the
+    residual and let blunting truncate it. Keeping the curve while cutting the
+    teeth is the whole point, and it applies to the ruler as much as the model.
+    The same fit measured real eroded fracture in Gate A.
+
+    ORDER matters and the choice is not obvious. A quadric absorbs curvature,
+    which is what Gate A wanted when MEASURING real fracture. But it also
+    absorbs anything else it can represent inside the fit radius, and at the
+    blunting cutoff that includes the teeth themselves: on the synthetic pair a
+    quadric envelope preserved the curve perfectly and removed only a tenth of
+    the teeth, against four tenths for the mean. A PLANE cannot fit a ripple, so
+    the texture stays in the residual, and it still extrapolates correctly where
+    the neighbourhood is one-sided -- which is the bias being fixed. Hence order
+    1 by default and 2 available.
+
+    Returns the proud height along `nrm`, positive outward.
+    """
+    rng = np.random.default_rng(seed)
+    ref = v
+    if len(ref) > max_ref:
+        ref = ref[rng.choice(len(ref), max_ref, replace=False)]
+    tree = cKDTree(ref)
+
+    q = v[idx]
+    out = np.zeros(len(idx))
+    kk = min(k, len(ref))
+    for s0 in range(0, len(q), chunk):
+        s1 = min(s0 + chunk, len(q))
+        P = q[s0:s1]
+        n = nrm[s0:s1]
+        d, nb = tree.query(P, k=kk, workers=-1)
+        rel = ref[nb] - P[:, None, :]                       # (m, k, 3)
+
+        # a local frame with `nrm` as up
+        t1 = np.cross(n, np.array([0.0, 0.0, 1.0]))
+        bad = np.linalg.norm(t1, axis=1) < 1e-6
+        if bad.any():
+            t1[bad] = np.cross(n[bad], np.array([0.0, 1.0, 0.0]))
+        t1 /= np.maximum(np.linalg.norm(t1, axis=1, keepdims=True), 1e-12)
+        t2 = np.cross(n, t1)
+
+        x = np.einsum("mki,mi->mk", rel, t1)
+        y = np.einsum("mki,mi->mk", rel, t2)
+        z = np.einsum("mki,mi->mk", rel, n)
+
+        # only neighbours inside the cutoff count, and a point contributes
+        # nothing rather than being dropped, so the batch stays rectangular
+        w = (d <= radius).astype(np.float64)
+        cols = [np.ones_like(x), x, y]
+        if order >= 2:
+            cols += [x * x, x * y, y * y]
+        A = np.stack(cols, axis=-1)
+        nc = A.shape[-1]
+        Aw = A * w[:, :, None]
+        AtA = np.einsum("mkj,mkl->mjl", Aw, A)
+        Atz = np.einsum("mkj,mk->mj", Aw, z)
+        AtA[:, np.arange(nc), np.arange(nc)] += 1e-9        # keep it solvable
+        # numpy 2 reads a 2-D right-hand side as a stack of matrices, so the
+        # trailing axis has to be explicit rather than implied
+        try:
+            coef = np.linalg.solve(AtA, Atz[:, :, None])[:, :, 0]
+        except np.linalg.LinAlgError:
+            coef = np.stack([np.linalg.lstsq(a, b, rcond=None)[0]
+                             for a, b in zip(AtA, Atz)])
+        # the fitted surface passes through c0 at the point's own position;
+        # the point itself sits at zero, so it stands proud by -c0
+        enough = w.sum(axis=1) >= max(6, nc * 2)
+        out[s0:s1] = np.where(enough, -coef[:, 0], 0.0)
+    return out
+
+
 def _outward_directions(v, idx, obj_scale, k_fit: int = 24,
                         smooth_k: int = 16):
     """Which way is OUT of the sherd, decided by where the material is.
@@ -299,7 +384,7 @@ def _wall_estimate(v, f, idx, sample: int = 4000, ref_pts: int = 20000,
 
 def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
                      passes: int = 2, exposure: float = 0.5, masks=None,
-                     seed: int = 0, dirs=None):
+                     seed: int = 0, dirs=None, fit_order: int = 1):
     """Blunt the TEETH and leave the CURVE — wear as one-sided peak truncation.
 
     Replaces mollification as the micro-scale term, for three faults the scale
@@ -387,8 +472,8 @@ def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
         # a bump, negative in a hollow.
         expo = np.ones(len(idx))
         if exposure > 0:
-            coarse = _local_mean(v[idx], v[idx], 4.0 * R, seed=seed)
-            hm = ((v[idx] - coarse) * away).sum(axis=1)
+            hm = _proud_height(v, idx, away, 4.0 * R, order=fit_order,
+                               seed=seed)
             s = float(np.std(hm)) + 1e-12
             expo = np.clip(1.0 + exposure * (hm / s), 0.3, 1.8)
 
@@ -412,13 +497,12 @@ def blunt_asperities(pieces, cut_frac: float = 0.004, strength: float = 1.0,
         # 100%. One-sidedness was working perfectly and the magnitude was not.
         # Pits are fresh fine-scale relief, which is why the teeth were still
         # creeping UP at the finest scale on an abrasion-only run.
-        env0 = _local_mean(v[idx], v[idx], R, seed=seed)
+        h0 = _proud_height(v, idx, away, R, order=fit_order, seed=seed)
         frac = np.clip(strength * feather[idx] * expo, 0.0, 1.0)
-        budget = frac * np.maximum(((v[idx] - env0) * away).sum(axis=1), 0.0)
+        budget = frac * np.maximum(h0, 0.0)
         removed = np.zeros(len(idx))
         for _ in range(max(1, int(passes))):
-            env = _local_mean(v[idx], v[idx], R, seed=seed)
-            h = ((v[idx] - env) * away).sum(axis=1)
+            h = _proud_height(v, idx, away, R, order=fit_order, seed=seed)
             step = np.clip(np.maximum(h, 0.0), 0.0, budget - removed)
             if not np.any(step > 0):
                 break
@@ -1220,7 +1304,8 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
                recession: float = 0.0, chip_count: int = 4,
                chip_size: float = 0.003, seed: int = 0,
                mode: str = "blunt", blunt_cut: float = 0.004,
-               scan_spacing: float = 0.0, masks=None, dirs=None):
+               scan_spacing: float = 0.0, masks=None, dirs=None,
+               fit_order: int = 1):
     """Simulate archaeological wear on an assembled set of fragments.
 
     MODE, added 2026-08-10, and the default CHANGED with it:
@@ -1295,7 +1380,7 @@ def apply_wear(pieces, *, smoothing: float = 1.0, smoothing_kernel: float = 0.05
         # each asperity removed per pass" rather than a mollification strength.
         cur = blunt_asperities(cur, cut_frac=blunt_cut, strength=smoothing,
                                passes=max(1, int(smoothing_passes)), seed=seed,
-                               masks=masks, dirs=dirs)
+                               masks=masks, dirs=dirs, fit_order=fit_order)
 
     elif smoothing and smoothing > 0:
         # REPEATED passes reach smoother surfaces than one deep pass, and this
