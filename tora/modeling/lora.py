@@ -153,8 +153,15 @@ def mark_trainable(model: nn.Module, train_head: bool = True,
 
 
 def lora_state_dict(model: nn.Module) -> dict:
-    """Only the adapter tensors -- an adapter file, not a checkpoint."""
-    return {k: v.detach().cpu() for k, v in model.state_dict().items()
+    """Only the adapter tensors -- an adapter file, not a checkpoint.
+
+    CLONED, and that is not defensive tidiness. `.detach().cpu()` on a tensor
+    already on the CPU returns one SHARING STORAGE with the live parameter, so
+    the dict tracks the model: keep training, or zero a weight, and the "saved"
+    adapter changes with it. Caught by the round-trip check, which restored the
+    weights to within 2.5e-01 of themselves rather than exactly.
+    """
+    return {k: v.detach().cpu().clone() for k, v in model.state_dict().items()
             if "lora_A" in k or "lora_B" in k}
 
 
