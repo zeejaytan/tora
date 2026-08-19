@@ -102,18 +102,34 @@ def main() -> None:
         allv = np.concatenate(parts, axis=0)
         ctr = allv.mean(axis=0)
         s = float(np.abs(allv - ctr).max()) + 1e-12
+        # SIDE-ON. The first version plotted x against y, which for these
+        # objects is straight down the axis of revolution, so every vessel came
+        # out as a circle and nothing about its form could be judged. The
+        # object's own long axis is found and drawn vertically instead.
+        P = allv - ctr
+        ax_long = np.linalg.svd(P.T @ P)[0][:, 0]
+        e1 = np.cross(ax_long, [0.0, 0.0, 1.0])
+        if np.linalg.norm(e1) < 1e-6:
+            e1 = np.cross(ax_long, [0.0, 1.0, 0.0])
+        e1 = e1 / np.linalg.norm(e1)
         for k, p in enumerate(parts):
             q = (p - ctr) / s
             if len(q) > 4000:
                 q = q[::max(1, len(q) // 4000)]
-            a.scatter(q[:, 0], q[:, 1], s=0.8, alpha=0.6, linewidths=0,
+            a.scatter(q @ e1, q @ ax_long, s=0.8, alpha=0.6, linewidths=0,
                       color=COLOURS[k % len(COLOURS)])
         a.set_aspect("equal")
         a.set_xlim(-1.15, 1.15)
         a.set_ylim(-1.15, 1.15)
         a.axis("on")
         a.set_xticks([]); a.set_yticks([])
-        a.set_title(f"{c}  ({n} pieces)", fontsize=8.5)
+        # HOW BALANCED, which matters more than the piece count. Fracture
+        # modes tends to shed small chips off one large remnant, and a break
+        # that is one piece plus three slivers is not a reassembly problem
+        # however many pieces it nominally has.
+        sizes = np.array([len(x) for x in parts], dtype=float)
+        biggest = 100 * sizes.max() / sizes.sum()
+        a.set_title(f"{c}  ({n} pieces, largest {biggest:.0f}%)", fontsize=8.5)
 
     fig.suptitle(
         "Breaking Bad vessel objects we already hold, assembled, one colour per "
