@@ -78,6 +78,12 @@ def build_model(ckpt_path):
     model = PointCloudDiT(
         in_dim=in_dim, out_dim=3, embed_dim=embed_dim, num_layers=n_layers,
         num_heads=n_heads, use_vanilla_attn=True,
+        # float16 attention is the model's default and returns NaN on
+        # CPU. Left alone, every comparison below would be NaN against
+        # NaN -- which torch.equal calls unequal, so the tests would
+        # have failed loudly rather than passed vacuously, but they
+        # would have been testing nothing either way.
+        attn_dtype="float32",
     )
     if inner:
         res = model.load_state_dict(inner, strict=False)
