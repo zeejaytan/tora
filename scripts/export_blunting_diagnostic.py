@@ -156,9 +156,16 @@ def main() -> None:
     # ---- the measurement a viewpoint cannot distort ----------------------
     eff = np.where(available > 1e-12, removed / np.maximum(available, 1e-12),
                    np.nan)
+    # THE FEATHER, reported beside the efficiency. blunt_asperities scales its
+    # budget by strength * feather * exposure, and `feather` is the taper that
+    # fades wear out beyond the contact band -- 1 on the true fracture face,
+    # falling to 0.02 at the region boundary this table measures distance from.
+    # If efficiency simply tracks it, the "under-worn rim" is the taper working
+    # as designed on surface that is NOT fracture face, not a defect.
+    feather_v = masks[i][1][idx]
     print("\n  Did blunting under-perform near the ribbon edge?")
     print(f"  {'distance from edge':<22s} {'verts':>8s} {'available':>11s} "
-          f"{'removed':>9s} {'efficiency':>11s}")
+          f"{'removed':>9s} {'efficiency':>11s} {'feather':>9s}")
     bins = [(0, 0.5), (0.5, 1.0), (1.0, 2.0), (2.0, 4.0), (4.0, np.inf)]
     for lo, hi in bins:
         m = (dist_edge >= lo * R) & (dist_edge < hi * R)
@@ -171,8 +178,12 @@ def main() -> None:
         print(f"  {label:<22s} {int(m.sum()):>8d} "
               f"{100 * available[m].mean() / size:>10.4f}% "
               f"{100 * removed[m].mean() / size:>8.4f}% "
-              f"{100 * e.mean() if len(e) else float('nan'):>10.1f}%")
+              f"{100 * e.mean() if len(e) else float('nan'):>10.1f}% "
+              f"{feather_v[m].mean():>9.3f}")
     print("  Efficiency is the share of what was there that actually came off.")
+    print("  Compare it with FEATHER. If they track each other, the low numbers")
+    print("  near the edge are the deliberate taper on non-fracture surface and")
+    print("  there is nothing to fix.")
     print("  Falling toward the edge supports the one-sided-envelope idea;")
     print("  flat across the bins refutes it and the cause is elsewhere.")
 
