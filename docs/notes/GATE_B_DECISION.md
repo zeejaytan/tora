@@ -67,19 +67,47 @@ captures the whole disc face-on rather than sectioning it. Not evidence of
 solidity — the same viewpoint trap that made the plate look asymmetric in
 `measure_vessel_symmetry.py`.
 
-## What this corpus cannot do
+## What this corpus can and cannot carry — CORRECTED 2026-08-19
 
-**Carry much simulated wear.** Its meshes are sampled at **0.232–0.283% of
-object**, against blue_pot's 0.068% — three and a half times coarser — and the
-blunting cutoff is 0.30–0.50%. The cutoff sits barely above the spacing, so wear
-will act weakly on these objects.
+An earlier version of this section said these objects "cannot carry much
+simulated wear". That was half right and the important half was wrong, and the
+conservator caught it: *"I don't understand how a coarse model stops you making
+it worn. Wear is blunting of its fracture surface and reducing the contact
+surface between the break."*
 
-That matters less than it sounds. Gate A found real archaeological scans carry no
-fracture texture at these scales anyway, and the training set now blurs to 0.25%
-of object by default; Breaking Bad's native sampling is already close to that.
-So these objects contribute **shape variety**, and the 27 high-resolution
-objects continue to carry the **wear axis**. Keeping those roles separate is
-cleaner than pretending one corpus does both.
+Wear does two things and they have different requirements. Measured
+(`test_wear_on_coarse.py`):
+
+| | spacing | available to blunt | blunting → gap | recession → gap |
+|---|---|---|---|---|
+| bbad Vase | 0.252% | 0.0053% | +0.7% | **+9.0%** |
+| bbad Vase | 0.467% | **0.0001%** | +0.0% | **+9.7%** |
+| bbad Vase | 0.357% | **0.0002%** | +0.0% | **+6.2%** |
+| blue_pot | 0.057% | 0.0131% | +0.7% | +1.1% |
+| plate | 0.061% | 0.0080% | +1.8% | +1.9% |
+
+**BLUNTING is genuinely inert here.** On the coarsest meshes 0.0001% of the
+surface stands proud at the cutoff, a hundredth of blue_pot's, and blunting moves
+the joins by 0.0%. There are no teeth in the file to remove — not a failure of
+the tool, the geometry was never recorded.
+
+**OPENING THE JOINS works better here than on our fine scans.** The same 0.05%
+retreat opens these joins by 6–10% against 1.1–1.9% on blue_pot and the plate,
+because these fragments were cut from one mesh and mate exactly, so a retreat has
+nowhere to hide.
+
+That is the half that matters. Gate A found real archaeological scans carry no
+fracture texture either, so the contact reduction is the effect that survives
+digitisation — and it is what makes a worn pot hard to reassemble.
+
+**Consequence: recession must be un-retired for this corpus.** It was retired on
+a dose table measured entirely on fine meshes, where blunting opened joins more
+cheaply; on a mesh where blunting is inert that comparison does not apply, and
+generalising it was a mistake.
+
+**Not yet measured:** what recession costs the CURVE on these coarse meshes. On
+fine meshes the same dose cost 2.5–5.3%. That must be checked before any of this
+reaches a training set.
 
 ## Geometric Breaks is not dead, only deferred
 

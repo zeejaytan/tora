@@ -145,10 +145,19 @@ Blocked on the same physical-size question as §4, but a stated assumption
 
 ## Not worth doing
 
-**Reviving recession.** Measured against what it buys: at every dose keeping the
-curve within tolerance it opened joins *less* than blunting alone, while adding
-the fine relief abrasion is supposed to remove. Retired on evidence, and the
-evidence would have to be overturned rather than argued with.
+**~~Reviving recession~~ — the evidence WAS overturned, 2026-08-19.** It was
+retired because at every dose keeping the curve within tolerance it opened joins
+*less* than blunting alone. True, and measured entirely on **fine** meshes.
+
+On coarse meshes blunting is inert — 0.0001% of the surface stands proud at the
+cutoff and the joins move 0.0% — while the same recession dose opens them by
+6–10%, against 1.1–1.9% on blue_pot. Where blunting can do nothing, recession is
+the only tool that does anything, and the comparison that retired it does not
+apply.
+
+Un-retire it **for coarse corpora specifically**, at a small dose, once its cost
+to the curve on those meshes has been measured. It stays retired for the
+high-resolution objects, where the original evidence does hold.
 
 **Chasing the Juglet's shape.** The hypothesis that its handle and asymmetry make
 it hard was tested: it is *more* axially symmetric than the average training
