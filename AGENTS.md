@@ -15,6 +15,8 @@ Follow the workspace root **`../AGENTS.md`** (laptop ↔ GitHub ↔ Spartan) for
 
 Default branch is **`master`**. Heavy data on Spartan only: checkpoints, `dataset/`, `eval_runs/`, `raw/`, logs. Local rsync landing zone: `artifacts/`.
 
+**Write rules:** new analysis/code → `scripts/`; versioned Slurm → `scripts/hpc/`; method notes → `docs/notes/`; fetched samples → `artifacts/` (not source); HPC paths → `CLAUDE.local.md`. Do not add files at the TORA root.
+
 **Slurm scripts:** the versioned copies live in `scripts/hpc/`; the *operational* copies live untracked in the outer `TORA/` folder on Spartan and are sbatch'd from there (their log/output paths assume that). When editing a job script, edit `scripts/hpc/` here, push, and update the outer copy on Spartan to match — or switch to sbatching the repo copy.
 
 Typical loop:
