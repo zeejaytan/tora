@@ -131,7 +131,9 @@ def pick_instances(node, n_want, min_eff, rng):
         if e >= min_eff:
             scored.append((e, fr, keys))
     scored.sort(key=lambda r: -r[0])
-    return scored[:n_want]
+    # Returns how many qualified as well as which were taken. A cap that is not
+    # reported reads as "we used everything" when it did not.
+    return scored[:n_want], len(scored)
 
 
 def main() -> None:
@@ -178,13 +180,16 @@ def main() -> None:
         n_val = max(1, int(round(args.val_frac * len(catalogue))))
         val_objs = {catalogue[i] for i in order[:n_val]}
 
-        n_obj_used = 0
+        n_obj_used, n_avail_total, n_taken_total, n_obj_none = 0, 0, 0, 0
         for c, o in catalogue:
-            insts = pick_instances(ev[c][o], args.instances_per_object,
-                                   args.min_effective, rng)
+            insts, n_avail = pick_instances(ev[c][o], args.instances_per_object,
+                                            args.min_effective, rng)
             if not insts:
+                n_obj_none += 1
                 continue
             n_obj_used += 1
+            n_avail_total += n_avail
+            n_taken_total += len(insts)
             split = "val" if (c, o) in val_objs else "train"
             print(f"{c}/{o[:10]}: {len(insts)} instances "
                   f"(best balance {insts[0][0]:.1f})  [{split}]", flush=True)
@@ -263,6 +268,18 @@ def main() -> None:
     if effs:
         print(f"  effective piece count: {min(effs):.1f} to {max(effs):.1f}, "
               f"mean {np.mean(effs):.1f}  (the Juglet is nine sherds)")
+
+    # WHAT WAS LEFT OUT, said plainly. Instances are ranked by balance and the
+    # top few taken, so this set is the well-balanced tail of the corpus rather
+    # than a sample of it -- which is deliberate, and would read as full
+    # coverage if it went unreported.
+    print(f"\n  coverage: {n_obj_used} objects contributed, {n_obj_none} had no "
+          f"break at effective >= {args.min_effective:.0f}")
+    print(f"  instances: {n_taken_total} used of {n_avail_total} that qualified "
+          f"-- the best-balanced {args.instances_per_object} per object, not a "
+          f"random sample")
+    print("  NOT rendered by this script. Run render_trainset_sample.py before "
+          "training on it.")
 
 
 if __name__ == "__main__":

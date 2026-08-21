@@ -41,5 +41,14 @@ python scripts/build_bbad_vessel_trainset.py \
     --max-objects "$MAX_OBJ"
 
 ls -lh "$OUT"
+
+# LOOK AT IT. A build summary reports what the script meant to write; it cannot
+# see a folded surface, a lost anchor, or a collapsed normalisation. All three
+# have happened on this project.
+mkdir -p /data/gpfs/projects/punim2657/TORA/artifacts
+python scripts/render_trainset_sample.py \
+    --src "$OUT" --dataset bbad_vessels \
+    --out /data/gpfs/projects/punim2657/TORA/artifacts/bbad_vessels_sample.png
+
 echo ""
 echo "=== Finished at $(date) ==="
