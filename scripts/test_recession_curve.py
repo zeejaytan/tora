@@ -216,52 +216,96 @@ def run(name, pieces, render_to=None):
 
 
 def render(cases, out):
-    """Look at the retreat itself, per vertex, before believing the table."""
+    """Look at the retreat itself, per vertex, before believing the table.
+
+    THE VIEW MUST RESOLVE THE SCALE BEING TESTED. The first version of this
+    drew a whole break face fresh against worn, and the two point clouds sat
+    exactly on top of each other -- of course they did, the retreat is 0.09% of
+    the object and the frame spanned 100% of it. A picture can answer the wrong
+    question as convincingly as a statistic can. Four earlier views of wear
+    failed the same way (docs/lessons.md).
+
+    So the section is CROPPED to a few percent of object around one contact
+    point, where a 0.09% movement is a visible fraction of the frame, and the
+    join separation is drawn per vertex beside it rather than summarised.
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     n = len(cases)
-    fig, axes = plt.subplots(2, n, figsize=(4.2 * n, 7.4), squeeze=False)
+    fig, axes = plt.subplots(3, n, figsize=(4.4 * n, 11.0), squeeze=False)
     for col, (name, fresh, worn, wins, frames, size, ret) in enumerate(cases):
-        # TOP: a section through one join, fresh against worn. This is the
-        # picture that answers "did the join open".
-        ax = axes[0][col]
         i, ai, j, bj = wins[0]
         pts = fresh[i][0][ai]
-        ctr = pts.mean(axis=0)
-        P = pts - ctr
-        u, v = np.linalg.svd(P.T @ P)[0][:, 0], np.linalg.svd(P.T @ P)[0][:, 1]
-        w = np.cross(u, v)
-        slab = np.abs(P @ w) < 0.004 * size
-        ax.scatter((pts[slab] - ctr) @ u / size, (pts[slab] - ctr) @ v / size,
-                   s=3, color="#1f4e79", label="fresh", linewidths=0)
         wp = worn[i][0][ai]
-        ax.scatter((wp[slab] - ctr) @ u / size, (wp[slab] - ctr) @ v / size,
-                   s=3, color="#c1440e", label="worn", linewidths=0, alpha=0.7)
-        ax.set_aspect("equal")
-        ax.set_xticks([]); ax.set_yticks([])
-        ax.set_title(f"{name}\nslice through one break face", fontsize=9)
-        ax.legend(fontsize=7, markerscale=3)
+        nbr = fresh[j][0][bj]
 
-        # BOTTOM: the measured quantity, per vertex, unbinned. If the retreat
-        # is uniform this is a spike; a wide spread IS the curve damage.
+        # TOP: a section CROPPED to where the movement is a visible fraction of
+        # the frame. Centred on the contact point that moved most, so the panel
+        # is showing the effect rather than a quiet corner of the face.
+        ax = axes[0][col]
+        seed = pts[int(np.argmax(np.abs(ret[:len(pts)])))] if len(ret) else pts[0]
+        P = pts - seed
+        near = np.abs(P).max(axis=1) < 0.06 * size
+        Q = P[near]
+        if len(Q) > 8:
+            u = np.linalg.svd(Q.T @ Q)[0][:, 0]
+            v = np.linalg.svd(Q.T @ Q)[0][:, 1]
+        else:
+            u, v = np.array([1.0, 0, 0]), np.array([0, 1.0, 0])
+        w = np.cross(u, v)
+        slab = near & (np.abs(P @ w) < 0.010 * size)
+        for pset, colr, lab in ((pts, "#1f4e79", "fresh"),
+                                (wp, "#c1440e", "worn")):
+            D = pset - seed
+            ax.scatter(D[slab] @ u / size * 100, D[slab] @ v / size * 100,
+                       s=14, color=colr, label=lab, linewidths=0, alpha=0.75)
+        Dn = nbr - seed
+        nsel = (np.abs(Dn).max(axis=1) < 0.06 * size) & (np.abs(Dn @ w) < 0.010 * size)
+        ax.scatter(Dn[nsel] @ u / size * 100, Dn[nsel] @ v / size * 100,
+                   s=8, color="#999999", label="neighbour", linewidths=0, alpha=0.5)
+        ax.set_aspect("equal")
+        ax.tick_params(labelsize=7)
+        ax.set_xlabel("% of object", fontsize=8)
+        ax.set_title(f"{name}\nsection at the contact, cropped so 0.1% shows",
+                     fontsize=9)
+        ax.legend(fontsize=7, markerscale=1.6)
+
+        # MIDDLE: the join separation itself, per vertex, fresh against worn.
+        # This is the claim "the join opened", drawn rather than averaged.
         ax = axes[1][col]
+        d0, _ = cKDTree(nbr).query(pts, workers=-1)
+        dw, _ = cKDTree(worn[j][0][bj]).query(wp, workers=-1)
+        bins = np.linspace(0, max(np.percentile(dw, 99), 1e-9) / size * 100, 70)
+        ax.hist(d0 / size * 100, bins=bins, color="#1f4e79", alpha=0.65,
+                label=f"fresh, mean {d0.mean() / size * 100:.3f}%")
+        ax.hist(dw / size * 100, bins=bins, color="#c1440e", alpha=0.65,
+                label=f"worn, mean {dw.mean() / size * 100:.3f}%")
+        ax.set_xlabel("distance to the mating fragment, % of object", fontsize=8)
+        ax.set_ylabel("vertices", fontsize=8)
+        ax.tick_params(labelsize=7)
+        ax.legend(fontsize=7)
+        ax.set_title("did the join open", fontsize=9)
+
+        # BOTTOM: the retreat, per vertex, unbinned. If it is uniform this is a
+        # spike; a wide spread IS the mechanism that costs the curve.
+        ax = axes[2][col]
         ax.hist(np.abs(ret), bins=80, color="#4a7c59")
         m = float(np.abs(ret).mean())
         ax.axvline(m, color="#c1440e", lw=1.2)
         ax.set_xlabel("retreat along the fresh normal, % of object", fontsize=8)
         ax.set_ylabel("vertices", fontsize=8)
         ax.tick_params(labelsize=7)
-        ax.set_title(f"mean {m:.4f}%,  spread "
+        ax.set_title(f"was the retreat even -- mean {m:.4f}%,  spread "
                      f"{np.abs(ret).std() / max(m, 1e-12):.2f} of mean",
                      fontsize=9)
 
     fig.suptitle(
         "Uniform recession: does it open the join without touching the curve?\n"
-        "Top: is the join open. Bottom: is the retreat even -- the only way it "
-        "can cost the curve.", fontsize=11)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+        "Each panel is drawn at a scale that can actually resolve a 0.1% "
+        "movement.", fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out, dpi=140)
     print(f"\n  wrote {out}")
 
