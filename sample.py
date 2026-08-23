@@ -11,6 +11,8 @@ import torch
 from omegaconf import DictConfig
 
 from tora.utils import load_checkpoint_for_module, download_tora_checkpoint, print_eval_table
+from tora.utils.lora_setup import (apply_lora_from_cfg, assert_adapter_present,
+                                   lora_cfg, set_enabled)
 from tora.visualizer import VisualizationCallback
 
 logger = logging.getLogger("Sample")
@@ -43,7 +45,22 @@ def setup(cfg: DictConfig):
 
     datamodule: L.LightningDataModule = hydra.utils.instantiate(cfg.data)
     model = hydra.utils.instantiate(cfg.model)
+
+    # The wrapping must match the checkpoint's. Wrapping renames every adapted
+    # weight (`...self_qkv_proj.weight` -> `...self_qkv_proj.base.weight`) and
+    # the load below is non-strict, so a mismatch loads NOTHING into those
+    # layers and reports numbers anyway. Wrap first, then check that the
+    # adapter actually arrived.
+    lc = lora_cfg(cfg)
+    if lc is not None:
+        apply_lora_from_cfg(cfg, model, freeze=False)
     load_checkpoint_for_module(model, ckpt_path)
+    if lc is not None:
+        assert_adapter_present(model, ckpt_path)
+        # `lora.enabled=true lora.active=false` is the do-no-harm arm: the same
+        # checkpoint with the adapter switched off, which is bit-for-bit the
+        # base model.
+        set_enabled(model, bool(lc.get("active", True)))
     model.eval()
 
     vis_config = cfg.get("visualizer", {})

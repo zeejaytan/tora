@@ -1,0 +1,36 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# Vessel-shape variety — the gap the conservator named: "the dataset provides
+# more variety as to the shapes that get trained; we can make the relevant
+# object fragment worn, but we don't have the shape/object in training."
+#
+# The fine-tuning source had EIGHT ceramic vessels. This has 371 distinct vessel
+# shapes broken into 3,159 examples (2,838 train / 321 val / 321 test), split on
+# the OBJECT so no shape appears on both sides. Effective piece count 4.0-17.0,
+# mean 7.8 — the Juglet is nine. Two wear doses per break (0.05% and 0.10%
+# recession); 0.20% was dropped for costing one object 6.6% of its curve.
+#
+# NO SYNTHETIC REPLAY, and that is a departure from wear_finetune_v2 on purpose.
+# Replay (pig/rib) was there because a full fine-tune overwrites the weights it
+# is trying to keep — wear_v1 bought +0.235 seating on worn material by losing
+# 0.115 on fresh. An adapter cannot do that: switching it off restores the base
+# model bit-for-bit, so the do-no-harm arm is guaranteed by construction rather
+# than bought with replay data. GARF's own fine-tune config does the same —
+# one domain, no replay.
+#
+# Rings are NOT filtered. 13.9% of these fragments wrap the full way round and
+# close into a hoop; the Juglet itself does that on 2 of its 9 pieces (22%),
+# including its base at 40% of the pot. See docs/lessons.md, 2026-08-23.
+dataset_names: ["bbad_vessels"]
+
+batch_size: 8
+num_workers: 8
+min_dataset_size: 600
+limit_val_samples: 0

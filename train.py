@@ -9,6 +9,7 @@ import lightning as L
 import torch
 from omegaconf import DictConfig
 
+from tora.utils.lora_setup import apply_lora_from_cfg
 from tora.utils.training import (
     setup_loggers,
     setup_wandb_resume,
@@ -30,6 +31,13 @@ def setup_training(cfg: DictConfig):
     os.makedirs(cfg.log_dir, exist_ok=True)
     loggers = setup_loggers(cfg)
     model: L.LightningModule = hydra.utils.instantiate(cfg.model)
+
+    # Adapters go on AFTER instantiation: TORA loads encoder_ckpt and
+    # flow_model_ckpt inside its own constructor, so the base weights have to be
+    # in place before anything is wrapped around them. No-op unless
+    # lora.enabled=true.
+    apply_lora_from_cfg(cfg, model, freeze=True)
+
     datamodule: L.LightningDataModule = hydra.utils.instantiate(cfg.data)
     logger.info(f"Loading datasets: {datamodule.dataset_names}")
 

@@ -25,3 +25,14 @@ hydra:
 model:
   encoder_ckpt: null
   flow_model_ckpt: null
+
+# Switchable adapters (off by default -- this is the base training recipe).
+# Enable with `lora.enabled=true`. See tora/modeling/lora.py and
+# scripts/verify_lora_reversible.py.
+lora:
+  enabled: false
+  r: 128
+  alpha: 256
+  dropout: 0.1
+  last_n_blocks: 6
+  train_head: true
