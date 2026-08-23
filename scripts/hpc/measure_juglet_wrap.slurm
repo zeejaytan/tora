@@ -27,7 +27,8 @@ cd /data/gpfs/projects/punim2657/TORA/repo
 mkdir -p /data/gpfs/projects/punim2657/TORA/artifacts
 
 python scripts/measure_juglet_wrap.py \
-    --dir /data/gpfs/projects/punim2657/Dataset/Juglet \
+    --hdf5 /data/gpfs/projects/punim2657/TORA/dataset/juglet_gt.hdf5 \
+    --key juglet_gt/Juglet-000 \
     --out /data/gpfs/projects/punim2657/TORA/artifacts/juglet_wrap.png
 
 echo ""

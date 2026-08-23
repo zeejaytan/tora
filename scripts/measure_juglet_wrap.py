@@ -15,14 +15,27 @@ drawn ALONE from directly above against the whole object's footprint. Nothing
 about the measurement is changed for this comparison -- the point is that both
 sets go through the identical ruler.
 
+THE GEOMETRY MUST BE ASSEMBLED. The first run of this pointed at the raw
+Dataset/Juglet OBJs and reported Piece01 at exactly 360 degrees -- the answer
+expected. The render showed why it was worthless: those OBJs hold the pieces
+LAID OUT APART, centres running from z = -1 to z = -14.6, each piece barely 0.5
+across. The axis of revolution was fitted to a scatter of separated blobs, so
+every wrap was measured around a line that has nothing to do with the pot.
+
+It agreed with the conclusion, which is exactly when a broken ruler survives.
+Read from the assembled ground truth instead, and keep rendering the pieces
+against the whole vessel so a scattered layout cannot pass again.
+
 Usage:
-  python scripts/measure_juglet_wrap.py --dir Dataset/Juglet \
+  python scripts/measure_juglet_wrap.py \
+      --hdf5 dataset/juglet_gt.hdf5 --key juglet_gt/Juglet-000 \
       --out artifacts/juglet_wrap.png
 """
 
 import argparse
 from pathlib import Path
 
+import h5py
 import numpy as np
 
 import matplotlib
@@ -68,14 +81,37 @@ def sub(q, n):
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--dir", required=True)
+    ap.add_argument("--dir", default="", help="folder of Piece*.obj")
+    ap.add_argument("--hdf5", default="", help="assembled source, preferred")
+    ap.add_argument("--key", default="juglet_gt/Juglet-000")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
-    files = sorted(Path(args.dir).glob("Piece*.obj"))
-    parts = [load_obj_vertices(f) for f in files]
-    names = [f.stem for f in files]
-    print(f"{len(parts)} fragments from {args.dir}\n")
+    if args.hdf5:
+        h = h5py.File(args.hdf5, "r")
+        pg = h[args.key]["pieces"]
+        keys = sorted(pg.keys(), key=lambda s: int(s) if s.isdigit() else s)
+        parts = [np.asarray(pg[k]["vertices"][:], dtype=np.float64)
+                 for k in keys]
+        names = [f"Piece{int(k) + 1:02d}" for k in keys]
+        print(f"{len(parts)} fragments from {args.hdf5}:{args.key}\n")
+    else:
+        files = sorted(Path(args.dir).glob("Piece*.obj"))
+        parts = [load_obj_vertices(f) for f in files]
+        names = [f.stem for f in files]
+        print(f"{len(parts)} fragments from {args.dir}\n")
+
+    # Assembled or laid out? The first run measured a scattered layout and
+    # reported a confident 360. A fragment of a vessel spans a real share of
+    # it; a laid-out piece sits in its own small box far from the others.
+    exts = np.array([np.ptp(p, axis=0).max() for p in parts])
+    whole = float(np.ptp(np.concatenate(parts, axis=0), axis=0).max())
+    frac = float(exts.max() / (whole + 1e-12))
+    print(f"  largest fragment spans {100 * frac:.0f}% of the object's extent")
+    if frac < 0.25:
+        print("  *** NOT ASSEMBLED -- every piece is small against the whole,")
+        print("  *** so these are laid out apart. Wrap around a fitted axis")
+        print("  *** would be meaningless. Point --hdf5 at the assembled GT.\n")
 
     allv = np.concatenate(parts, axis=0)
     ctr = allv.mean(axis=0)
