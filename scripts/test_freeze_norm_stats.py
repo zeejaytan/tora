@@ -19,8 +19,13 @@ again quietly. It builds a toy model with the same shape of problem -- a frozen
 Run:  python scripts/test_freeze_norm_stats.py
 """
 
+import sys
+from pathlib import Path
+
 import torch
 import torch.nn as nn
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tora.modeling.lora import assert_norms_stay_frozen, freeze_norm_stats
 
