@@ -25,11 +25,27 @@ model it belongs to. If the only differences outside the adapter are in
 `final_mlp`, explanation 2 holds and the fix is to the experiment design. If
 frozen backbone weights moved, explanation 1 holds and the fix is to the code.
 
+THE ANSWER IT GAVE (job 29620633, on job 29527496's checkpoint): explanation 1.
+486 of the encoder's 492 tensors had moved, led by batch-norm running statistics
+-- `dec.dec3.up.proj.1.running_var` off by 8.3e+06, `num_batches_tracked` off by
+18,960, which is simply the number of batches 60 epochs put through it.
+`requires_grad_(False)` stops the optimiser; it does not stop a BatchNorm from
+recalibrating itself inside forward(). The frozen encoder had been quietly
+retuning to the training vessels the entire run, that drift was saved, and
+nothing switches it off. Fixed in `tora/modeling/lora.py::freeze_norm_stats`.
+
+Because it caught something three rounds of reading the code did not, this is
+now a GATE and not only a diagnostic: `--fail-on-frozen` exits non-zero, and the
+job script runs it between training and evaluation so a leaked freeze costs one
+training run instead of a training run plus nine evaluations plus the writing-up.
+
 Usage:
   python scripts/diff_adapter_checkpoint.py --base BASE.ckpt --trained TRAINED.ckpt
+  python scripts/diff_adapter_checkpoint.py --base B --trained T --fail-on-frozen
 """
 
 import argparse
+import sys
 from collections import defaultdict
 
 import torch
@@ -56,6 +72,9 @@ def main() -> None:
     ap.add_argument("--trained", required=True)
     ap.add_argument("--atol", type=float, default=0.0,
                     help="0 means bit-for-bit, which is what the claim was")
+    ap.add_argument("--fail-on-frozen", action="store_true",
+                    help="exit 1 if any frozen weight moved, so this can gate a "
+                         "job before it spends an A100 on uninterpretable arms")
     args = ap.parse_args()
 
     b = torch.load(args.base, map_location="cpu", weights_only=False)["state_dict"]
@@ -121,6 +140,16 @@ def main() -> None:
     if frozen_moved:
         print(f"*** {frozen_moved} FROZEN weights moved. The freeze leaked -- this is")
         print("*** a code fault, and the on/off comparison cannot be trusted.")
+        stats = [k for g, v in changed.items() if g.startswith("FROZEN")
+                 for k, _ in v
+                 if any(t in k for t in ("running_mean", "running_var",
+                                         "num_batches_tracked"))]
+        if stats:
+            print(f"*** {len(stats)} of them are batch-norm running statistics,")
+            print("*** which update inside forward() and ignore requires_grad.")
+            print("*** See tora/modeling/lora.py::freeze_norm_stats.")
+        if args.fail_on_frozen:
+            sys.exit(1)
     elif head_moved:
         print(f"The only non-adapter change is the pose head ({head_moved} tensors).")
         print("The switch works. 'Adapter off' means 'adapter off, retrained pose")

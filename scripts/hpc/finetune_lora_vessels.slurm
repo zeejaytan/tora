@@ -35,6 +35,15 @@ set -euo pipefail
 #     ten times the 2e-5 the full fine-tune here used. That is right for an
 #     adapter, where only a small percentage of the weights move.
 #
+# WHAT THE FIRST ATTEMPT (job 29527496) GOT WRONG, so this one does not repeat
+# it. The adapter plumbing was sound -- 24 projections wrapped, 1.27% of weights
+# trainable, saved and reloaded correctly -- but the frozen encoder was not
+# frozen. Its batch-norm layers recalibrated themselves on every forward pass,
+# 486 tensors of drift went into the checkpoint, and "adapter off" therefore did
+# not reproduce the baseline. All nine evaluation arms had to be discarded.
+# Fixed in tora/modeling/lora.py::freeze_norm_stats; checked in stage 1 and
+# gated in stage 5 below, so the same mistake now costs minutes, not a day.
+#
 #   One deviation, stated so it is not mistaken for a match: GARF also adapts
 #   the feed-forward and timestep-embedding linears. We adapt the four attention
 #   projections only, because that is what Gate C verified reversible. If this
@@ -78,14 +87,20 @@ done
 ls -la "$DATA_ROOT/bbad_vessels.hdf5"
 
 echo ""
-echo "### 1/5  Gate C again, on this checkpoint ###"
+echo "### 1/6  is the freeze a real freeze? (seconds, CPU) ###"
+# requires_grad stops the optimiser, not batch norm. This is the thirty-line
+# check that replaces the paragraph that failed to stop job 29527496.
+python scripts/test_freeze_norm_stats.py     || { echo "frozen weights can still drift -- not training on top of that"; exit 1; }
+
+echo ""
+echo "### 2/6  Gate C again, on this checkpoint ###"
 # Cheap, and it is the assumption everything below rests on: an adapter that
 # cannot be switched off cleanly makes the on/off comparison meaningless.
 python scripts/verify_lora_reversible.py --ckpt "$CKPT" \
     || { echo "Gate C failed -- not training an adapter that cannot be undone"; exit 1; }
 
 echo ""
-echo "### 2/5  smoke: does the adapter actually train and reload? ###"
+echo "### 3/6  smoke: does the adapter actually train and reload? ###"
 # Eight batches, one epoch. This is here because the expensive failure is
 # silent: load_checkpoint_for_module is non-strict, and wrapping a projection
 # renames its weight, so a train/sample mismatch loads NOTHING into every
@@ -122,7 +137,7 @@ python sample.py ckpt_path="$SMOKE_CKPT" data_root="$DATA_ROOT" \
 echo "smoke passed: the adapter trains, saves and reloads"
 
 echo ""
-echo "### 3/5  train the adapter ###"
+echo "### 4/6  train the adapter ###"
 python train.py \
     data=main/bbad_vessels \
     data_root="$DATA_ROOT" \
@@ -137,7 +152,15 @@ BEST=$(find "$OUT_ROOT" -name "*.ckpt" -printf "%T@ %p\n" 2>/dev/null | sort -rn
 echo "using checkpoint: $BEST"
 
 echo ""
-echo "### 4/5  three arms: adapter ON, adapter OFF, untouched baseline ###"
+echo "### 5/6  GATE: did anything move that was supposed to be frozen? ###"
+# Run BEFORE the nine evaluation arms, not after. Last time this same comparison
+# was made only once the results looked odd, by which point the A100 hours and
+# the write-up had already been spent on numbers that meant nothing. If a frozen
+# weight moved, the on/off comparison is meaningless and evaluating it is waste.
+python scripts/diff_adapter_checkpoint.py     --base "$CKPT" --trained "$BEST" --fail-on-frozen     || { echo "the freeze leaked again -- stopping before evaluation"; exit 1; }
+
+echo ""
+echo "### 6/6  three arms: adapter ON, adapter OFF, untouched baseline ###"
 # The OFF arm is the same file with the adapter disabled. It should reproduce
 # the baseline exactly; if it does not, the switch is broken and every ON number
 # is uninterpretable. It is a control, not a result.
@@ -190,7 +213,7 @@ run_arm adapter_off "$BEST" "${LORA_ON[@]}" lora.active=false
 run_arm baseline    "$CKPT" lora.enabled=false
 
 echo ""
-echo "### 5/5  collect the renders ###"
+echo "### collect the renders ###"
 find "$LOG_ROOT" -path "*lorav_juglet_*_${SLURM_JOB_ID}*" \
     \( -name "*.png" -o -name "*.npz" \) | sort
 
@@ -198,8 +221,8 @@ echo ""
 echo "=== Finished at $(date) ==="
 echo "Read it as a trade, not a score. The worn sweep and the Juglet are what we"
 echo "are buying; the fresh run is what we might be paying with. adapter_off"
-echo "should match baseline -- if it does not, stop and fix the switch before"
-echo "believing anything else here."
+echo "should match baseline -- stage 5 is what makes that claim safe to make,"
+echo "and if it still does not match, the difference is in sampling, not weights."
 echo ""
 echo "LOOK AT THE JUGLET RENDERS BEFORE WRITING ANY OF THIS UP. Part accuracy"
 echo "read 0.80 on an assembly that was visibly scattered."

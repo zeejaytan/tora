@@ -28,6 +28,7 @@ rather than asserting it.
 from __future__ import annotations
 
 import math
+import types
 from typing import Iterable
 
 import torch
@@ -123,6 +124,93 @@ def set_lora_enabled(model: nn.Module, enabled: bool) -> int:
     return n
 
 
+# --- Batch-norm statistics are not covered by requires_grad ------------------
+#
+# Job 29527496 froze the encoder with requires_grad_(False) and the encoder
+# changed anyway: 486 of its 492 tensors moved, led by
+#   feature_extractor.encoder.dec.dec3.up.proj.1.running_var  max|diff| = 8.3e+06
+#   ...embedding.stem.norm.num_batches_tracked                max|diff| = 1.9e+04
+# Every one of those is a batch-norm running statistic, and 18,960 is just the
+# number of batches that went past in 60 epochs.
+#
+# requires_grad only stops the OPTIMISER. A BatchNorm in train mode also updates
+# running_mean / running_var / num_batches_tracked itself, inside forward(),
+# with no gradient and no optimiser involved. The only thing that stops it is
+# eval mode -- and Lightning calls model.train() at the top of every epoch,
+# which puts it straight back.
+#
+# So the frozen encoder was silently recalibrating to our 371 vessels for the
+# whole run, that drift was saved into the checkpoint, and no switch removes it.
+# That is why "adapter off" did not reproduce the baseline: the control arm was
+# not the base model. It made every number from that job uninterpretable --
+# the adapter's effect and the encoder's drift cannot be told apart afterwards.
+
+
+def _stay_in_eval(self, mode: bool = True):
+    """A train() that refuses to leave eval mode.
+
+    nn.Module.train() only sets self.training and recurses into children, so
+    doing both with mode=False is the whole job -- and it survives Lightning
+    calling model.train() again at every epoch boundary.
+    """
+    self.training = False
+    for child in self.children():
+        child.train(False)
+    return self
+
+
+_NORM_WITH_STATS = (nn.modules.batchnorm._BatchNorm,
+                    nn.modules.instancenorm._InstanceNorm)
+
+
+def freeze_norm_stats(model: nn.Module, verbose: bool = True):
+    """Stop frozen normalisation layers from re-calibrating during training.
+
+    Applies only to layers that (a) keep running statistics and (b) have no
+    trainable parameter of their own -- a norm layer someone deliberately
+    unfroze is left alone.
+
+    Returns the list of module paths pinned to eval.
+    """
+    pinned = []
+    for name, mod in model.named_modules():
+        if not isinstance(mod, _NORM_WITH_STATS):
+            continue
+        if getattr(mod, "running_mean", None) is None:
+            continue  # track_running_stats=False already: nothing to drift
+        if any(p.requires_grad for p in mod.parameters(recurse=False)):
+            continue  # being trained on purpose
+        mod.eval()
+        mod.train = types.MethodType(_stay_in_eval, mod)
+        pinned.append(name)
+    if verbose:
+        print(f"[lora] pinned {len(pinned)} frozen norm layers to eval so their "
+              f"running statistics cannot drift")
+    return pinned
+
+
+def assert_norms_stay_frozen(model: nn.Module) -> int:
+    """Check the pin actually holds against a model.train() call.
+
+    Cheap, and it is the assumption the whole on/off comparison rests on. Do
+    not replace this with reading the code: the code looked right last time.
+    """
+    model.train()
+    leaked = [n for n, m in model.named_modules()
+              if isinstance(m, _NORM_WITH_STATS)
+              and getattr(m, "running_mean", None) is not None
+              and not any(p.requires_grad for p in m.parameters(recurse=False))
+              and m.training]
+    if leaked:
+        raise RuntimeError(
+            f"{len(leaked)} frozen norm layers went back into train mode after "
+            f"model.train(), e.g. {leaked[:3]}. Their running statistics would "
+            f"drift into the checkpoint and the adapter-off arm would not be "
+            f"the base model.")
+    return sum(1 for n, m in model.named_modules()
+               if isinstance(m, _NORM_WITH_STATS) and not m.training)
+
+
 def mark_trainable(model: nn.Module, train_head: bool = True,
                    head_names: Iterable[str] = ("final_mlp",),
                    verbose: bool = True):
@@ -130,6 +218,10 @@ def mark_trainable(model: nn.Module, train_head: bool = True,
 
     GARF unfreezes the pose-prediction MLPs alongside the adapters; the rest of
     the backbone stays fixed.
+
+    "Fixed" here means fixed, not merely excluded from the optimiser -- see
+    freeze_norm_stats, which is called at the end. Leaving that out cost job
+    29527496.
     """
     for p in model.parameters():
         p.requires_grad_(False)
@@ -145,6 +237,11 @@ def mark_trainable(model: nn.Module, train_head: bool = True,
                 for p in mod.parameters():
                     p.requires_grad_(True)
                     trainable += p.numel()
+    # requires_grad does not freeze batch-norm running statistics. Do that too,
+    # after the requires_grad pass so we can tell a deliberately-unfrozen norm
+    # layer from a frozen one.
+    freeze_norm_stats(model, verbose=verbose)
+
     total = sum(p.numel() for p in model.parameters())
     if verbose:
         print(f"[lora] trainable {trainable:,} of {total:,} parameters "
