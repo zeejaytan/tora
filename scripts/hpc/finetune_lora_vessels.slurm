@@ -36,13 +36,18 @@ set -euo pipefail
 #     adapter, where only a small percentage of the weights move.
 #
 # WHAT THE FIRST ATTEMPT (job 29527496) GOT WRONG, so this one does not repeat
-# it. The adapter plumbing was sound -- 24 projections wrapped, 1.27% of weights
-# trainable, saved and reloaded correctly -- but the frozen encoder was not
-# frozen. Its batch-norm layers recalibrated themselves on every forward pass,
-# 486 tensors of drift went into the checkpoint, and "adapter off" therefore did
-# not reproduce the baseline. All nine evaluation arms had to be discarded.
-# Fixed in tora/modeling/lora.py::freeze_norm_stats; checked in stage 1 and
-# gated in stage 5 below, so the same mistake now costs minutes, not a day.
+# it. The adapter plumbing was sound -- 24 projections wrapped, saved and
+# reloaded correctly -- and the log printed '5,113,344 of 403,418,314 trainable
+# (1.27%)'. That line was true when it was printed and false one epoch later.
+# TORA's _freeze_encoder() re-enables requires_grad on the whole encoder unless
+# frozen_encoder is set (it defaults to False, and no config here sets it), and
+# on_train_epoch_start calls it every epoch. So the run was a FULL FINE-TUNE of
+# the 403M-parameter model at lr 2e-4 for sixty epochs, with a LoRA attached --
+# not an adapter run at all. 447 supposedly-frozen encoder weights moved, plus
+# 39 batch-norm statistics that requires_grad never covered in the first place.
+# All nine evaluation arms were discarded. Fixed by pin_encoder_frozen() and
+# freeze_norm_stats(); checked at stage 1 and gated at stage 5 below, so the
+# same mistake now costs minutes instead of a day.
 #
 #   One deviation, stated so it is not mistaken for a match: GARF also adapts
 #   the feed-forward and timestep-embedding linears. We adapt the four attention
