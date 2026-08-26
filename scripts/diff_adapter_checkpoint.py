@@ -51,6 +51,15 @@ from collections import defaultdict
 import torch
 
 
+# Batch-norm keeps these three per layer. They are updated inside forward(),
+# not by the optimiser, so requires_grad has no opinion about them.
+_BN_BUFFERS = ("running_mean", "running_var", "num_batches_tracked")
+
+
+def is_buffer(key: str) -> bool:
+    return any(t in key for t in _BN_BUFFERS)
+
+
 def group_of(key: str) -> str:
     """Which part of the model a tensor belongs to, for the summary."""
     if "lora_A" in key or "lora_B" in key:
@@ -95,6 +104,12 @@ def main() -> None:
     changed = defaultdict(list)
     same = defaultdict(int)
     absent = []
+    # Buffers vs parameters, because they leak for completely different reasons
+    # and only one of them is fixed by freeze_norm_stats. A batch-norm buffer
+    # moving means the layer recalibrated itself in forward(). A learned weight
+    # moving means requires_grad did not hold and the fix is somewhere else
+    # entirely -- so the two must never be reported as one number again.
+    detail = defaultdict(lambda: {"buffer": [], "param": []})
 
     for k, bv in b.items():
         hits = t_canon.get(k)
@@ -109,7 +124,9 @@ def main() -> None:
             continue
         d = float((bv.float() - tv.float()).abs().max())
         if d > args.atol:
-            changed[group_of(tk)].append((tk, d))
+            g = group_of(tk)
+            changed[g].append((tk, d))
+            detail[g]["buffer" if is_buffer(tk) else "param"].append((tk, d))
         else:
             same[group_of(tk)] += 1
 
@@ -129,8 +146,28 @@ def main() -> None:
         n_sm = same.get(g, 0)
         mark = "  <-- " if n_ch and g.startswith("FROZEN") else "      "
         print(f"{mark}{g}: {n_ch} changed, {n_sm} identical")
-        for k, d in sorted(changed.get(g, []), key=lambda x: -x[1])[:4]:
-            print(f"          {k}  max|diff| = {d:.3e}")
+
+        # Split it. "486 tensors changed" reads as a catastrophe or as three
+        # harmless counters depending entirely on this breakdown.
+        for kind in ("buffer", "param"):
+            items = detail[g][kind]
+            if not items:
+                continue
+            label = ("batch-norm running statistics (forward(), not the optimiser)"
+                     if kind == "buffer" else
+                     "LEARNED WEIGHTS (requires_grad should have held these)")
+            print(f"            {len(items):4d} {label}")
+            ds = sorted(d for _, d in items)
+            med = ds[len(ds) // 2]
+            print(f"                 largest {ds[-1]:.3e}   median {med:.3e}   "
+                  f"smallest {ds[0]:.3e}")
+            # Rounding noise from mixed precision is ~1e-7 and means nothing;
+            # a real update is orders of magnitude bigger. Say which this is.
+            big = sum(1 for d in ds if d > 1e-5)
+            print(f"                 {big} of {len(ds)} moved by more than 1e-5 "
+                  f"({'real updates' if big else 'all rounding-level noise'})")
+            for k, d in sorted(items, key=lambda x: -x[1])[:3]:
+                print(f"                 {k}  {d:.3e}")
     print("-" * 72)
 
     frozen_moved = sum(len(v) for g, v in changed.items() if g.startswith("FROZEN"))
@@ -144,10 +181,21 @@ def main() -> None:
                  for k, _ in v
                  if any(t in k for t in ("running_mean", "running_var",
                                          "num_batches_tracked"))]
+        frozen_params = [d for g, v in detail.items() if g.startswith("FROZEN")
+                         for _, d in v["param"]]
+        real_params = [d for d in frozen_params if d > 1e-5]
         if stats:
             print(f"*** {len(stats)} of them are batch-norm running statistics,")
             print("*** which update inside forward() and ignore requires_grad.")
             print("*** See tora/modeling/lora.py::freeze_norm_stats.")
+        if real_params:
+            print(f"*** AND {len(real_params)} LEARNED weights moved by more than")
+            print("*** 1e-5. freeze_norm_stats does NOT fix that -- requires_grad")
+            print("*** itself did not hold, and the cause is still unfound.")
+        elif frozen_params:
+            print(f"*** The other {len(frozen_params)} learned weights differ only at")
+            print("*** rounding level (<1e-5), which is mixed-precision noise, not")
+            print("*** training. The gradient freeze itself held.")
         if args.fail_on_frozen:
             sys.exit(1)
     elif head_moved:
