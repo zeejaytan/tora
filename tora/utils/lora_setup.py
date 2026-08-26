@@ -18,13 +18,20 @@ base model, so "all zeros" and "no adapter at all" are the same thing, and both
 must be caught rather than reported as an adapter result.
 
 THE SECOND FAILURE, found the expensive way. Job 29527496 froze the encoder and
-the encoder changed anyway -- 486 tensors, all of them batch-norm running
-statistics, which update inside forward() and are untouched by requires_grad.
-The adapter-off arm was therefore not the base model and the whole job had to be
-discarded. `mark_trainable` now pins those layers to eval and
-`assert_norms_stay_frozen` verifies the pin survives Lightning's per-epoch
-`model.train()`. Checking a frozen thing is actually frozen is not paranoia
-here; it is the only reason the on/off comparison means anything.
+the encoder changed anyway -- 486 of its 492 tensors. 39 were batch-norm running
+statistics, which update inside forward() and ignore requires_grad. The other
+447 were learned weights, moving by a median of 6.7e-02: the encoder had not
+drifted, it had been fully fine-tuned at lr 2e-4 for sixty epochs. TORA's own
+`_freeze_encoder` re-enables `requires_grad` on the whole encoder unless
+`frozen_encoder` is set, and `on_train_epoch_start` calls it every epoch, so the
+freeze applied here at setup was undone before the first batch. That run was a
+full fine-tune with an adapter attached, and all nine of its evaluation arms
+were discarded.
+
+So this file does three things in order -- pin the encoder against the model's
+own unfreezing, freeze, then CHECK by running the very hooks that broke it
+rather than by reading them. The reading was done three times and looked right
+every time.
 """
 
 from __future__ import annotations
@@ -32,8 +39,8 @@ from __future__ import annotations
 import torch
 from omegaconf import DictConfig
 
-from tora.modeling.lora import (add_lora, assert_norms_stay_frozen,
-                                mark_trainable, set_lora_enabled)
+from tora.modeling.lora import (add_lora, assert_freeze_holds, mark_trainable,
+                                pin_encoder_frozen, set_lora_enabled)
 
 
 def lora_cfg(cfg: DictConfig) -> DictConfig | None:
@@ -72,16 +79,18 @@ def apply_lora_from_cfg(cfg: DictConfig, model, freeze: bool = True):
             "like a model that cannot learn.")
 
     if freeze:
+        # Order matters. Pin first, so the model can no longer re-enable the
+        # encoder, then freeze, then check the freeze against the hooks that
+        # broke it last time.
+        pin_encoder_frozen(model)
         mark_trainable(model, train_head=bool(lc.get("train_head", True)))
         n_train = sum(p.numel() for p in model.parameters() if p.requires_grad)
         if n_train == 0:
             raise RuntimeError("nothing is trainable after freezing")
-        # Freezing gradients is not freezing the model. Batch-norm layers
-        # recalibrate themselves inside forward(), which is how job 29527496
-        # moved 486 supposedly-frozen encoder tensors. Check the pin survives a
-        # model.train() call, because Lightning makes one every epoch.
-        n_pinned = assert_norms_stay_frozen(model)
-        print(f"[lora] {n_pinned} norm layers hold eval mode through model.train()")
+
+        n_pinned = assert_freeze_holds(model, n_train)
+        print(f"[lora] freeze holds: {n_train:,} trainable after the training "
+              f"loop's own hooks ran, {n_pinned} norm layers holding eval")
 
     return wrapped
 

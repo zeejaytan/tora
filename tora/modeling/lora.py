@@ -189,12 +189,105 @@ def freeze_norm_stats(model: nn.Module, verbose: bool = True):
     return pinned
 
 
-def assert_norms_stay_frozen(model: nn.Module) -> int:
-    """Check the pin actually holds against a model.train() call.
+# --- The model un-freezes its own encoder, once per epoch --------------------
+#
+# The batch-norm statistics were only 39 of the 486 encoder tensors that moved
+# in job 29527496. The other 447 were LEARNED WEIGHTS, median difference
+# 6.7e-02 -- the same order as the pose head that was supposed to be training.
+# The encoder had not drifted. It had been fully fine-tuned, at lr 2e-4, for
+# sixty epochs, with a LoRA adapter bolted on the side.
+#
+# TORA does this to itself, in tora/modeling/tora.py::_freeze_encoder:
+#
+#     if self.frozen_encoder or eval_mode:   # freeze
+#         ...
+#     else:                                  # UNFREEZE
+#         self.feature_extractor.train()
+#         for param in self.feature_extractor.parameters():
+#             param.requires_grad = True
+#
+# `frozen_encoder` defaults to False and no config here sets it, and
+# `on_train_epoch_start` calls `_freeze_encoder()` -- so every epoch began by
+# walking the encoder and switching training back on, undoing whatever
+# mark_trainable had done at setup. configure_optimizers passes
+# `self.parameters()`, so the re-enabled encoder was already in the optimiser.
+#
+# WHY NOT JUST SET frozen_encoder=True, which is the model's own switch. Because
+# it does a second thing: `_encode` runs under `torch.inference_mode(
+# self.frozen_encoder)`, and inference-mode tensors cannot be saved for
+# backward. The encoder output feeds the flow model, which does need gradients,
+# so that flag changes a code path nothing in this workspace has ever run. We
+# need exactly one behaviour changed, so we change exactly one.
 
-    Cheap, and it is the assumption the whole on/off comparison rests on. Do
-    not replace this with reading the code: the code looked right last time.
+
+def _always_freeze_encoder(self, eval_mode: bool = False):
+    """_freeze_encoder that freezes, whatever mode it is asked for."""
+    self.feature_extractor.eval()
+    for module in self.feature_extractor.modules():
+        module.eval()
+    for param in self.feature_extractor.parameters():
+        param.requires_grad = False
+
+
+def pin_encoder_frozen(model: nn.Module, verbose: bool = True) -> bool:
+    """Stop the model from unfreezing its own encoder at every epoch start.
+
+    Returns False if this model has no `_freeze_encoder` to override, so a
+    caller can tell "already safe" from "silently did nothing".
     """
+    if not hasattr(model, "_freeze_encoder"):
+        if verbose:
+            print("[lora] model has no _freeze_encoder to pin")
+        return False
+    model._freeze_encoder = types.MethodType(_always_freeze_encoder, model)
+    model._freeze_encoder()
+    if verbose:
+        print("[lora] encoder pinned frozen: _freeze_encoder can no longer "
+              "re-enable training on it")
+    return True
+
+
+def assert_freeze_holds(model: nn.Module, expected_trainable: int) -> int:
+    """Check the freeze survives what the training loop actually does to it.
+
+    Not a reading of the code -- the code was read three times and looked
+    right. This calls `model.train()` and the model's own `_freeze_encoder()`,
+    which are the two things that undid the freeze last time, and then counts
+    what is trainable. If that number moved, the run is a full fine-tune
+    wearing an adapter and none of its arms mean anything.
+    """
+    model.train()
+    if hasattr(model, "_freeze_encoder"):
+        model._freeze_encoder()
+
+    now = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    if now != expected_trainable:
+        extra = [n for n, p in model.named_parameters()
+                 if p.requires_grad and "lora_" not in n and "final_mlp" not in n]
+        raise RuntimeError(
+            f"the freeze did not hold: {now:,} parameters trainable after the "
+            f"training loop's own hooks ran, against {expected_trainable:,} "
+            f"right after freezing. {len(extra)} unexpected tensors are "
+            f"trainable, e.g. {extra[:3]}. This is what made job 29527496 a "
+            f"full fine-tune instead of an adapter run.")
+
+    leaked = [n for n, m in model.named_modules()
+              if isinstance(m, _NORM_WITH_STATS)
+              and getattr(m, "running_mean", None) is not None
+              and not any(p.requires_grad for p in m.parameters(recurse=False))
+              and m.training]
+    if leaked:
+        raise RuntimeError(
+            f"{len(leaked)} frozen norm layers went back into train mode, e.g. "
+            f"{leaked[:3]}. Their running statistics would drift into the "
+            f"checkpoint and the adapter-off arm would not be the base model.")
+
+    return sum(1 for _, m in model.named_modules()
+               if isinstance(m, _NORM_WITH_STATS) and not m.training)
+
+
+# Kept under the old name: the norm-only check is now one half of the above.
+def assert_norms_stay_frozen(model: nn.Module) -> int:
     model.train()
     leaked = [n for n, m in model.named_modules()
               if isinstance(m, _NORM_WITH_STATS)
@@ -204,10 +297,8 @@ def assert_norms_stay_frozen(model: nn.Module) -> int:
     if leaked:
         raise RuntimeError(
             f"{len(leaked)} frozen norm layers went back into train mode after "
-            f"model.train(), e.g. {leaked[:3]}. Their running statistics would "
-            f"drift into the checkpoint and the adapter-off arm would not be "
-            f"the base model.")
-    return sum(1 for n, m in model.named_modules()
+            f"model.train(), e.g. {leaked[:3]}.")
+    return sum(1 for _, m in model.named_modules()
                if isinstance(m, _NORM_WITH_STATS) and not m.training)
 
 

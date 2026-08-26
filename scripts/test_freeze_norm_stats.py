@@ -27,7 +27,8 @@ import torch.nn as nn
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tora.modeling.lora import assert_norms_stay_frozen, freeze_norm_stats
+from tora.modeling.lora import (assert_freeze_holds, assert_norms_stay_frozen,
+                                freeze_norm_stats, pin_encoder_frozen)
 
 
 class Toy(nn.Module):
@@ -42,6 +43,35 @@ class Toy(nn.Module):
 
     def forward(self, x):
         return self.final_mlp(self.encoder(x))
+
+
+class ToyLikeTora(Toy):
+    """Toy that un-freezes its own encoder every epoch, exactly as TORA does.
+
+    `frozen_encoder` defaults to False in tora/modeling/tora.py and no config
+    here sets it, so `_freeze_encoder()` takes the else-branch and switches
+    requires_grad back ON for the whole encoder -- and `on_train_epoch_start`
+    calls it at the top of every epoch. Any freeze applied at setup time is
+    undone before the first batch, silently.
+    """
+
+    def __init__(self, frozen_encoder: bool = False):
+        super().__init__()
+        self.frozen_encoder = frozen_encoder
+        self.feature_extractor = self.encoder
+
+    def _freeze_encoder(self, eval_mode: bool = False):
+        if self.frozen_encoder or eval_mode:
+            self.feature_extractor.eval()
+            for p in self.feature_extractor.parameters():
+                p.requires_grad = False
+        else:
+            self.feature_extractor.train()
+            for p in self.feature_extractor.parameters():
+                p.requires_grad = True
+
+    def on_train_epoch_start(self):
+        self._freeze_encoder()
 
 
 def stats(model):
@@ -119,7 +149,50 @@ def main():
     assert "encoder.4" in pinned_paths, "did not pin the frozen norm layer"
     print(f"deliberately-unfrozen norm: left alone (pinned {pinned_paths})")
 
-    print("\nPASS -- frozen means frozen, and it stays that way through train().")
+    # 5. The bigger half, and the one that actually cost the run: the model
+    #    un-freezing its own encoder at every epoch start.
+    print()
+    m3 = ToyLikeTora()
+    freeze_grads(m3)
+    n_before = sum(p.numel() for p in m3.parameters() if p.requires_grad)
+    m3.on_train_epoch_start()
+    n_after = sum(p.numel() for p in m3.parameters() if p.requires_grad)
+    print(f"model unfreezes itself       : {n_before} trainable at setup, "
+          f"{n_after} after one epoch start")
+    assert n_after > n_before, ("the toy no longer reproduces the epoch-start "
+                                "unfreeze it exists to guard against")
+
+    #    The same model with the pin installed.
+    m4 = ToyLikeTora()
+    freeze_grads(m4)
+    freeze_norm_stats(m4, verbose=False)
+    pin_encoder_frozen(m4, verbose=False)
+    n_before = sum(p.numel() for p in m4.parameters() if p.requires_grad)
+    for _ in range(3):
+        m4.on_train_epoch_start()
+        run(m4)
+    n_after = sum(p.numel() for p in m4.parameters() if p.requires_grad)
+    print(f"with pin_encoder_frozen      : {n_before} trainable at setup, "
+          f"{n_after} after 3 epoch starts")
+    assert n_after == n_before, "the pin did not survive on_train_epoch_start()"
+    assert_freeze_holds(m4, n_before)
+    print("assert_freeze_holds          : passes against the real hooks")
+
+    #    And it must FAIL on the unpinned model, or it is not a check.
+    m5 = ToyLikeTora()
+    freeze_grads(m5)
+    n5 = sum(p.numel() for p in m5.parameters() if p.requires_grad)
+    try:
+        assert_freeze_holds(m5, n5)
+    except RuntimeError:
+        print("assert_freeze_holds unpinned : correctly refuses it")
+    else:
+        raise AssertionError("assert_freeze_holds passed a model whose encoder "
+                             "un-freezes itself -- it is not checking anything")
+
+    print()
+    print("PASS -- frozen means frozen, through model.train() AND through the")
+    print("        model's own epoch hooks.")
 
 
 if __name__ == "__main__":
