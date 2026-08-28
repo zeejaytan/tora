@@ -83,8 +83,25 @@ def sample_like_tora(meshes, sampler="poisson"):
 
 
 def face_stats(pcs, pns, thr):
-    """Per-object medians of the four reported quantities."""
-    spacings, mates, roughs = [], [], []
+    """Per-object medians of the reported quantities.
+
+    The first run came back with a median mating angle of 90 degrees, which is
+    what you get from NO orientation agreement at all -- and it was bimodal by
+    object: bottles near 160 degrees, bowls and vases near 87. Ninety degrees is
+    also exactly what a 50/50 mixture of two populations produces, so the median
+    is reported alongside the split that would explain it:
+
+      mate>135   the two normals point away from each other. A true mating pair
+                 -- one point on each side of the break face.
+      mate<45    the two normals point the SAME way. Not a break at all: two
+                 points on the OUTER (or inner) wall, one either side of the
+                 join, where the vessel surface simply continues.
+
+    If the second population is large, then most of what TORA's own overlap rule
+    flags as contact is wall continuing across a join, not fracture surface --
+    which would mean the wall is thin compared to the 5000-point spacing.
+    """
+    spacings, mates, roughs, hi_f, lo_f, hi_n = [], [], [], [], [], 0
     n_contact = 0
     for i, (p, n) in enumerate(zip(pcs, pns)):
         others = [(q, m) for j, (q, m) in enumerate(zip(pcs, pns)) if j != i]
@@ -105,7 +122,11 @@ def face_stats(pcs, pns, thr):
 
         # mating angle against the nearest point on the other fragment
         dots = np.sum(cn * om[idx[mask]], axis=1)
-        mates.append(np.median(np.degrees(np.arccos(np.clip(dots, -1, 1)))))
+        ang = np.degrees(np.arccos(np.clip(dots, -1, 1)))
+        mates.append(np.median(ang))
+        hi_f.append(100.0 * np.mean(ang > 135))
+        lo_f.append(100.0 * np.mean(ang < 45))
+        hi_n += int((ang > 135).sum())
 
         # texture of the break at the sampling the network gets
         k = min(9, len(cp))
@@ -118,7 +139,8 @@ def face_stats(pcs, pns, thr):
     if not spacings:
         return None
     return (100.0 * n_contact / NUM_POINTS, float(np.median(spacings)),
-            float(np.median(mates)), float(np.median(roughs)))
+            float(np.median(mates)), float(np.median(roughs)),
+            float(np.median(hi_f)), float(np.median(lo_f)), hi_n)
 
 
 def run(src, dataset, limit, sampler):
@@ -158,12 +180,13 @@ def run(src, dataset, limit, sampler):
                 if st is None:
                     continue
                 rows[lvl].append((st[0], 100 * st[1] / size, st[2], st[3],
-                                  100 * thr / size))
+                                  st[4], st[5], st[6]))
                 print("    " + tag.ljust(40) + " contact " +
-                      format(st[0], "5.1f") + "%  face-sp " +
-                      format(100 * st[1] / size, "6.3f") + "%  mate " +
-                      format(st[2], "6.1f") + " deg  rough " +
-                      format(st[3], "5.1f") + " deg", flush=True)
+                      format(st[0], "5.1f") + "%  mate " +
+                      format(st[2], "6.1f") + " deg  >135 " +
+                      format(st[4], "5.1f") + "%  <45 " +
+                      format(st[5], "5.1f") + "%  break pts " +
+                      str(st[6]).rjust(4) + "/5000", flush=True)
             except Exception as e:                        # noqa: BLE001
                 print("  skip " + str(obj) + "/" + str(lvl) + ": " + str(e),
                       flush=True)
@@ -171,18 +194,24 @@ def run(src, dataset, limit, sampler):
     if not rows:
         return
     print("")
-    print("  level              n  contact %  face spacing %  mating deg  rough deg")
-    print("  ---------------- ---  ---------  --------------  ----------  ---------")
+    print("  level             n  contact%  face-sp%  mate  rough  mate>135%"
+          "  mate<45%  break pts")
+    print("  ---------------- --  --------  --------  ----  -----  ---------"
+          "  --------  ---------")
     for lvl in sorted(rows):
         a = np.array(rows[lvl])
-        print("  " + str(lvl).ljust(16) + " " + str(len(a)).rjust(3) + "  " +
-              format(np.median(a[:, 0]), "9.1f") + "  " +
-              format(np.median(a[:, 1]), "14.4f") + "  " +
-              format(np.median(a[:, 2]), "10.1f") + "  " +
-              format(np.median(a[:, 3]), "9.1f"))
+        print("  " + str(lvl).ljust(16) + " " + str(len(a)).rjust(2) + "  " +
+              format(np.median(a[:, 0]), "8.1f") + "  " +
+              format(np.median(a[:, 1]), "8.3f") + "  " +
+              format(np.median(a[:, 2]), "4.0f") + "  " +
+              format(np.median(a[:, 3]), "5.1f") + "  " +
+              format(np.median(a[:, 4]), "9.1f") + "  " +
+              format(np.median(a[:, 5]), "8.1f") + "  " +
+              format(np.median(a[:, 6]), "9.0f"))
     print("")
-    print("  mating deg near 180 = the two faces point away from each other, so")
-    print("  the break is matchable from orientation alone, gap unresolved.")
+    print("  break pts = points of the 5000 whose nearest neighbour on another")
+    print("  fragment faces the opposite way, i.e. genuinely across a fracture.")
+    print("  The rest of the contact set is wall continuing across the join.")
 
 
 def main():
