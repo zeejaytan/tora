@@ -108,50 +108,91 @@ fracture carries no interlocking texture at any scale a scan resolves EITHER. Th
 absence of micro-texture is not a difference between train and test, so it cannot
 explain a train/test gap. The conservator caught this.
 
-**The evaluation did not test what was trained.** The two sets use different, near
-opposite, wear operations:
+**The evaluation did not test what was trained** -- but not for the reason I first
+gave. That reason (below, struck) was itself wrong, and the measurement is now in.
 
-| | effect on the break face | effect on the gap |
-|---|---|---|
-| train, `recede_surface` | curvature PRESERVED (doses picked to protect it -- 0.20% excluded for moving one curve by 6.6%) | join OPENS |
-| test, `erode_fracture_band` | creases ROUNDED AWAY, 25-50% of relief stripped at strength 1.0 | none -- vertices move in place so the GT pose stays valid |
+> The two sets use different, near opposite, wear operations: recession preserves
+> curvature and opens the gap, erosion rounds curvature away and opens no gap.
 
-So the adapter was taught to read break curvature across an open gap, and then
-measured on objects whose curvature had been smoothed off and whose mates still
-touch. The erosion sweep is a sound test of abraded breaks. It is not a test of
-this adapter. Recession IS wear and does teach curvature-reading, as the
-conservator argued; it is simply not the wear the sweep applies.
+`erode_fracture_band` DOES open the gap: measured, +9.5% at strength 1.0. I had
+read "the ground-truth pose is preserved" as "the gap is preserved"; vertices can
+retreat on both faces and leave the pose valid. And the conservator is right that
+recession and erosion are one severity axis, not two kinds of damage -- that is
+what `WEAR_SIMULATION.md` §2 says and what `wear_to_loss` implements. So the
+question was never "which kind of wear", it was "how much", and both sets can be
+put on the one ruler `wear_to_loss` is written in: how far the joins have opened.
 
-Revised claim: closer to (2) -- the measurement is not broken, but it measures a
-different thing than was trained. This run cannot say whether the adapter works.
+### Both sets on one ruler (`scripts/compare_wear_severity.py`, 12 + 6 objects)
 
-## What the correction does NOT explain
+Join gap = 10th-percentile distance from each fragment to its nearest neighbour,
+as a percentage of object size. Coincident = fraction of a fragment's vertices
+lying EXACTLY on another fragment.
 
-The FRESH unworn real held-out arm also fell, 0.848 -> 0.759. No abrasion, no
-opened gap, so a wear mismatch cannot account for it.
+| set | level | join gap, % of object | coincident vertices |
+|---|---|---|---|
+| **train** bbad_vessels | fresh | **0.0000** | **44.4 %** |
+| | worn_light | 0.0454 | 0 |
+| | worn_moderate | **0.0978** | 0 |
+| **test** erosion_sweep | 000 unworn | **1.1159** | 0 |
+| | 050 | 1.1532 | 0 |
+| | 100 full | **1.2294** | 0 |
 
-Hypothesis, UNVERIFIED: the training gaps are much too wide. `build_bbad_vessel
-_trainset.py` records the same 0.05% retreat opening joins by 6-10% on these
-coarse meshes against 1.1-1.9% on the fine scans, because BB fragments were cut
-from one mesh and mate exactly, so the retreat has nowhere to hide. An adapter
-taught to expect a wide clean gap would seat sherds too loosely on any real
-object. Consistent with the render (adapter_on base-end sherds hang loose, vessel
-does not close) and with chamfer more than doubling (0.0010 -> 0.0024). Consistent
-is not confirmed.
+**The dose of wear matches. The baseline it sits on does not.** Erosion at full
+strength adds 0.11 points of gap; the moderate training dose adds 0.10. Those are
+the same severity, exactly as argued. But the training fragments start at zero --
+44% of their vertices are the SAME POINTS as their neighbour's, because they were
+cut from one mesh -- while a completely untouched real pot already sits 1.12%
+apart. The hardest training example is still **11x tighter than the easiest test
+object**. On a 20 cm vessel: trained on joins 0 to 0.2 mm apart, tested on joins
+2.2 to 2.5 mm apart.
+
+Rendered, not just measured: `scripts/render_join_gap.py` -> `artifacts/join_gap.png`.
+The per-vertex histograms show it directly. The fresh training object has a spike
+at exactly 0 holding a third of its vertices and nothing structured after it. The
+real pot has NOTHING below 0.15% -- about 3x its own vertex spacing, so this is a
+real separation and not a sampling floor -- rising to a broad contact peak at 0.45%.
+
+**This replaces the earlier hypothesis, which was backwards.** I guessed the
+training gaps were ~5x too WIDE. They are ~11x too NARROW, and nearly half of each
+training fragment's mating surface is a copy of its neighbour's. A model can seat
+those by matching identical points and never read curvature at all. That shortcut
+does not exist on any real object.
+
+**It also explains the residual the wear story could not.** The FRESH unworn real
+arm fell too (0.848 -> 0.759), with no abrasion applied. Under the wear-mismatch
+story that made no sense. Under this one it is the same failure: the problem is
+not wear, it is that every training join is a perfect-contact join and no real
+join ever is.
+
+Claim: **(2), the measurement measures a different thing than was trained** -- and
+the cause is in our data build, not in TORA. This run still cannot say whether the
+adapter works.
+
+### What could still overturn this
+
+The 1.12% gap on the real objects could be genuine material loss, or it could be
+slop in the assembled ground-truth pose of `real_heldout_norm` -- claim (3). The
+slab view looks like a consistent thin separation rather than floating fragments,
+but that view cannot fully separate the two. Checking it means seating one real
+object by hand and re-measuring.
 
 ## Next, cheapest first
 
-1. Measure the join gap on all three sets with ONE instrument (train, erosion
-   sweep, real_heldout_norm). CPU, minutes. If the training gaps really are ~5x
-   wider, the fix is a dose, not a redesign.
-2. Build the evaluation that matches the training: a sweep using RECESSION rather
-   than the mollifier. Decisive test of whether the adapter learned anything.
-3. Score the untouched baseline on the bbad_vessels val set -- still missing, so
+1. DONE, and it inverted the guess -- see above. The training joins are 11x
+   TIGHTER than the test joins, not 5x wider.
+2. Rebuild the training set so its joins start where real joins start. The
+   fragments must not share mating vertices: recede BOTH faces to a target gap
+   ratio with `wear_to_loss`, aiming at a fresh-real gap of ~1.1% of object, and
+   assert coincident vertices == 0 in the builder. This is the fix the
+   measurement points at. CPU only.
+3. Only then rerun the adapter. Building a recession-based evaluation sweep is no
+   longer the decisive test -- the training data is.
+4. Score the untouched baseline on the bbad_vessels val set -- still missing, so
    81.6% at epoch 59 currently has nothing to be compared against.
-4. Lower lr (2e-5) / early stop ~epoch 10. The val curve flattened at epoch 9 and
+5. Lower lr (2e-5) / early stop ~epoch 10. The val curve flattened at epoch 9 and
    the remaining 50 epochs bought 1.1 points in-domain. Limits damage; does not
    make the data teach more.
-5. train_head=false, so adapter_off becomes a true baseline. A diagnostic, not an
+6. train_head=false, so adapter_off becomes a true baseline. A diagnostic, not an
    improvement.
 
 RETRACTED: widening the LoRA target set to GARF's full list. That assumed the
