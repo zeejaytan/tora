@@ -277,13 +277,57 @@ def run(src, dataset, limit):
     print("  break face never gets a row of points of its own.")
 
 
+def selftest():
+    """Measure shells whose wall thickness we set ourselves.
+
+    Two versions of this script returned confident wrong numbers before anyone
+    thought to check the instrument against a known answer. This is that check,
+    and it is a flag rather than a paragraph so it can be re-run:
+
+        python scripts/measure_wall_vs_sampling.py --selftest
+
+    The 1%-of-object case matters most: its wall is THINNER than one mean face
+    edge, which is the regime the vessels are in and the regime the marching
+    version got wrong.
+    """
+    rng = np.random.default_rng(0)
+    ok = True
+    print("  true wall   measured   error")
+    print("  ---------   --------   -----")
+    for radius, thick in ((1.0, 0.05), (1.0, 0.02), (1.0, 0.15)):
+        outer = trimesh.creation.icosphere(subdivisions=4, radius=radius)
+        inner = trimesh.creation.icosphere(subdivisions=4,
+                                           radius=radius - thick)
+        inner.invert()
+        shell = trimesh.util.concatenate([outer, inner])
+        shell.merge_vertices()
+        got = wall_thickness(shell, rng)
+        if got is None:
+            print("  " + format(100 * thick / (2 * radius), "8.2f") +
+                  "%   returned None")
+            ok = False
+            continue
+        err = 100.0 * (got - thick) / thick
+        print("  " + format(100 * thick / (2 * radius), "8.2f") + "%   " +
+              format(100 * got / (2 * radius), "7.2f") + "%   " +
+              format(err, "+5.1f") + "%")
+        ok = ok and abs(err) < 3.0
+    print("")
+    print("  PASS" if ok else "  FAIL")
+    return 0 if ok else 1
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
     ap.add_argument("--limit", type=int, default=8)
     ap.add_argument("--only", default=None,
                     choices=["bbad_vessels", "erosion_sweep"])
+    ap.add_argument("--selftest", action="store_true",
+                    help="measure shells of known wall thickness and stop")
     a = ap.parse_args()
+    if a.selftest:
+        raise SystemExit(selftest())
     root = Path(a.root)
     for name in ("bbad_vessels", "erosion_sweep"):
         if a.only and a.only != name:
