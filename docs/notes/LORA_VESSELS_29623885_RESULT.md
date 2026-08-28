@@ -303,6 +303,83 @@ vertex spacing. A p10 below the spacing is two surfaces still touching, sampled.
 Training p10 and p50 sit at or below the mesh's own vertex spacing. The real p50
 is ~9x its spacing. The same conclusion one level up from the sampling.
 
+### The fracture surface, at the resolution the network is given (2026-08-28)
+
+The gap result above drew a fair objection: if TORA's sampling is too coarse to
+resolve a tenth of a millimetre of simulated recession, how does it match fresh
+sherds by their fracture surface at all? The gap is only one of the channels the
+network has, and the objection is about a different one.
+
+**The encoder is fed six numbers per point, not three.**
+
+    tora/modeling/encoder/point_cloud_encoder.py:113
+        "feat": torch.cat([part_coords, part_normals], dim=-1)
+
+The normal comes from `mesh.face_normals[fidx]` -- the orientation of the single
+triangle the point landed on. That is a **sub-spacing** cue. It reports surface
+orientation at triangle scale, ~0.07-0.20% of object here, roughly thirty times
+finer than the 2.9% spacing between the points themselves. So "TORA cannot see
+the wear" was proved for the GAP only. The orientation channel had to be measured
+separately, on the exact points the network receives
+(`scripts/measure_faces_as_network_sees.py`).
+
+| set | level | contact % | face spacing % | mating angle | roughness | mate>135° | mate<45° | break pts /5000 |
+|---|---|---|---|---|---|---|---|---|
+| train (n=8) | fresh | 43.1 | 1.250 | 93° | 54.9° | 22.7% | 17.8% | 548 |
+| | worn_light | 42.4 | 1.255 | 91° | 52.9° | 25.3% | 18.6% | 508 |
+| | worn_moderate | 43.7 | 1.254 | 92° | 53.0° | 24.7% | 19.3% | 580 |
+| real (n=6) | e000 | 19.1 | 0.698 | 88° | 29.7° | 19.5% | 18.1% | 182 |
+| | e025 | 19.0 | 0.729 | 90° | 27.2° | 19.7% | 16.1% | 212 |
+| | e050 | 17.9 | 0.684 | 89° | 26.6° | 20.5% | 16.4% | 199 |
+| | e075 | 15.4 | 0.704 | 91° | 24.3° | 23.7% | 18.4% | 203 |
+| | e100 | 15.0 | 0.670 | 93° | 22.2° | 23.7% | 15.4% | 195 |
+
+**The mating angle is the load-bearing column.** Two faces pressed together point
+away from each other, so a true mate reads 180°. A point on the outer wall
+opposite another point on the outer wall, either side of the join, reads 0° --
+the vessel surface simply continuing across the break. The median is ~90° on
+every row, which is not "no signal": it is the arithmetic signature of a mixture
+of those two populations, and the split columns confirm it. Only about **23% of
+what TORA's own overlap rule calls contact is across a genuine fracture**; about
+**18% is wall continuing across the join**.
+
+It is also strongly bimodal by vessel, which is what a wall-thickness effect
+looks like: BeerBottle 154-155°, Bottle 165-177°, DrinkBottle 152-174° against
+Bowl 85-91°, Mug 91-96°, Teapot 88-89°, Vase 83-88°. Thick-walled objects get a
+real break face; thin-walled ones do not.
+
+**So the fracture channel exists, and it is thin.** Genuine fracture points are
+548 of TORA's 5000 inputs (~11%) on the training vessels and only 182-212 (~4%)
+on the real scans. That answers the objection in both directions: TORA does have
+a fracture-shape channel independent of the gap, which is how it matches fresh
+sherds -- and on this material that channel is carried by a few hundred points.
+
+**This does not rescue the wear.** Along the training ladder fresh to
+worn_moderate, contact% moves 43.1 to 43.7, mating angle 93° to 92°, roughness
+54.9° to 53.0°, break points 548 to 580. Nothing moves. Along the real erosion
+sweep, over the same axis, contact% falls 19.1 to 15.0 and roughness falls 29.7°
+to 22.2° -- a clear, monotone response. The orientation channel *can* register
+erosion; it does not register ours. The conclusion from the gap measurement
+stands, now on the channel that was supposed to overturn it.
+
+The real objects also carry a **less rough break** than the training ones (22-30°
+against 53-55°), which is the opposite of what a "real fractures are messier"
+intuition predicts, and is worth remembering when reading any transfer result.
+
+### Look at it: `scripts/render_break_face_sampling.py` -> `artifacts/break_face.png`
+
+The section is cut so that the vertical axis is *through the wall* and the
+horizontal axis is *across the break*, with TORA's 5000 points drawn at one
+sampling cell across so the picture cannot flatter the resolution, and genuine
+fracture points ringed in black.
+
+It matches the numbers. The vase rows show a thin curved wall with sampling dots
+each wider than the wall itself, and 4 fracture points (fresh) / 2
+(worn_moderate) in the entire slab. The bottle row shows a clean vertical column
+of 87 ringed points -- a thick wall does get a proper break face. The real scan
+shows 16. One caveat on the picture, not on the result: the bottle's left mesh
+panel is nearly empty, which is that object's slab orientation, not evidence.
+
 ## Next, cheapest first
 
 1. DONE, twice, and it inverted the guess -- see above. The training joins are
