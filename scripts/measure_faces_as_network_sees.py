@@ -121,41 +121,53 @@ def face_stats(pcs, pns, thr):
             float(np.median(mates)), float(np.median(roughs)))
 
 
-def run(path, dsname, limit, sampler):
-    if not Path(path).exists():
-        print("missing " + str(path))
+def run(src, dataset, limit, sampler):
+    """Grouping and object selection copied from measure_gap_as_network_sees."""
+    if not Path(src).exists():
+        print("missing " + str(src))
         return
+    h = h5py.File(src, "r")
+    dg = h[dataset]
+    groups = defaultdict(dict)
+    for tag in dg.keys():
+        obj, lvl = split_tag(tag)
+        if obj is not None:
+            groups[obj].setdefault(lvl, tag)
+    usable = sorted(o for o, v in groups.items() if len(v) > 1)
+    if limit and len(usable) > limit:
+        usable = usable[::max(1, len(usable) // limit)][:limit]
+
+    print("")
+    print("=" * 78)
+    print(dataset + "  (" + str(len(usable)) + " objects)")
+    print("=" * 78)
+    print("")
     rows = defaultdict(list)
-    with h5py.File(path, "r") as f:
-        objs = sorted({split_tag(k)[0] for k in f.keys()})[:limit]
-        print("")
-        print("=" * 78)
-        print(dsname + "  (" + str(len(objs)) + " objects)")
-        print("=" * 78)
-        print("")
-        for obj in objs:
-            for tag in sorted(k for k in f.keys() if split_tag(k)[0] == obj):
-                lvl = split_tag(tag)[1]
-                try:
-                    meshes = load_meshes(f[tag])
-                    if meshes is None or len(meshes) < 2:
-                        continue
-                    size = object_size([np.asarray(m.vertices) for m in meshes])
-                    pcs, pns, thr = sample_like_tora(meshes, sampler)
-                    del meshes
-                    gc.collect()
-                    st = face_stats(pcs, pns, thr)
-                    del pcs, pns
-                    if st is None:
-                        continue
-                    rows[lvl].append((st[0], 100 * st[1] / size, st[2], st[3],
-                                      100 * thr / size))
-                    print("    " + tag.ljust(44) + " contact " +
-                          format(st[0], "5.1f") + "%  mate " +
-                          format(st[2], "6.1f") + " deg  rough " +
-                          format(st[3], "5.1f") + " deg", flush=True)
-                except Exception as e:                    # noqa: BLE001
-                    print("  skip " + obj + "/" + lvl + ": " + str(e), flush=True)
+    for obj in usable:
+        for lvl, tag in sorted(groups[obj].items()):
+            try:
+                meshes = load_meshes(dg[tag])
+                if meshes is None or len(meshes) < 2:
+                    continue
+                size = object_size([np.asarray(m.vertices) for m in meshes])
+                pcs, pns, thr = sample_like_tora(meshes, sampler)
+                del meshes
+                gc.collect()
+                st = face_stats(pcs, pns, thr)
+                del pcs, pns
+                if st is None:
+                    continue
+                rows[lvl].append((st[0], 100 * st[1] / size, st[2], st[3],
+                                  100 * thr / size))
+                print("    " + tag.ljust(40) + " contact " +
+                      format(st[0], "5.1f") + "%  face-sp " +
+                      format(100 * st[1] / size, "6.3f") + "%  mate " +
+                      format(st[2], "6.1f") + " deg  rough " +
+                      format(st[3], "5.1f") + " deg", flush=True)
+            except Exception as e:                        # noqa: BLE001
+                print("  skip " + str(obj) + "/" + str(lvl) + ": " + str(e),
+                      flush=True)
+    h.close()
     if not rows:
         return
     print("")
@@ -163,7 +175,7 @@ def run(path, dsname, limit, sampler):
     print("  ---------------- ---  ---------  --------------  ----------  ---------")
     for lvl in sorted(rows):
         a = np.array(rows[lvl])
-        print("  " + lvl.ljust(16) + " " + str(len(a)).rjust(3) + "  " +
+        print("  " + str(lvl).ljust(16) + " " + str(len(a)).rjust(3) + "  " +
               format(np.median(a[:, 0]), "9.1f") + "  " +
               format(np.median(a[:, 1]), "14.4f") + "  " +
               format(np.median(a[:, 2]), "10.1f") + "  " +
