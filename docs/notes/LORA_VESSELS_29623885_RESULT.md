@@ -168,6 +168,52 @@ Claim: **(2), the measurement measures a different thing than was trained** -- a
 the cause is in our data build, not in TORA. This run still cannot say whether the
 adapter works.
 
+### WHY it harms: where the damage lands (2026-08-28)
+
+Split the error into orientation and position, over all saved result JSONs.
+
+| set | arm | part_acc | rot err | trans err | chamfer |
+|---|---|---|---|---|---|
+| sweep (n=90) | baseline | 0.794 | 36.86 deg | 0.0724 | 0.00100 |
+| | adapter_off | 0.734 | **33.94** | **0.0701** | 0.00167 |
+| | adapter_on | 0.616 | **46.57** | **0.0977** | 0.00244 |
+| fresh (n=18) | baseline | 0.848 | 36.52 | 0.0716 | 0.00054 |
+| | adapter_off | 0.854 | **31.12** | **0.0577** | 0.00062 |
+| | adapter_on | 0.759 | 38.55 | 0.0766 | 0.00105 |
+
+**This refutes the mechanism I was about to give.** "The model learned push-until-
+contact, so it misjudges distance" predicts damage concentrated in TRANSLATION.
+It is not: with the adapter on, rotation error rises 26% and translation 35% --
+both, roughly together. A distance rule cannot make a fragment face the wrong way.
+
+**What survives, and fits better.** The adapter sits in `self_qkv_proj`,
+`self_out_proj`, `global_qkv_proj`, `global_out_proj` (`lora.py:76`) -- the
+attention projections, i.e. the layers where fragments compare THEMSELVES TO EACH
+OTHER. Our training set lets that comparison succeed by finding the neighbour
+whose vertices are identical (44% coincident, gap exactly 0). That is a lookup,
+not a reading of break shape. Sixty epochs tuned the comparison layers toward it.
+On a real pot no vertex is shared, the nearest is ~2 mm away, and the only cue
+left is the SHAPE of the break -- which the tuned comparison no longer grips.
+
+Orientation is where that shows first, and does. A body sherd off a smooth wall is
+a nearly featureless curved patch; the only thing saying which way round it goes is
+the outline and relief of its broken edge. Rotation error 37 -> 47 deg is that
+ability degrading.
+
+**It also localises the harm, and NOT to the pose head.** Retraining the head alone
+(adapter_off) did not damage orientation -- it improved it, 36.5 -> 31.1 deg on the
+fresh real pots, with part_acc level (0.848 -> 0.854). The harm appears only when
+the adapter in the comparison layers is switched on. So the earlier worry that
+`train_head=true` bakes in irreversible damage is not supported: the head is fine.
+
+UNEXPLAINED: on the sweep, adapter_off's part_acc falls (0.794 -> 0.734) while both
+its mean errors improve. part_acc is a threshold count, so a distribution can shift
+across the threshold while the mean improves, but that is a guess, not a finding.
+
+Weight: one training run, no seed repeats; 30 objects x 3 draws (sweep), 6 x 3
+(fresh). The mechanism is inferred from where the damage lands, not observed in the
+features.
+
 ### What could still overturn this
 
 The 1.12% gap on the real objects could be genuine material loss, or it could be
