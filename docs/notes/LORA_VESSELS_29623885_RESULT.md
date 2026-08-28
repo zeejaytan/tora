@@ -139,10 +139,12 @@ lying EXACTLY on another fragment.
 
 **The dose of wear matches. The baseline it sits on does not.** Erosion at full
 strength adds 0.11 points of gap; the moderate training dose adds 0.10. Those are
-the same severity, exactly as argued. But the training fragments start at zero --
-44% of their vertices are the SAME POINTS as their neighbour's, because they were
-cut from one mesh -- while a completely untouched real pot already sits 1.12%
-apart. The hardest training example is still **11x tighter than the easiest test
+the same severity, exactly as argued. But the training joins start far tighter. In
+the FRESH third, 44% of a fragment's vertices are literally the SAME POINTS as its
+neighbour's, because they were cut from one mesh. In the two WORN thirds that is
+not true -- both faces are receded, and coincidence is 0% -- but the recession is
+so small (0.05-0.10% of object) that the faces are still effectively in contact.
+A completely untouched real pot already sits 1.12% apart. The hardest training example is still **11x tighter than the easiest test
 object**. On a 20 cm vessel: trained on joins 0 to 0.2 mm apart, tested on joins
 2.2 to 2.5 mm apart.
 
@@ -153,10 +155,13 @@ real pot has NOTHING below 0.15% -- about 3x its own vertex spacing, so this is 
 real separation and not a sampling floor -- rising to a broad contact peak at 0.45%.
 
 **This replaces the earlier hypothesis, which was backwards.** I guessed the
-training gaps were ~5x too WIDE. They are ~11x too NARROW, and nearly half of each
-training fragment's mating surface is a copy of its neighbour's. A model can seat
-those by matching identical points and never read curvature at all. That shortcut
-does not exist on any real object.
+training gaps were ~5x too WIDE. They are ~11x too NARROW. In the fresh third,
+nearly half of each fragment's mating surface is a literal copy of its
+neighbour's, and a model can seat those by matching identical points without ever
+reading curvature. The worn thirds share no vertices -- corrected 2026-08-28,
+the earlier wording claimed they did -- but their joins are still tight enough to
+be indistinguishable from contact at the network's input resolution (see below).
+Neither situation exists on any real object.
 
 **It also explains the residual the wear story could not.** The FRESH unworn real
 arm fell too (0.848 -> 0.759), with no abrasion applied. Under the wear-mismatch
@@ -222,10 +227,87 @@ slab view looks like a consistent thin separation rather than floating fragments
 but that view cannot fully separate the two. Checking it means seating one real
 object by hand and re-measuring.
 
+### The join at the resolution the network is actually given (2026-08-28)
+
+Everything above measures the join on the **mesh**. TORA never sees the mesh. It
+samples 5000 points per object, allocated by fragment area (`tora/data/dataset.py`
+`_sample_points`), and that is the entire input. So the question is not "is there
+a gap" but "is the gap bigger than the spacing between the points the network
+gets". `scripts/measure_gap_as_network_sees.py` replicates that allocation
+verbatim and reports **gap / spacing**.
+
+Below 1, the two faces fall inside one sampling cell: at the network's resolution
+they are touching, whatever the mesh says.
+
+| set | level | gap % of object | TORA spacing % | gap / spacing |
+|---|---|---|---|---|
+| train `bbad_vessels` (n=8) | fresh          | 0.741 | 2.950 | **0.277** |
+|                            | worn_light     | 0.832 | 2.827 | **0.281** |
+|                            | worn_moderate  | 0.761 | 2.854 | **0.281** |
+| test `erosion_sweep` (n=6) | 000            | 1.423 | 2.337 | **0.620** |
+|                            | 025            | 1.463 | 2.334 | 0.686 |
+|                            | 050            | 1.517 | 2.327 | 0.680 |
+|                            | 075            | 1.610 | 2.317 | 0.724 |
+|                            | 100            | 1.743 | 2.310 | **0.788** |
+
+Uniform sampler; Poisson-disk on the training set gives 0.266 / 0.273 / 0.267 --
+same answer. The real scans are too dense for Poisson-disk on the login node.
+
+Two things fall out, and they are different things.
+
+**1. The wear ladder is invisible.** Fresh, light and moderate come out at 0.277,
+0.281, 0.281 -- a 1.4% spread. The recession is 0.05-0.10% of object size; the
+network's points sit 2.85% apart, roughly **thirty times coarser**. Fresh has 44%
+of its vertices exactly coincident, i.e. a true zero gap, and still reads 0.277:
+that number is the sampling floor for two surfaces in contact, not a measurement
+of separation. All three training levels are at the floor. The adapter spent 60
+epochs being asked to tell apart three inputs that are, to it, the same object.
+
+**2. The real joins are not at the floor.** 0.62 at e000 rising to 0.79 at e100 --
+roughly **2.3x the training figure**, and the erosion sweep's own dose axis moves
+the ratio 27% where the entire training wear ladder moves it 1.4%. So the gap is
+resolvable; the training set simply does not contain it. The absolute gap is also
+~2x wider (1.42% vs 0.74%) with comparable spacing, so this is a wider join, not
+a spacing artefact.
+
+Together these say the adapter was trained on joins about twice as tight as any
+real one, with a wear signal below its input resolution. Whatever it learned in
+those 60 epochs, it cannot be "how worn sherds sit together" -- worn and fresh
+were the same picture. Being in the attention projections, what it learned instead
+is a change to how fragments compare to one another, which is precisely the
+faculty reassembly depends on. That is consistent with the split above: rotation
+and translation degrade together, and retraining the head alone *improves*
+rotation.
+
+This is claim (2) of the three, not claim (1): the method was not shown the thing
+it was supposed to learn. It does not yet say TORA cannot learn it.
+
+Caveat on the dose fix: raising the recession to reach a real-sized gap means a
+~30x increase, not a nudge. At that size the recession is no longer a micro-scale
+effect and must be checked against `docs/notes/WEAR_SIMULATION.md` -- and rendered
+-- before it is trained on.
+
+### The contact band, on the mesh (`scripts/measure_join_uniformity.py`)
+
+Percentiles of the contact band only, as % of object size, against the mesh's own
+vertex spacing. A p10 below the spacing is two surfaces still touching, sampled.
+
+| set | level | p10 | p50 | p90 | vtx spacing |
+|---|---|---|---|---|---|
+| train | fresh         | 0.0000 | 0.0000 | 0.3909 | 0.2024 |
+|       | worn_light    | 0.0079 | 0.0737 | 0.7827 | 0.2032 |
+|       | worn_moderate | 0.0153 | 0.1554 | 0.6136 | 0.2112 |
+| test  | 000           | 0.1667 | 0.6395 | 3.4922 | 0.0730 |
+|       | 100           | 0.1794 | 0.7521 | 3.6856 | 0.0664 |
+
+Training p10 and p50 sit at or below the mesh's own vertex spacing. The real p50
+is ~9x its spacing. The same conclusion one level up from the sampling.
+
 ## Next, cheapest first
 
-1. DONE, and it inverted the guess -- see above. The training joins are 11x
-   TIGHTER than the test joins, not 5x wider.
+1. DONE, twice, and it inverted the guess -- see above. The training joins are
+   11x TIGHTER than the test joins on the mesh, and at the resolution the
+   network is given they are at the sampling floor while the real ones are not.
 2. Rebuild the training set so its joins start where real joins start. The
    fragments must not share mating vertices: recede BOTH faces to a target gap
    ratio with `wear_to_loss`, aiming at a fresh-real gap of ~1.1% of object, and
