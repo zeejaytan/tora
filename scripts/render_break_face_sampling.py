@@ -107,9 +107,9 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=str(ROOT))
     ap.add_argument("--out", default="artifacts/break_face.png")
-    ap.add_argument("--slab", type=float, default=0.02,
+    ap.add_argument("--slab", type=float, default=0.04,
                     help="slab half-thickness, fraction of object size")
-    ap.add_argument("--span", type=float, default=4.0,
+    ap.add_argument("--span", type=float, default=12.0,
                     help="half-width of the view, % of object size")
     a = ap.parse_args()
     root = Path(a.root)
@@ -170,11 +170,11 @@ def main() -> None:
         dot_pts = (spacing_pct / (2.0 * a.span)) * (5.6 * 72)
         dot_s = max(4.0, dot_pts ** 2 * 0.25)
 
-        axL.scatter(mi[:, 0], mi[:, 1], s=0.5, c="#1f77b4", lw=0)
-        axL.scatter(mj[:, 0], mj[:, 1], s=0.5, c="#d62728", lw=0)
+        axL.scatter(mi[:, 0], mi[:, 1], s=2.0, c="#1f77b4", lw=0)
+        axL.scatter(mj[:, 0], mj[:, 1], s=2.0, c="#d62728", lw=0)
 
         axR.scatter(np.r_[mi[:, 0], mj[:, 0]], np.r_[mi[:, 1], mj[:, 1]],
-                    s=0.4, c="#dddddd", lw=0, zorder=1)
+                    s=1.5, c="#cfcfcf", lw=0, zorder=1)
         for s, o, col in ((si, oi, "#1f77b4"), (sj, oj, "#d62728")):
             if len(s) == 0:
                 continue
