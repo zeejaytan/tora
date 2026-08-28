@@ -70,6 +70,29 @@ def joint_gap(parts, max_pts=40000, seed=0):
     return float(np.mean(out))
 
 
+def coincident_frac(parts, max_pts=40000, seed=0, tol=1e-9):
+    """Fraction of each piece's vertices lying EXACTLY on another piece.
+
+    Fragments cut from a single mesh share their mating vertices, so this is
+    roughly the contact band. Fragments from separate real scans never do, so
+    this is 0 and the join carries genuine slop. It is the cleanest single
+    number for "was this break simulated by cutting, or observed".
+    """
+    rng = np.random.default_rng(seed)
+    subs = [v if len(v) <= max_pts else v[rng.choice(len(v), max_pts, replace=False)]
+            for v in parts]
+    trees = [cKDTree(s) for s in subs]
+    out = []
+    for i, s in enumerate(subs):
+        best = np.full(len(s), np.inf)
+        for j, t in enumerate(trees):
+            if i != j:
+                d, _ = t.query(s, workers=-1)
+                best = np.minimum(best, d)
+        out.append(float(np.mean(best <= tol)))
+    return float(np.mean(out))
+
+
 def object_size(parts):
     allv = np.concatenate(parts, axis=0)
     return float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-12
@@ -118,12 +141,13 @@ def run(src, dataset, limit):
                 continue
             size = object_size(parts0)
             g0 = joint_gap(parts0)
+            c0 = coincident_frac(parts0)
         except Exception as e:                       # noqa: BLE001
             print(f"  skip {obj}: {e}")
             continue
         for lvl, tag in sorted(v.items()):
             if lvl == base_lvl:
-                rows[lvl].append((100 * g0 / size, 1.0))
+                rows[lvl].append((100 * g0 / size, 1.0, c0))
                 continue
             try:
                 parts = load_parts(dg[tag])
@@ -131,17 +155,23 @@ def run(src, dataset, limit):
             except Exception as e:                   # noqa: BLE001
                 print(f"  skip {obj}/{lvl}: {e}")
                 continue
-            rows[lvl].append((100 * g / size, g / g0))
+            ratio = (g / g0) if g0 > 1e-12 else float("nan")
+            rows[lvl].append((100 * g / size, ratio, coincident_frac(parts)))
         if (n + 1) % 5 == 0:
             print(f"  {n + 1}/{len(usable)}", flush=True)
 
-    print(f"\n  {'level':<16} {'n':>3}  {'gap % of object':>16}  {'gap ratio vs fresh':>19}")
-    print(f"  {'-'*16} {'-'*3}  {'-'*16}  {'-'*19}")
+    print(f"\n  {'level':<16} {'n':>3}  {'gap % of object':>16}  {'ratio':>9}  {'coincident':>12}")
+    print(f"  {'-'*16} {'-'*3}  {'-'*16}  {'-'*9}  {'-'*12}")
     for lvl in sorted(rows):
         pct = np.array([r[0] for r in rows[lvl]])
         rat = np.array([r[1] for r in rows[lvl]])
-        print(f"  {lvl:<16} {len(pct):>3}  {np.median(pct):>10.4f}       "
-              f"  {np.median(rat):>8.3f}   [{np.percentile(rat,10):.3f}-{np.percentile(rat,90):.3f}]")
+        coi = np.array([r[2] for r in rows[lvl]])
+        rs = "undefined" if np.all(np.isnan(rat)) else f"{np.nanmedian(rat):.3f}"
+        print(f"  {lvl:<16} {len(pct):>3}  {np.median(pct):>12.4f}    "
+              f"  {rs:>9}  {100*np.median(coi):>10.2f} %")
+    print("\n  ratio is undefined where the fresh gap is exactly 0 -- fragments cut")
+    print("  from one mesh share their mating vertices, so there is no gap to open")
+    print("  RELATIVE to. Compare the absolute column in that case.")
     h.close()
     return rows
 
