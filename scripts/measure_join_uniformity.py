@@ -70,8 +70,13 @@ def run(src, dataset, limit):
                 size = object_size(parts)
                 d = contact_band(parts) / size * 100
                 p10, p50, p90 = np.percentile(d, [10, 50, 90])
-                # ratio needs a floor: exactly-shared vertices give p10 = 0
-                rows[lvl].append((p50, p90 / p10 if p10 > 1e-9 else np.inf))
+                # A RATIO ALONE MISREADS: p10 can sit below the vertex spacing,
+                # in which case it is measuring sampling, not a gap. Carry the
+                # absolute percentiles and the spacing so that is visible.
+                allv = np.concatenate(parts)
+                sp = np.median(cKDTree(allv).query(
+                    allv[::max(1, len(allv) // 4000)], k=2)[0][:, 1]) / size * 100
+                rows[lvl].append((p10, p50, p90, sp))
             except Exception as e:                        # noqa: BLE001
                 print(f"  skip {obj}/{lvl}: {e}")
     print(f"\n  {'level':<16} {'n':>3}  {'median gap %':>13}  {'p90/p10 of gap':>15}")
