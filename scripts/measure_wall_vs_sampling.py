@@ -12,15 +12,31 @@ coarse, so a single sampling cell straddles the whole wall and the break face
 never gets a row of points to itself. That is a ratio, so measure it.
 
 Wall thickness is measured on the MESH, not on the sample, because the sample is
-the thing suspected of being too coarse to see it. For a sample of vertices,
-take the vertex normal, walk along -normal, and find the nearest vertex of the
-same fragment whose normal opposes it (dot < -0.7). That distance is the local
-wall thickness. The median over vertices is the fragment's wall.
+the thing suspected of being too coarse to see it.
+
+CORRECTED. The first version of this took each vertex, looked at its 64 nearest
+neighbours and took the first one whose normal opposed it. That was wrong and it
+returned confident, plausible numbers: the mesh has ~0.2% of object between
+vertices and the wall is several percent thick, so 64 neighbours never reach the
+far face at all. What it actually found was local creases. It read walls of 0.27%
+on objects whose volume-to-area ratio says 4%.
+
+The honest instrument is a ray. From a surface point, fire along -normal into the
+solid and take the first face you hit; that distance IS the wall. These meshes are
+watertight (checked: euler 2 on the scans), so the ray has something to hit. Two
+independent estimates are reported so a repeat of the same mistake is visible:
+
+  wall (ray)   median first-hit distance, over area-weighted surface samples
+  wall (2V/A)  twice volume over area -- the mean thickness of a closed shell,
+               a global figure that needs no ray casting
+
+They measure the same thing by different routes. If they disagree by more than
+about a factor of two, neither should be believed.
 
 Reported per level, all as % of object size:
-  wall        median wall thickness
   spacing     TORA's own point spacing, sqrt(2 * area / 5000)
-  cells       wall / spacing -- how many sampling cells fit through the wall.
+  cells       wall (ray) / spacing -- how many sampling cells fit through the
+              wall.
               Below 1 means one point straddles the whole wall, so the break
               face cannot get a row of points of its own and orientation
               across the join is a blend of fracture and outer surface.
@@ -33,7 +49,8 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from scipy.spatial import cKDTree
+import trimesh
+from trimesh.ray import ray_pyembree
 
 from compare_wear_severity import object_size, split_tag
 from measure_gap_as_network_sees import load_meshes
@@ -43,28 +60,44 @@ MAX_V = 60000          # vertices sampled per fragment for the thickness probe
 OPPOSED = -0.7         # dot product below which two normals count as opposed
 
 
-def wall_thickness(mesh, rng):
-    """Median distance to the nearest same-fragment vertex facing the other way."""
-    v = np.asarray(mesh.vertices)
-    n = np.asarray(mesh.vertex_normals)
-    if len(v) < 50:
+def wall_thickness(mesh, rng, n_rays=4000):
+    """First-hit distance along the inward normal: the wall, measured with a ray.
+
+    Origins are area-weighted surface samples, not vertices, so a densely
+    tessellated patch cannot dominate. Points that land on a FRACTURE face fire
+    along the break rather than through the wall and return the length of the
+    fragment; those are long, and the median is taken precisely so they cannot
+    drag the answer.
+    """
+    if len(mesh.faces) < 20:
         return None
-    idx = (rng.choice(len(v), MAX_V, replace=False) if len(v) > MAX_V
-           else np.arange(len(v)))
-    tree = cKDTree(v)
-    # 64 nearest neighbours is enough to cross a thin wall; the first opposed
-    # one is the other face. Points on a rim have no opposed neighbour and
-    # drop out, which is correct -- a rim has no thickness to measure.
-    k = min(64, len(v))
-    d, nb = tree.query(v[idx], k=k, workers=-1)
-    dots = np.einsum("ij,ikj->ik", n[idx], n[nb])
-    ok = dots < OPPOSED
-    ok[:, 0] = False
-    has = ok.any(axis=1)
-    if not has.any():
+    n = min(n_rays, max(500, len(mesh.faces) // 4))
+    pts, fidx = trimesh.sample.sample_surface(mesh, n)
+    nrm = mesh.face_normals[fidx]
+    eps = 1e-6 * float(np.linalg.norm(mesh.extents))
+    origins = pts - nrm * eps
+    try:
+        inter = ray_pyembree.RayMeshIntersector(mesh)
+    except Exception:                                     # noqa: BLE001
+        inter = mesh.ray
+    loc, ray_idx, _ = inter.intersects_location(origins, -nrm,
+                                                multiple_hits=False)
+    if len(loc) == 0:
         return None
-    first = np.argmax(ok, axis=1)[has]
-    return float(np.median(d[has, first]))
+    d = np.linalg.norm(loc - origins[ray_idx], axis=1)
+    d = d[d > 10 * eps]
+    if len(d) < 20:
+        return None
+    return float(np.median(d))
+
+
+def shell_thickness(meshes):
+    """2 * volume / area: the mean thickness of a closed shell. No rays."""
+    vol = float(sum(abs(m.volume) for m in meshes))
+    area = float(sum(m.area for m in meshes))
+    if area <= 0:
+        return None
+    return 2.0 * vol / area
 
 
 def run(src, dataset, limit):
@@ -100,15 +133,17 @@ def run(src, dataset, limit):
                 spacing = float(np.sqrt(2 * total_area / NUM_POINTS + 1e-4))
                 walls = [w for w in (wall_thickness(m, rng) for m in meshes)
                          if w is not None]
+                shell = shell_thickness(meshes)
                 del meshes
                 gc.collect()
-                if not walls:
+                if not walls or shell is None:
                     continue
                 wall = float(np.median(walls))
-                rows[lvl].append((100 * wall / size, 100 * spacing / size,
-                                  wall / spacing))
-                print("    " + tag.ljust(44) + " wall " +
-                      format(100 * wall / size, "6.3f") + "%  spacing " +
+                rows[lvl].append((100 * wall / size, 100 * shell / size,
+                                  100 * spacing / size, wall / spacing))
+                print("    " + tag.ljust(40) + " wall(ray) " +
+                      format(100 * wall / size, "6.2f") + "%  wall(2V/A) " +
+                      format(100 * shell / size, "6.2f") + "%  spacing " +
                       format(100 * spacing / size, "5.2f") + "%  cells " +
                       format(wall / spacing, "5.2f"), flush=True)
             except Exception as e:                        # noqa: BLE001
@@ -118,14 +153,15 @@ def run(src, dataset, limit):
     if not rows:
         return
     print("")
-    print("  level              n    wall %  spacing %  cells through wall")
-    print("  ---------------- ---  --------  ---------  ------------------")
+    print("  level              n  wall ray %  wall 2V/A %  spacing %  cells")
+    print("  ---------------- ---  ----------  -----------  ---------  -----")
     for lvl in sorted(rows):
         a = np.array(rows[lvl])
         print("  " + str(lvl).ljust(16) + " " + str(len(a)).rjust(3) + "  " +
-              format(np.median(a[:, 0]), "8.3f") + "  " +
-              format(np.median(a[:, 1]), "9.2f") + "  " +
-              format(np.median(a[:, 2]), "18.2f"))
+              format(np.median(a[:, 0]), "10.2f") + "  " +
+              format(np.median(a[:, 1]), "11.2f") + "  " +
+              format(np.median(a[:, 2]), "9.2f") + "  " +
+              format(np.median(a[:, 3]), "5.2f"))
     print("")
     print("  cells below 1: one sampled point straddles the whole wall, so the")
     print("  break face never gets a row of points of its own.")
