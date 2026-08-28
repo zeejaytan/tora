@@ -58,7 +58,7 @@ def load_meshes(grp):
     return out
 
 
-def sample_like_tora(meshes):
+def sample_like_tora(meshes, sampler="poisson"):
     """Verbatim from TORADataset._sample_points (dataset.py:236-256)."""
     areas = np.array([m.area for m in meshes])
     total_area = areas.sum()
@@ -68,10 +68,18 @@ def sample_like_tora(meshes):
     counts[int(np.argmax(counts))] += NUM_POINTS - sum(counts)
     pcs = []
     for mesh, cnt in zip(meshes, counts):
-        pts, _ = sample_points_poisson(mesh, cnt)
-        if len(pts) < cnt:
-            extra, _ = trimesh.sample.sample_surface(mesh, cnt - len(pts))
-            pts = np.vstack((pts, extra))
+        if sampler == "poisson":
+            pts, _ = sample_points_poisson(mesh, cnt)
+            if len(pts) < cnt:
+                extra, _ = trimesh.sample.sample_surface(mesh, cnt - len(pts))
+                pts = np.vstack((pts, extra))
+        else:
+            # pcu's Poisson-disk sampler is O(faces) in memory and was killed
+            # on 1M-face scans. Uniform area sampling has the same spacing
+            # SCALE but clumps more, so nearest-neighbour distances come out
+            # slightly smaller. Fine for comparing two sets, provided BOTH are
+            # sampled the same way -- which is the whole point of this script.
+            pts, _ = trimesh.sample.sample_surface(mesh, cnt)
         pcs.append(pts[:cnt])
     overlap_thr = float(np.sqrt(2 * total_area / NUM_POINTS + 1e-4))
     return pcs, overlap_thr
@@ -89,7 +97,7 @@ def joint_gap(parts):
     return float(np.mean(out))
 
 
-def run(src, dataset, limit):
+def run(src, dataset, limit, sampler):
     h = h5py.File(src, "r")
     dg = h[dataset]
     groups = defaultdict(dict)
@@ -109,7 +117,7 @@ def run(src, dataset, limit):
                 meshes = load_meshes(dg[tag])
                 if meshes is None or len(meshes) < 2:
                     continue
-                pcs, thr = sample_like_tora(meshes)
+                pcs, thr = sample_like_tora(meshes, sampler)
                 g = joint_gap(pcs)
                 size = object_size([np.asarray(m.vertices) for m in meshes])
                 rows[lvl].append((100 * g / size, 100 * thr / size, g / thr))
@@ -129,10 +137,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="/data/gpfs/projects/punim2657/TORA")
     ap.add_argument("--limit", type=int, default=12)
+    ap.add_argument("--sampler", choices=["poisson", "uniform"],
+                    default="uniform")
     a = ap.parse_args()
     root = Path(a.root)
-    run(root / "dataset/bbad_vessels.hdf5", "bbad_vessels", a.limit)
-    run(root / "dataset/erosion_sweep.hdf5", "erosion_sweep", a.limit)
+    print(f"sampler: {a.sampler}")
+    run(root / "dataset/bbad_vessels.hdf5", "bbad_vessels", a.limit,
+        a.sampler)
+    run(root / "dataset/erosion_sweep.hdf5", "erosion_sweep", a.limit,
+        a.sampler)
     print("\n  gap / spacing is the number that matters. Below 1 the two faces")
     print("  sit inside one sampling cell: at the resolution the network is")
     print("  given, they are touching.")
