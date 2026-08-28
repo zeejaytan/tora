@@ -14,31 +14,46 @@ never gets a row of points to itself. That is a ratio, so measure it.
 Wall thickness is measured on the MESH, not on the sample, because the sample is
 the thing suspected of being too coarse to see it.
 
-CORRECTED. The first version of this took each vertex, looked at its 64 nearest
-neighbours and took the first one whose normal opposed it. That was wrong and it
-returned confident, plausible numbers: the mesh has ~0.2% of object between
-vertices and the wall is several percent thick, so 64 neighbours never reach the
-far face at all. What it actually found was local creases. It read walls of 0.27%
-on objects whose volume-to-area ratio says 4%.
+TWO CORRECTIONS ARE BAKED INTO THIS FILE. Both were caught by cross-checking two
+routes to the same number against each other, which is why both routes are still
+reported.
 
-The honest instrument is a ray. From a surface point, fire along -normal into the
-solid and take the first face you hit; that distance IS the wall. These meshes are
-watertight (checked: euler 2 on the scans), so the ray has something to hit.
+  1. The first version took each vertex, looked at its 64 nearest neighbours and
+     took the first one whose normal opposed it. Wrong, and it returned
+     confident, plausible numbers: the mesh has ~0.2% of object between vertices
+     and the wall is several percent thick, so 64 neighbours never reach the far
+     face at all. It was measuring local creases, and read walls of 0.27% on
+     objects whose volume-to-area ratio says 4%.
+
+  2. The second version cast rays, but approximately -- marching inward and
+     stopping at the first FACE CENTROID that came within a step. On the coarse
+     training meshes a triangle's centroid can sit far from where the ray
+     actually crosses it, so true hits were missed and later, wrong surfaces
+     were taken instead. It read 6.84% against 2.10% from volume-over-area: a
+     factor of 3.3, which this file's own rule says means neither is believable.
+
+What is measured now:
+
+  wall (ray)   exact Moller-Trumbore ray-triangle intersection. From a point on
+               the surface, fire along -normal into the solid; the first
+               triangle actually crossed is the far face of the wall, and that
+               distance IS the wall. No approximation, so no centroid-offset
+               error. Candidate triangles are gathered with a KD-tree march;
+               only the candidate GATHERING is approximate, and it is
+               deliberately generous.
+
+  wall (2V/A)  twice volume over area -- the mean thickness of a closed shell.
+               But a fragment is not a closed shell: it also has BREAK faces,
+               and counting those in the denominator makes the wall look
+               thinner than it is. The break faces are removed first, using
+               TORA's own overlap rule, so this is 2V / (A - A_break).
+
+Ray origins are restricted the same way. A ray fired from a break face travels
+ALONG the break and returns the width of the fragment, not the wall.
 
 The env has neither embree nor rtree, so trimesh cannot cast rays here, and
 installing into the training environment for a diagnostic is not worth the risk
-of disturbing it. The ray is therefore marched by hand: step inward one mean
-face-edge at a time and stop at the first step whose nearest face centroid is
-both within a step and facing back at us. Same measurement, no new dependency,
-and its resolution is one face edge -- which is stated rather than hidden. Two
-independent estimates are reported so a repeat of the same mistake is visible:
-
-  wall (ray)   median first-hit distance, over area-weighted surface samples
-  wall (2V/A)  twice volume over area -- the mean thickness of a closed shell,
-               a global figure that needs no ray casting
-
-They measure the same thing by different routes. If they disagree by more than
-about a factor of two, neither should be believed.
+of disturbing the thing under investigation. Hence the hand-rolled caster.
 
 Reported per level, all as % of object size:
   spacing     TORA's own point spacing, sqrt(2 * area / 5000)
@@ -63,22 +78,37 @@ from compare_wear_severity import object_size, split_tag
 from measure_gap_as_network_sees import load_meshes
 
 NUM_POINTS = 5000
-MAX_V = 60000          # vertices sampled per fragment for the thickness probe
-OPPOSED = -0.7         # dot product below which two normals count as opposed
+PROBE_PTS = 20000      # points per fragment used to decide which faces are break
+N_RAYS = 900           # ray origins per fragment
+K_CAND = 8             # candidate triangles gathered per march step
+RAY_CHUNK = 100        # rays intersected at once, to bound memory
+FACING_BACK = -0.3     # dot(ray normal, hit normal) below this = far wall
 
 
-def wall_thickness(mesh, rng, n_rays=1500, max_steps=600):
-    """March inward from the surface and stop at the first face looking back.
+def _moller_trumbore(orig, direc, tri):
+    """Exact ray-triangle intersection, vectorised. Returns (t, hit)."""
+    e1 = tri[:, 1] - tri[:, 0]
+    e2 = tri[:, 2] - tri[:, 0]
+    pv = np.cross(direc, e2)
+    det = np.einsum("ij,ij->i", e1, pv)
+    ok = np.abs(det) > 1e-14
+    inv = np.zeros_like(det)
+    np.divide(1.0, det, out=inv, where=ok)
+    tv = orig - tri[:, 0]
+    u = np.einsum("ij,ij->i", tv, pv) * inv
+    qv = np.cross(tv, e1)
+    v = np.einsum("ij,ij->i", direc, qv) * inv
+    t = np.einsum("ij,ij->i", e2, qv) * inv
+    hit = ok & (u >= -1e-9) & (v >= -1e-9) & (u + v <= 1 + 1e-9)
+    return t, hit
 
-    Origins are area-weighted surface samples, not vertices, so a densely
-    tessellated patch cannot dominate. Points that land on a FRACTURE face fire
-    along the break rather than through the wall and return the length of the
-    fragment; those are long, and the median is taken precisely so they cannot
-    drag the answer.
 
-    Resolution is one mean face edge: on the training meshes about 0.7% of
-    object, on the scans about 0.11%. Both are far below the walls being
-    measured, which is the property the previous version did not have.
+def wall_thickness(mesh, rng, origin_faces=None):
+    """Median distance from the surface to the far face of the wall.
+
+    `origin_faces` is a boolean mask over faces saying which may be used as ray
+    origins; break faces are excluded by the caller because a ray fired along a
+    break returns the fragment's width instead of its wall.
     """
     nf = len(mesh.faces)
     if nf < 50:
@@ -87,34 +117,82 @@ def wall_thickness(mesh, rng, n_rays=1500, max_steps=600):
     step = float(np.sqrt(mesh.area / nf))
     if step <= 0:
         return None
-    nsteps = int(min(max_steps, max(20, (0.5 * size) / step)))
-    n_rays = int(min(n_rays, max(200, nf // 4)))
+    nsteps = int(min(500, max(20, (0.6 * size) / step)))
 
     cent = np.asarray(mesh.triangles_center)
     fn = np.asarray(mesh.face_normals)
+    tris = np.asarray(mesh.triangles)
     tree = cKDTree(cent)
 
-    pts, fidx = trimesh.sample.sample_surface(mesh, n_rays)
-    nrm = fn[fidx]
-    ts = np.arange(1, nsteps + 1, dtype=np.float64) * step
-    probe = pts[:, None, :] - nrm[:, None, :] * ts[None, :, None]
-    d, idx = tree.query(probe.reshape(-1, 3), workers=-1)
-    d = d.reshape(n_rays, nsteps)
-    idx = idx.reshape(n_rays, nsteps)
-
-    facing_back = np.einsum("ij,ikj->ik", nrm, fn[idx]) < -0.5
-    hit = (d < 1.2 * step) & facing_back
-    hit[:, :2] = False                 # the face we started on
-    has = hit.any(axis=1)
-    if has.sum() < 20:
+    # area-weighted origins, so a densely tessellated patch cannot dominate
+    weights = np.asarray(mesh.area_faces).astype(np.float64)
+    if origin_faces is not None:
+        weights = np.where(origin_faces, weights, 0.0)
+    if weights.sum() <= 0:
         return None
-    return float(np.median(ts[np.argmax(hit, axis=1)[has]]))
+    weights /= weights.sum()
+    n_rays = int(min(N_RAYS, max(200, nf // 4)))
+    src = rng.choice(nf, size=n_rays, p=weights)
+    bary = rng.dirichlet((1.0, 1.0, 1.0), size=n_rays)
+    pts = np.einsum("ij,ijk->ik", bary, tris[src])
+    nrm = fn[src]
+
+    ts = np.arange(1, nsteps + 1, dtype=np.float64) * step
+    eps = 1e-5 * size
+    out = []
+    for a in range(0, n_rays, RAY_CHUNK):
+        b = min(a + RAY_CHUNK, n_rays)
+        o, d, s = pts[a:b], -nrm[a:b], src[a:b]
+        m = len(o)
+        probe = o[:, None, :] + d[:, None, :] * ts[None, :, None]
+        _, cand = tree.query(probe.reshape(-1, 3), k=K_CAND, workers=-1)
+        cand = cand.reshape(m, -1)
+        ray = np.repeat(np.arange(m), cand.shape[1])
+        flat = cand.reshape(-1)
+        t, hit = _moller_trumbore(o[ray], d[ray], tris[flat])
+        hit &= (t > eps) & (flat != s[ray])
+        hit &= np.einsum("ij,ij->i", nrm[a:b][ray], fn[flat]) < FACING_BACK
+        best = np.full(m, np.inf)
+        np.minimum.at(best, ray, np.where(hit, t, np.inf))
+        out.append(best)
+    best = np.concatenate(out)
+    best = best[np.isfinite(best)]
+    if len(best) < 20:
+        return None
+    return float(np.median(best))
 
 
-def shell_thickness(meshes):
-    """2 * volume / area: the mean thickness of a closed shell. No rays."""
+def break_faces(meshes, thr):
+    """Which faces of each fragment lie on a break, by TORA's own overlap rule.
+
+    A face is a break face if its centroid sits within one sampling cell of
+    another fragment's surface -- `has_contact = distances <= overlap_threshold`
+    from point_cloud_encoder.py, applied to faces instead of sampled points.
+    """
+    clouds = [np.asarray(trimesh.sample.sample_surface(m, PROBE_PTS)[0])
+              for m in meshes]
+    trees = [cKDTree(c) for c in clouds]
+    masks = []
+    for i, m in enumerate(meshes):
+        cent = np.asarray(m.triangles_center)
+        best = np.full(len(cent), np.inf)
+        for j, t in enumerate(trees):
+            if j != i:
+                best = np.minimum(best, t.query(cent, workers=-1)[0])
+        masks.append(best <= thr)
+    return masks
+
+
+def shell_thickness(meshes, masks):
+    """2V / (A - A_break): mean wall thickness of the shell, break faces removed.
+
+    Plain 2V/A treats the break as if it were wall and reads far too thin.
+    """
     vol = float(sum(abs(m.volume) for m in meshes))
-    area = float(sum(m.area for m in meshes))
+    area = 0.0
+    for m, brk in zip(meshes, masks):
+        af = np.asarray(m.area_faces)
+        area += float(af[~brk].sum())
     if area <= 0:
         return None
     return 2.0 * vol / area
@@ -151,16 +229,20 @@ def run(src, dataset, limit):
                 size = object_size([np.asarray(m.vertices) for m in meshes])
                 total_area = float(sum(m.area for m in meshes))
                 spacing = float(np.sqrt(2 * total_area / NUM_POINTS + 1e-4))
-                walls = [w for w in (wall_thickness(m, rng) for m in meshes)
+                masks = break_faces(meshes, spacing)
+                walls = [w for w in (wall_thickness(m, rng, ~brk)
+                                     for m, brk in zip(meshes, masks))
                          if w is not None]
-                shell = shell_thickness(meshes)
-                del meshes
+                shell = shell_thickness(meshes, masks)
+                brk_pct = 100.0 * float(np.mean([m.mean() for m in masks]))
+                del meshes, masks
                 gc.collect()
                 if not walls or shell is None:
                     continue
                 wall = float(np.median(walls))
                 rows[lvl].append((100 * wall / size, 100 * shell / size,
-                                  100 * spacing / size, wall / spacing))
+                                  100 * spacing / size, wall / spacing,
+                                  brk_pct))
                 print("    " + tag.ljust(40) + " wall(ray) " +
                       format(100 * wall / size, "6.2f") + "%  wall(2V/A) " +
                       format(100 * shell / size, "6.2f") + "%  spacing " +
@@ -173,15 +255,23 @@ def run(src, dataset, limit):
     if not rows:
         return
     print("")
-    print("  level              n  wall ray %  wall 2V/A %  spacing %  cells")
-    print("  ---------------- ---  ----------  -----------  ---------  -----")
+    print("  level              n  wall ray %  wall 2V/A %  spacing %  cells"
+          "  break faces %")
+    print("  ---------------- ---  ----------  -----------  ---------  -----"
+          "  -------------")
     for lvl in sorted(rows):
         a = np.array(rows[lvl])
         print("  " + str(lvl).ljust(16) + " " + str(len(a)).rjust(3) + "  " +
               format(np.median(a[:, 0]), "10.2f") + "  " +
               format(np.median(a[:, 1]), "11.2f") + "  " +
               format(np.median(a[:, 2]), "9.2f") + "  " +
-              format(np.median(a[:, 3]), "5.2f"))
+              format(np.median(a[:, 3]), "5.2f") + "  " +
+              format(np.median(a[:, 4]), "13.1f"))
+    print("")
+    print("  The two wall columns are independent routes to the same number.")
+    print("  If they disagree by more than about a factor of two, neither")
+    print("  should be believed -- that is how the last two versions of this")
+    print("  script were caught.")
     print("")
     print("  cells below 1: one sampled point straddles the whole wall, so the")
     print("  break face never gets a row of points of its own.")
