@@ -152,9 +152,10 @@ def wall_thickness(mesh, rng, origin_faces=None):
         t, hit = _moller_trumbore(o[ray], d[ray], tris[flat])
         hit &= (t > eps) & (flat != s[ray])
         hit &= np.einsum("ij,ij->i", nrm[a:b][ray], fn[flat]) < FACING_BACK
-        best = np.full(m, np.inf)
-        np.minimum.at(best, ray, np.where(hit, t, np.inf))
-        out.append(best)
+        # candidates are ray-major with a fixed width, so the per-ray minimum
+        # is a reshape and a min. np.minimum.at does the same thing about two
+        # orders of magnitude slower and dominated the runtime.
+        out.append(np.where(hit, t, np.inf).reshape(m, -1).min(axis=1))
     best = np.concatenate(out)
     best = best[np.isfinite(best)]
     if len(best) < 20:
