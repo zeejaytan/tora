@@ -79,14 +79,13 @@ def run(src, dataset, limit):
                 rows[lvl].append((p10, p50, p90, sp))
             except Exception as e:                        # noqa: BLE001
                 print(f"  skip {obj}/{lvl}: {e}")
-    print(f"\n  {'level':<16} {'n':>3}  {'median gap %':>13}  {'p90/p10 of gap':>15}")
-    print(f"  {'-'*16} {'-'*3}  {'-'*13}  {'-'*15}")
+    print(f"\n  {'level':<16} {'n':>3}  {'p10':>8} {'p50':>8} {'p90':>8}   {'vtx spacing':>12}")
+    print(f"  {'-'*16} {'-'*3}  {'-'*8} {'-'*8} {'-'*8}   {'-'*12}")
     for lvl in sorted(rows):
-        m = np.array([r[0] for r in rows[lvl]])
-        r = np.array([r[1] for r in rows[lvl]])
-        fin = r[np.isfinite(r)]
-        rs = "inf (shared)" if len(fin) == 0 else f"{np.median(fin):.1f}x"
-        print(f"  {lvl:<16} {len(m):>3}  {np.median(m):>11.4f}    {rs:>15}")
+        a = np.array(rows[lvl])
+        print(f"  {lvl:<16} {len(a):>3}  {np.median(a[:,0]):>8.4f} "
+              f"{np.median(a[:,1]):>8.4f} {np.median(a[:,2]):>8.4f}"
+              f"   {np.median(a[:,3]):>12.4f}")
     h.close()
 
 
@@ -98,8 +97,9 @@ def main():
     root = Path(a.root)
     run(root / "dataset/bbad_vessels.hdf5", "bbad_vessels", a.limit)
     run(root / "dataset/erosion_sweep.hdf5", "erosion_sweep", a.limit)
-    print("\n  ~1x means the two faces are still congruent: a uniform retreat.")
-    print("  Large means the join is irregular and proximity alone is ambiguous.")
+    print("\n  All columns are % of object size; p10/p50/p90 are of the contact")
+    print("  band only. READ p10 AGAINST THE VERTEX SPACING: a p10 below the")
+    print("  spacing is not a gap, it is two surfaces still touching, sampled.")
 
 
 if __name__ == "__main__":
