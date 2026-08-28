@@ -23,7 +23,14 @@ on objects whose volume-to-area ratio says 4%.
 
 The honest instrument is a ray. From a surface point, fire along -normal into the
 solid and take the first face you hit; that distance IS the wall. These meshes are
-watertight (checked: euler 2 on the scans), so the ray has something to hit. Two
+watertight (checked: euler 2 on the scans), so the ray has something to hit.
+
+The env has neither embree nor rtree, so trimesh cannot cast rays here, and
+installing into the training environment for a diagnostic is not worth the risk
+of disturbing it. The ray is therefore marched by hand: step inward one mean
+face-edge at a time and stop at the first step whose nearest face centroid is
+both within a step and facing back at us. Same measurement, no new dependency,
+and its resolution is one face edge -- which is stated rather than hidden. Two
 independent estimates are reported so a repeat of the same mistake is visible:
 
   wall (ray)   median first-hit distance, over area-weighted surface samples
@@ -50,7 +57,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 import trimesh
-from trimesh.ray import ray_pyembree
+from scipy.spatial import cKDTree
 
 from compare_wear_severity import object_size, split_tag
 from measure_gap_as_network_sees import load_meshes
@@ -60,35 +67,48 @@ MAX_V = 60000          # vertices sampled per fragment for the thickness probe
 OPPOSED = -0.7         # dot product below which two normals count as opposed
 
 
-def wall_thickness(mesh, rng, n_rays=4000):
-    """First-hit distance along the inward normal: the wall, measured with a ray.
+def wall_thickness(mesh, rng, n_rays=1500, max_steps=600):
+    """March inward from the surface and stop at the first face looking back.
 
     Origins are area-weighted surface samples, not vertices, so a densely
     tessellated patch cannot dominate. Points that land on a FRACTURE face fire
     along the break rather than through the wall and return the length of the
     fragment; those are long, and the median is taken precisely so they cannot
     drag the answer.
+
+    Resolution is one mean face edge: on the training meshes about 0.7% of
+    object, on the scans about 0.11%. Both are far below the walls being
+    measured, which is the property the previous version did not have.
     """
-    if len(mesh.faces) < 20:
+    nf = len(mesh.faces)
+    if nf < 50:
         return None
-    n = min(n_rays, max(500, len(mesh.faces) // 4))
-    pts, fidx = trimesh.sample.sample_surface(mesh, n)
-    nrm = mesh.face_normals[fidx]
-    eps = 1e-6 * float(np.linalg.norm(mesh.extents))
-    origins = pts - nrm * eps
-    try:
-        inter = ray_pyembree.RayMeshIntersector(mesh)
-    except Exception:                                     # noqa: BLE001
-        inter = mesh.ray
-    loc, ray_idx, _ = inter.intersects_location(origins, -nrm,
-                                                multiple_hits=False)
-    if len(loc) == 0:
+    size = float(np.linalg.norm(mesh.extents))
+    step = float(np.sqrt(mesh.area / nf))
+    if step <= 0:
         return None
-    d = np.linalg.norm(loc - origins[ray_idx], axis=1)
-    d = d[d > 10 * eps]
-    if len(d) < 20:
+    nsteps = int(min(max_steps, max(20, (0.5 * size) / step)))
+    n_rays = int(min(n_rays, max(200, nf // 4)))
+
+    cent = np.asarray(mesh.triangles_center)
+    fn = np.asarray(mesh.face_normals)
+    tree = cKDTree(cent)
+
+    pts, fidx = trimesh.sample.sample_surface(mesh, n_rays)
+    nrm = fn[fidx]
+    ts = np.arange(1, nsteps + 1, dtype=np.float64) * step
+    probe = pts[:, None, :] - nrm[:, None, :] * ts[None, :, None]
+    d, idx = tree.query(probe.reshape(-1, 3), workers=-1)
+    d = d.reshape(n_rays, nsteps)
+    idx = idx.reshape(n_rays, nsteps)
+
+    facing_back = np.einsum("ij,ikj->ik", nrm, fn[idx]) < -0.5
+    hit = (d < 1.2 * step) & facing_back
+    hit[:, :2] = False                 # the face we started on
+    has = hit.any(axis=1)
+    if has.sum() < 20:
         return None
-    return float(np.median(d))
+    return float(np.median(ts[np.argmax(hit, axis=1)[has]]))
 
 
 def shell_thickness(meshes):
