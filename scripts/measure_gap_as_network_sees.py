@@ -29,6 +29,7 @@ approximating them.
 """
 
 import argparse
+import gc
 from collections import defaultdict
 from pathlib import Path
 
@@ -117,12 +118,20 @@ def run(src, dataset, limit, sampler):
                 meshes = load_meshes(dg[tag])
                 if meshes is None or len(meshes) < 2:
                     continue
-                pcs, thr = sample_like_tora(meshes, sampler)
-                g = joint_gap(pcs)
+                # The real scans carry ~1.1M vertices per object. Holding
+                # several at once got this killed on the login node with no
+                # message and no table -- which reads as "no data" rather than
+                # "ran out of memory". Free each one before the next.
                 size = object_size([np.asarray(m.vertices) for m in meshes])
+                pcs, thr = sample_like_tora(meshes, sampler)
+                del meshes
+                gc.collect()
+                g = joint_gap(pcs)
+                del pcs
                 rows[lvl].append((100 * g / size, 100 * thr / size, g / thr))
+                print(f"    {tag:44s} gap/spacing = {g / thr:.3f}", flush=True)
             except Exception as e:                        # noqa: BLE001
-                print(f"  skip {obj}/{lvl}: {e}")
+                print(f"  skip {obj}/{lvl}: {e}", flush=True)
     print(f"\n  {'level':<16} {'n':>3}  {'gap %':>8} {'TORA spacing %':>15}"
           f"  {'gap / spacing':>14}")
     print(f"  {'-'*16} {'-'*3}  {'-'*8} {'-'*15}  {'-'*14}")
@@ -137,15 +146,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="/data/gpfs/projects/punim2657/TORA")
     ap.add_argument("--limit", type=int, default=12)
+    ap.add_argument("--only", default=None,
+                    choices=["bbad_vessels", "erosion_sweep"])
     ap.add_argument("--sampler", choices=["poisson", "uniform"],
                     default="uniform")
     a = ap.parse_args()
     root = Path(a.root)
     print(f"sampler: {a.sampler}")
-    run(root / "dataset/bbad_vessels.hdf5", "bbad_vessels", a.limit,
-        a.sampler)
-    run(root / "dataset/erosion_sweep.hdf5", "erosion_sweep", a.limit,
-        a.sampler)
+    for name in ("bbad_vessels", "erosion_sweep"):
+        if a.only and a.only != name:
+            continue
+        run(root / f"dataset/{name}.hdf5", name, a.limit, a.sampler)
     print("\n  gap / spacing is the number that matters. Below 1 the two faces")
     print("  sit inside one sampling cell: at the resolution the network is")
     print("  given, they are touching.")
