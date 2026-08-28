@@ -6,23 +6,24 @@ surface at all?
 
 `measure_faces_as_network_sees.py` gave a number that needs looking at. TORA's
 own overlap rule flags ~43% of the 5000 points as "contact", but the median
-angle between a contact point's normal and its partner's is 89.7 degrees. Two
-faces pressed together point AWAY from each other -- 180 degrees. Ninety is what
-you get from a 50/50 mixture of 180 (across the fracture) and 0 (along the wall,
-which simply continues across the join). And it splits by vessel: bottles near
-160 degrees, bowls and vases near 87.
+angle between a contact point's normal and its partner's is about 90 degrees.
+Two faces pressed together point AWAY from each other -- 180 degrees. Ninety is
+what a 50/50 mixture of 180 (across the fracture) and 0 (along the wall, which
+simply continues across the join) produces, and the split confirms it: only
+~23% of contact points are across a fracture, ~18% are wall.
 
-The obvious suspect is wall thickness against sampling spacing, and that is a
-thing to look at, not to argue about. Each row is one object:
+So the picture has to resolve the wall, not the join. The frame is built from
+the contact points themselves: a break face is a long thin ribbon, so its
+directions of largest, middle and smallest spread are respectively ALONG the
+join, THROUGH the wall, and ACROSS the break. Plotting the middle against the
+smallest puts the wall thickness on the vertical axis and the break on the
+horizontal one -- the section a conservator would cut.
 
-  left    a thin slab cut through a join, MESH vertices, coloured by fragment.
-          This is the wall in cross-section: two lines with the fracture at
-          their end.
-  right   the same slab, but only what TORA receives -- its 5000-point sample,
-          drawn at true relative size, with the mesh behind it in grey.
-
-If the wall is thinner than the point spacing, the right panel cannot show a
-break face at all, whatever the left panel contains.
+  left    mesh vertices in the slab, coloured by fragment. The wall in section.
+  right   what TORA receives: its 5000-point sample, dots drawn at one sampling
+          cell across so the picture cannot flatter the resolution. Points whose
+          nearest partner on the other fragment faces the OPPOSITE way -- the
+          genuine fracture points -- are ringed in black.
 
 Usage:
   python scripts/render_break_face_sampling.py --out artifacts/break_face.png
@@ -36,12 +37,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import trimesh
 from scipy.spatial import cKDTree
 
 from measure_faces_as_network_sees import sample_like_tora
 from measure_gap_as_network_sees import load_meshes
-from compare_wear_severity import object_size, split_tag
+from compare_wear_severity import object_size
 
 ROOT = Path("/data/gpfs/projects/punim2657/TORA")
 
@@ -49,22 +49,23 @@ ROOT = Path("/data/gpfs/projects/punim2657/TORA")
 # plus a real scan, so the comparison is not resting on a single case.
 CASES = [
     ("dataset/bbad_vessels.hdf5", "bbad_vessels", "Bottle__81bbf3134d1c",
-     "fresh", "TRAIN  bottle, fresh   (mated 165 deg)"),
+     "__fresh", "TRAIN  bottle, fresh   (mates at 165 deg)"),
     ("dataset/bbad_vessels.hdf5", "bbad_vessels", "Vase__7545c5b77008",
-     "fresh", "TRAIN  vase, fresh   (mated 86 deg)"),
+     "__fresh", "TRAIN  vase, fresh   (mates at 86 deg)"),
     ("dataset/bbad_vessels.hdf5", "bbad_vessels", "Vase__7545c5b77008",
-     "worn_moderate", "TRAIN  vase, worn_moderate"),
+     "__worn_moderate", "TRAIN  vase, worn_moderate"),
     ("dataset/erosion_sweep.hdf5", "erosion_sweep", None,
-     "000", "TEST  real scan, unworn"),
+     "_e000", "TEST  real scan, unworn"),
 ]
 
+MAX_V = 250000          # cap on mesh vertices used; the scans carry ~1.1M
 
-def find_tag(dg, obj, lvl):
+
+def find_tag(dg, obj, lvl_suffix):
     for tag in sorted(dg.keys()):
-        o, l = split_tag(tag)
-        if l != lvl:
+        if not tag.endswith(lvl_suffix):
             continue
-        if obj is None or o == obj:
+        if obj is None or tag.startswith(obj):
             return tag
     return None
 
@@ -78,40 +79,43 @@ def busiest_join(pcs, thr):
             n = int((d <= thr).sum())
             if n > n_best:
                 best, n_best = (i, j), n
-    return best
+    return best, n_best
 
 
-def slab_frame(a, b):
-    """A 2D frame that looks ALONG the join, so the wall shows its thickness.
+def section_frame(a, b, thr):
+    """A frame that cuts the wall in section, built from the contact ribbon.
 
-    x is the direction between the two fragment centroids (across the break),
-    y is the thinnest direction of the contact region (through the wall), and
-    the slab is cut normal to the remaining axis.
+    A break face is long along the join, wall-thick through the wall, and
+    near-zero across the break. Take the contact points of both fragments and
+    order their principal directions by spread: v0 along the join (slab axis),
+    v1 through the wall (vertical), v2 across the break (horizontal).
     """
-    c = np.vstack((a, b))
+    da, _ = cKDTree(b).query(a, k=1)
+    db, _ = cKDTree(a).query(b, k=1)
+    band = 4.0 * thr
+    c = np.vstack((a[da <= band], b[db <= band]))
+    if len(c) < 20:
+        c = np.vstack((a, b))
     centre = c.mean(axis=0)
-    x = b.mean(axis=0) - a.mean(axis=0)
-    x /= np.linalg.norm(x) + 1e-12
-    rel = c - centre
-    rel = rel - np.outer(rel @ x, x)
-    _, _, vt = np.linalg.svd(rel, full_matrices=False)
-    y = vt[-1]                       # least spread once the break axis is gone
-    y -= (y @ x) * x
-    y /= np.linalg.norm(y) + 1e-12
-    z = np.cross(x, y)
-    return centre, np.column_stack((x, y, z))
+    _, _, vt = np.linalg.svd(c - centre, full_matrices=False)
+    v0, v1, v2 = vt[0], vt[1], vt[2]
+    # columns: horizontal = across break, vertical = through wall, slab = along
+    return centre, np.column_stack((v2, v1, v0))
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=str(ROOT))
     ap.add_argument("--out", default="artifacts/break_face.png")
-    ap.add_argument("--slab", type=float, default=0.03,
+    ap.add_argument("--slab", type=float, default=0.02,
                     help="slab half-thickness, fraction of object size")
+    ap.add_argument("--span", type=float, default=4.0,
+                    help="half-width of the view, % of object size")
     a = ap.parse_args()
     root = Path(a.root)
+    rng = np.random.default_rng(0)
 
-    fig, axes = plt.subplots(len(CASES), 2, figsize=(13, 3.4 * len(CASES)))
+    fig, axes = plt.subplots(len(CASES), 2, figsize=(13, 3.6 * len(CASES)))
     for row, (rel, dsname, obj, lvl, title) in enumerate(CASES):
         axL, axR = axes[row]
         path = root / rel
@@ -122,60 +126,79 @@ def main() -> None:
             dg = h[dsname]
             tag = find_tag(dg, obj, lvl)
             if tag is None:
-                axL.set_title("no tag for " + str(obj) + "/" + lvl)
+                axL.set_title("no tag for " + str(obj) + lvl)
                 continue
             meshes = load_meshes(dg[tag])
 
-        size = object_size([np.asarray(m.vertices) for m in meshes])
         verts = [np.asarray(m.vertices) for m in meshes]
-        sampler = "poisson" if len(verts[0]) < 200000 else "uniform"
+        size = object_size(verts)
+        sampler = "poisson" if max(len(v) for v in verts) < 200000 else "uniform"
         pcs, pns, thr = sample_like_tora(meshes, sampler)
         del meshes
 
-        i, j = busiest_join(pcs, thr)
-        centre, F = slab_frame(pcs[i], pcs[j])
+        (i, j), n_contact = busiest_join(pcs, thr)
+        vi, vj = verts[i], verts[j]
+        if len(vi) > MAX_V:
+            vi = vi[rng.choice(len(vi), MAX_V, replace=False)]
+        if len(vj) > MAX_V:
+            vj = vj[rng.choice(len(vj), MAX_V, replace=False)]
+        centre, F = section_frame(pcs[i], pcs[j], thr)
         half = a.slab * size
 
         def cut(p):
             q = (p - centre) @ F
-            return q[np.abs(q[:, 2]) <= half][:, :2] / size * 100.0
+            keep = np.abs(q[:, 2]) <= half
+            return q[keep][:, :2] / size * 100.0, keep
 
-        mi, mj = cut(verts[i]), cut(verts[j])
-        si, sj = cut(pcs[i]), cut(pcs[j])
+        mi, _ = cut(vi)
+        mj, _ = cut(vj)
+        si, ki = cut(pcs[i])
+        sj, kj = cut(pcs[j])
 
-        # A point marker sized to the real sampling spacing, so the picture
-        # cannot flatter the resolution: one dot = one sampling cell.
+        # which sampled points sit across a real fracture (normals opposed)
+        def opposed(idx_self, idx_other, keep):
+            d, nn = cKDTree(pcs[idx_other]).query(pcs[idx_self], k=1)
+            ang = np.degrees(np.arccos(np.clip(
+                np.sum(pns[idx_self] * pns[idx_other][nn], axis=1), -1, 1)))
+            return ((d <= thr) & (ang > 135))[keep]
+
+        oi = opposed(i, j, ki)
+        oj = opposed(j, i, kj)
+
         spacing_pct = 100.0 * thr / size
+        # one dot = one sampling cell across, in data units
+        dot_pts = (spacing_pct / (2.0 * a.span)) * (5.6 * 72)
+        dot_s = max(4.0, dot_pts ** 2 * 0.25)
 
-        for ax, show_mesh in ((axL, True), (axR, False)):
-            if show_mesh:
-                ax.scatter(mi[:, 0], mi[:, 1], s=0.6, c="#1f77b4", lw=0)
-                ax.scatter(mj[:, 0], mj[:, 1], s=0.6, c="#d62728", lw=0)
-            else:
-                ax.scatter(np.r_[mi[:, 0], mj[:, 0]],
-                           np.r_[mi[:, 1], mj[:, 1]],
-                           s=0.4, c="#cccccc", lw=0, zorder=1)
-                ax.scatter(si[:, 0], si[:, 1], s=95, c="#1f77b4",
-                           alpha=0.55, lw=0, zorder=2)
-                ax.scatter(sj[:, 0], sj[:, 1], s=95, c="#d62728",
-                           alpha=0.55, lw=0, zorder=2)
-            ax.set_aspect("equal")
-            ax.set_xlabel("% of object size")
+        axL.scatter(mi[:, 0], mi[:, 1], s=0.5, c="#1f77b4", lw=0)
+        axL.scatter(mj[:, 0], mj[:, 1], s=0.5, c="#d62728", lw=0)
 
-        allpts = np.vstack((mi, mj)) if len(mi) and len(mj) else np.zeros((1, 2))
-        cx, cy = allpts[:, 0].mean(), allpts[:, 1].mean()
-        span = 6.0
+        axR.scatter(np.r_[mi[:, 0], mj[:, 0]], np.r_[mi[:, 1], mj[:, 1]],
+                    s=0.4, c="#dddddd", lw=0, zorder=1)
+        for s, o, col in ((si, oi, "#1f77b4"), (sj, oj, "#d62728")):
+            if len(s) == 0:
+                continue
+            axR.scatter(s[~o, 0], s[~o, 1], s=dot_s, c=col, alpha=0.45,
+                        lw=0, zorder=2)
+            axR.scatter(s[o, 0], s[o, 1], s=dot_s, c=col, alpha=0.85,
+                        lw=1.1, edgecolors="k", zorder=3)
+
         for ax in (axL, axR):
-            ax.set_xlim(cx - span, cx + span)
-            ax.set_ylim(cy - span, cy + span)
+            ax.set_aspect("equal")
+            ax.set_xlim(-a.span, a.span)
+            ax.set_ylim(-a.span, a.span)
+            ax.set_xlabel("across the break, % of object")
+        axL.set_ylabel("through the wall, %")
         axL.set_title(title + "\nmesh vertices, coloured by fragment",
                       fontsize=9)
         axR.set_title("what TORA receives: 5000 pts, spacing "
-                      + format(spacing_pct, ".2f") + "% of object",
-                      fontsize=9)
+                      + format(spacing_pct, ".2f") + "% of object; "
+                      + str(int(oi.sum() + oj.sum()))
+                      + " across the fracture in this slab", fontsize=9)
 
     fig.suptitle("The wall in cross-section, and the sampling TORA gets. "
-                 "Dot size is one sampling cell.", fontsize=12)
+                 "One dot = one sampling cell. Ringed = across a fracture.",
+                 fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(a.out, dpi=150)
