@@ -141,6 +141,25 @@ def gap_of(pieces, wins, size):
     return float(np.mean(gaps)) if gaps else float("nan")
 
 
+def gap_percentiles(pieces, wins, size):
+    """p10 / p50 / p90 of the join separation, in % of object.
+
+    The mean alone cannot be compared with the real scans. Their contact band
+    is heterogeneous -- p10 0.167, p50 0.640, p90 3.492 % of object on
+    erosion_sweep e000 -- and a uniform retreat moves all three together. Which
+    percentile a dose matches, and which it misses, is the whole question about
+    whether uniform recession can imitate a real join at all.
+    """
+    d = []
+    for i, ai, j, bj in wins:
+        dd, _ = cKDTree(pieces[j][0][bj]).query(pieces[i][0][ai], workers=-1)
+        d.append(dd)
+    if not d:
+        return (float("nan"),) * 3
+    d = np.concatenate(d) / size * 100
+    return tuple(float(v) for v in np.percentile(d, [10, 50, 90]))
+
+
 def frames_of(pieces, wins, k=24):
     """Local normals fitted ONCE on the fresh band, reused for every dose."""
     frames = []
@@ -190,8 +209,10 @@ def run(name, pieces, render_to=None):
     frames = frames_of(pieces, wins)
     g0 = gap_of(pieces, wins, size)
     c0 = curve_of(pieces, wins, frames, size)
+    q0 = gap_percentiles(pieces, wins, size)
     print(f"  {name:<22s} {'fresh':<9s} {g0:>7.3f}% "
-          + "".join(f"{v:>9.3f}" for v in c0))
+          + "".join(f"{v:>9.3f}" for v in c0)
+          + "   p10/50/90 " + "/".join(f"{v:.3f}" for v in q0))
 
     keep = None
     for dose in DOSES:
@@ -205,9 +226,11 @@ def run(name, pieces, render_to=None):
         print(f"  {'':<22s} {100 * dose:<8.2f}% {gw:>7.3f}% "
               + "".join(f"{v:>9.3f}" for v in cw)
               + "   curve " + " ".join(f"{d:+.1f}%" for d in dc)
+              + "   p10/50/90 "
+              + "/".join(f"{v:.3f}" for v in gap_percentiles(worn, wins, size))
               + f"   gap {100 * (gw / g0 - 1):+.1f}%"
               + f"   retreat {m:.4f}% spread {spread:.2f}")
-        if dose == DOSES[1]:
+        if dose == DOSES[len(DOSES) // 2]:
             keep = (name, pieces, worn, wins, frames, size, ret)
 
     if render_to is not None and keep is not None:
@@ -316,7 +339,13 @@ def main() -> None:
     ap.add_argument("--fine", default="")
     ap.add_argument("--fine-dataset", default="real_heldout_norm")
     ap.add_argument("--render", default="")
+    ap.add_argument("--doses", default="",
+                    help="comma-separated fractions of object, "
+                         "e.g. 0.001,0.002,0.004")
     args = ap.parse_args()
+    if args.doses:
+        global DOSES
+        DOSES = [float(x) for x in args.doses.split(",") if x.strip()]
 
     print("Uniform recession should open the joins and leave the curve alone.")
     print()
