@@ -130,9 +130,16 @@ a known correct answer, against our one Juglet. Specifically:
 - Compare the *shape* of that signature with what our blunting produces.
 
 **Ignore the painted surface entirely.** Use geometry only, and take the
-fracture ribbon around each plaque's perimeter — which is the thin-slab case,
-the same geometry as an eggshell sherd, and the case where our own blunting is
-weakest at the edges.
+fracture ribbon around each plaque's perimeter.
+
+**CORRECTED 2026-08-31 (job 29766242).** This section said the perimeter was
+"the thin-slab case, the same geometry as an eggshell sherd". Measured over 62
+fragments: median 23.5 mm thick against an 85 mm span, aspect 3.34, and NOT ONE
+of the 62 falls under one TORA sampling cell. They are thick plaques, and their
+fracture is better resolved than our own training vessels' (0.78 cells). See
+`REPAIR_AS_TRAINING_SOURCE.md`. The same paragraph's claim that "the painted
+surface does much of the matching work" is also wrong: E-M3RF's colour ablation
+costs only 2.2 points (35.91 -> 33.71 part accuracy).
 
 A `lora_repair` adapter is worth trying afterwards, but the measurement is the
 point and comes first.
