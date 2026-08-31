@@ -81,9 +81,35 @@ def draw(ax, mesh, title):
     segs = trimesh.intersections.mesh_plane(mesh, plane_normal=normal,
                                             plane_origin=origin)
     keep = [i for i in range(3) if i != axis]
+
+    # Shade the MEASURED QUANTITY ITSELF, not a proxy for it: every red bar is
+    # one scanline's even-odd interior, exactly the length the fill number sums.
+    # An outline-only drawing cannot answer this -- the first version of this
+    # figure confirmed the two ends of the ladder and left the middle, where the
+    # solid/hollow threshold actually sits, unreadable.
+    a2 = segs[:, 0, :][:, keep]
+    b2 = segs[:, 1, :][:, keep]
+    y0, y1 = a2[:, 1], b2[:, 1]
+    lo, hi = np.minimum(y0, y1), np.maximum(y0, y1)
+    ys = np.linspace(float(lo.min()), float(hi.max()), 242)[1:-1]
+    for y in ys:
+        m = (lo <= y) & (hi > y)
+        if m.sum() < 2:
+            continue
+        ay, by = y0[m], y1[m]
+        ax_, bx_ = a2[m, 0], b2[m, 0]
+        t = (y - ay) / np.where(np.abs(by - ay) < 1e-30, 1e-30, by - ay)
+        xs = np.sort(ax_ + t * (bx_ - ax_))
+        if len(xs) % 2:
+            continue
+        for x0, x1 in zip(xs[0::2], xs[1::2]):
+            ax.plot([100 * x0 / size, 100 * x1 / size],
+                    [100 * y / size, 100 * y / size],
+                    lw=0.8, color="#e8b4b8", solid_capstyle="butt", zorder=0)
+
     for s in segs:
         p = s[:, keep] * 100.0 / size
-        ax.plot(p[:, 0], p[:, 1], lw=0.7, color="#1f77b4")
+        ax.plot(p[:, 0], p[:, 1], lw=0.7, color="#1f77b4", zorder=2)
     ax.set_aspect("equal")
     ax.set_title(title, fontsize=8)
     ax.tick_params(labelsize=6)
@@ -120,8 +146,8 @@ def main():
 
     fig.suptitle("Does 'fill' mean what the screen's labels say?  Eight objects "
                  "across the measured range, sections on the median cut.\n"
-                 "Left = the screen calls it a thin shell.  Right = the screen "
-                 "calls it solid.  The eye decides whether it is right.",
+                 "Pink = what the fill number actually sums: each scanline's "
+                 "even-odd interior. Left thin shell, right solid.",
                  fontsize=11)
     fig.tight_layout()
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
