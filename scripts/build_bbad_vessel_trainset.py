@@ -222,7 +222,14 @@ def main() -> None:
                     help="artifacts/corpus_screen.csv; adds *_screened splits")
     ap.add_argument("--screen-cells", type=float, default=1.0,
                     help="min cells through the wall at TORA's 5000 points")
-    ap.add_argument("--screen-fill", type=float, default=0.5,
+    # 0.65 IS THE CONSERVATOR'S LINE, PLACED IN A GAP IN THE DATA (2026-08-31).
+    # Shown the two middle objects as meshes, they ruled the Vase at fill 0.549
+    # still a vessel -- it has a real bore -- and the Bowl at 0.747 not one, it
+    # is a solid lump with a shallow dish scooped into the top. The corpus is
+    # bimodal and only 30 of 1053 instances (2.8%) lie between those two, so
+    # the cut is put in the middle of that empty band where it is least
+    # sensitive: 0.55 keeps 214, 0.65 keeps 217, 0.75 keeps 227.
+    ap.add_argument("--screen-fill", type=float, default=0.65,
                     help="max section fill; >=0.8 is a solid lump, not a vessel")
     args = ap.parse_args()
 
