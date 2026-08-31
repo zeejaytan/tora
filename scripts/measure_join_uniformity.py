@@ -47,7 +47,7 @@ def contact_band(parts, frac=0.25, max_pts=30000, seed=0):
     return np.concatenate(out)
 
 
-def run(src, dataset, limit):
+def run(src, dataset, limit, only=""):
     h = h5py.File(src, "r")
     dg = h[dataset]
     groups = defaultdict(dict)
@@ -56,6 +56,12 @@ def run(src, dataset, limit):
         if obj is not None:
             groups[obj].setdefault(lvl, tag)
     usable = sorted(o for o, v in groups.items() if len(v) > 1)
+    # SAME OBJECTS ON BOTH SIDES, OR THE COMPARISON IS NOT ONE. A rebuild
+    # measured on six solid Bottles against a baseline measured on twelve
+    # mixed objects cannot tell a regression from a different sample.
+    if only:
+        want = [w for w in only.split(",") if w]
+        usable = [o for o in usable if any(w in o for w in want)]
     if limit and len(usable) > limit:
         usable = usable[::max(1, len(usable) // limit)][:limit]
 
@@ -99,11 +105,13 @@ def main():
     # unnoticed. Naming a file here ADDS it; the two references always run.
     ap.add_argument("--src", default="", help="extra hdf5 to measure first")
     ap.add_argument("--dataset", default="bbad_vessels")
+    ap.add_argument("--only", default="",
+                    help="comma-separated substrings; measure only these objects")
     a = ap.parse_args()
     root = Path(a.root)
     if a.src:
-        run(Path(a.src), a.dataset, a.limit)
-    run(root / "dataset/bbad_vessels.hdf5", "bbad_vessels", a.limit)
+        run(Path(a.src), a.dataset, a.limit, a.only)
+    run(root / "dataset/bbad_vessels.hdf5", "bbad_vessels", a.limit, a.only)
     run(root / "dataset/erosion_sweep.hdf5", "erosion_sweep", a.limit)
     print("\n  All columns are % of object size; p10/p50/p90 are of the contact")
     print("  band only. READ p10 AGAINST THE VERTEX SPACING: a p10 below the")
