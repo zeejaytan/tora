@@ -61,6 +61,33 @@ objects, median **0.95–3.10% of object** — our real pottery sits at 0.22–2
 And slices cut through each object show thin outlines with empty interiors, not
 filled sections.
 
+**CORRECTED 2026-08-31 (jobs 29765705, 29768556).** That 72-of-72 is wrong, and
+the instrument that produced it was already known to be broken: `_wall_estimate`
+has a search reach of about 2% of object, so it reports a wall of roughly its own
+reach on anything — including a solid. Both `validate_wall_estimator.py` and
+`check_wall_estimator_noise.py` flagged it and neither conclusion was written
+back here. On **1053** objects screened with an even-odd scanline fill (checked
+against a solid sphere at 1.000 and two shells at 0.097/0.277, and confirmed
+object-by-object in `artifacts/fill_ladder.png`, where each scanline's measured
+interior is shaded):
+
+| fill | what it is | n | wall by 2V/A | mean cells |
+|---|---|---|---|---|
+| <0.25 | thin shell | 394 | 2.75% | 0.61 |
+| 0.25–0.5 | thick shell | 212 | 5.41% | 1.19 |
+| 0.5–0.8 | mostly filled | 59 | 6.39% | 1.46 |
+| ≥0.8 | **SOLID — not a vessel** | **388** | **17.14%** | 3.95 |
+
+2V/A shares no code with the scanline and agrees with it, so the label is not an
+artefact of one routine. **37% of the corpus is a solid lump.** The conservator's
+warning was right and this section was wrong.
+
+Worse, the two defects coincide. Cross-tabulating fill against cells through the
+wall: **solid & ≥2 cells 370, hollow & <2 cells 648, hollow & ≥2 cells 17,
+solid & <2 cells 18** — 97% on one diagonal. Where TORA can resolve the break
+face the object is not a vessel; where it is a vessel TORA cannot see the break.
+A `cells>=1 & fill<0.5` screen keeps **207 of 1053 (19.7%)**.
+
 One caveat on the figure: the **Plate** panel looks filled, but that is the slice
 direction. A plate's thin axis is its third principal axis, so a slab there
 captures the whole disc face-on rather than sectioning it. Not evidence of
