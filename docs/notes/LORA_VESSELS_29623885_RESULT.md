@@ -380,6 +380,133 @@ of 87 ringed points -- a thick wall does get a proper break face. The real scan
 shows 16. One caveat on the picture, not on the result: the bottle's left mesh
 panel is nearly empty, which is that object's slab orientation, not evidence.
 
+### Why the fracture channel is thin: wall thickness against sampling spacing (2026-08-31)
+
+`scripts/measure_wall_vs_sampling.py`, job 29764781. The bimodality above --
+bottles mating at 152-177 degrees, bowls and vases at 83-96 -- has a mechanism,
+and it is measurable rather than inferred. TORA samples 5000 points per object,
+so its cells are `sqrt(2 * area / 5000)` across. Ask how many of those fit
+through the wall.
+
+The estimator casts real rays (Moller-Trumbore, exact ray-triangle) inward from
+area-weighted points on the surface and takes the median first back-facing hit.
+It is checked against icosphere shells of known wall thickness before every run
+(`--selftest`, 1%, 2.5%, 7.5% of object, all within 0.1%), and cross-checked by
+`2V / (A - A_break)` -- mean shell thickness with the fragments' break faces
+removed from the denominator. Two earlier versions of this script returned
+confident wrong numbers and neither was caught by reading the code; both were
+caught by the two routes disagreeing. See `docs/lessons.md`.
+
+Training vessels, fresh level, per object:
+
+| object | wall (ray) % | wall (2V/A) % | spacing % | cells through the wall | mating angle |
+|---|---|---|---|---|---|
+| Bottle__81bbf3134d1c | 14.72 | 24.00 | 3.38 | 4.35 | 165-177 |
+| BeerBottle__2927d6c8438f | 12.66 | 15.36 | 2.77 | 4.58 | 154-155 |
+| DrinkBottle__1ef68777bfdb | 10.39 | 14.34 | 2.55 | 4.07 | 152-174 |
+| Mug__c51b79493419 | 3.06 | 5.10 | 2.86 | 1.07 | 91-96 |
+| Vase__7545c5b77008 | 1.42 | 2.28 | 3.06 | 0.46 | 83-88 |
+| Vase__d2b45cdfcfb7 | 1.21 | 1.77 | 3.30 | 0.37 | 83-88 |
+| Bowl__50ad83141272 | 1.10 | 2.56 | 2.24 | 0.49 | 85-91 |
+| Teapot__7c381f85d3b6 | 0.81 | 1.09 | 3.04 | 0.27 | 88-89 |
+
+**The split is complete.** Every object above 4 cells mates at 152-177 degrees;
+every object at or below 1.07 cells mates at 83-96. On eight objects that is a
+lead rather than a law, but it is the mechanism the bimodality predicted, and it
+is not a coincidence of one metric: the two wall columns are independent and
+they order the objects the same way.
+
+Medians over the ladder are flat, as everything else about our wear has been:
+
+| level | wall ray % | wall 2V/A % | spacing % | cells | break faces % |
+|---|---|---|---|---|---|
+| fresh | 2.24 | 3.83 | 2.95 | 0.78 | 67.1 |
+| worn_light | 2.22 | 3.62 | 2.83 | 0.79 | 63.0 |
+| worn_moderate | 2.22 | 3.85 | 2.85 | 0.76 | 64.4 |
+
+**The median training vessel gets 0.78 cells through its wall.** Below one cell,
+a single sampled point straddles the whole thickness, so the break face never
+gets a row of points to itself -- which is exactly the "few hundred fracture
+points out of 5000" from the section above, arrived at from the geometry
+instead of from the point cloud.
+
+### And it is not eight objects: the whole corpus, screened (2026-08-31)
+
+`scripts/screen_vessel_corpus.py`, job 29765705, all **1053** fracture instances
+in `bbad_vessels.hdf5`. The eight-object ladder above holds across the corpus,
+and it brings a second finding with it that nobody was looking for.
+
+**Cells through the wall.** 23.6% of instances get under HALF a cell, 18.2%
+under one, 21.4% between one and two, 18.2% two to four, 18.5% above four.
+Median **1.20**. So roughly two in five objects are ones where a single sampled
+point straddles the entire wall and the break face gets no row of points at all.
+
+**And 37% of this corpus is not a vessel.** Section fill was measured by an
+even-odd scanline count -- the fraction of a cut plane that lies inside the
+object -- because shapely's `polygons_full` returns nothing on a section broken
+into fragments, which is why an earlier hollowness figure came out blank.
+Checked against a solid sphere (1.000) and two shells of known thickness
+(0.097, 0.277) before use:
+
+| fill | what it is | n | wall by 2V/A | mean cells |
+|---|---|---|---|---|
+| <0.25 | thin shell | 394 | 2.75% | 0.61 |
+| 0.25-0.5 | thick shell | 212 | 5.41% | 1.19 |
+| 0.5-0.8 | mostly filled | 59 | 6.39% | 1.46 |
+| >=0.8 | **SOLID -- not a vessel** | **388** | **17.14%** | 3.95 |
+
+`2V/A` shares no code with the scanline and orders the bins the same way, so the
+label is not an artefact of one routine. And it was **rendered before it was
+believed** (`artifacts/fill_ladder.png`, job 29768556): eight objects on a
+ladder from 0.04 to 0.99, sectioned on the MEDIAN of three cuts rather than the
+flattering one, with every scanline's measured interior shaded in. The first
+version of that figure drew outlines only, confirmed the two ends and left the
+middle -- where the threshold sits -- unreadable; that is the "the view answers
+the wrong question" trap from `docs/lessons.md`, and it was caught by redrawing
+the measured quantity itself rather than a proxy for it. Shaded, all eight walk
+from a thin pink ring to a solid pink lump exactly in step with the number, and
+if anything the 0.8 threshold is conservative: the 0.55 Vase and the 0.75 Bowl
+already look solid by eye.
+
+**This corrects `GATE_B_DECISION.md`**, which said a wall was found in 72 of 72
+objects. That figure came from `wear_ops._wall_estimate`, whose search reach is
+about 2% of object, so it reports a wall of roughly its own reach on anything,
+solid included. Both `validate_wall_estimator.py` and
+`check_wall_estimator_noise.py` had already flagged it and neither conclusion was
+written back. The conservator's warning that some Breaking Bad meshes are solid
+rather than thin-walled was right.
+
+**The two defects are the same objects.** Cross-tabulating fill against cells:
+
+| | TORA resolves the break (>=2 cells) | it does not (<2) |
+|---|---|---|
+| **solid lump** (fill >=0.8) | **370** | 18 |
+| **hollow vessel** (fill <0.8) | 17 | **648** |
+
+**97% on one diagonal.** Where the network can see a break face, the object is
+not a pot; where the object is a pot, the network cannot see the break. Only
+**17 instances** are both. A `cells >= 1 & fill < 0.5` screen keeps **207 of
+1053 (19.7%)**.
+
+By class, the solid lumps are Bottle 173, WineBottle 51, Vase 28, PillBottle 22,
+BeerBottle 21, DrinkBottle 20 -- the closed forms, which fracture-mode
+tetrahedralisation fills through its cage. The thin shells are Vase 211, Bowl 34,
+Cup 31, Mug 30, Bottle 22, DrinkingUtensil 20, WineGlass 17, Teapot 11.
+
+**What this means for the work.** The variety this corpus was built to supply is
+partly an illusion. A large share of the "vessel shapes" are lumps with a broad
+solid break face, which is a different assembly problem from seating a sherd,
+and the genuinely vessel-shaped ones are mostly ones TORA cannot resolve. That
+is a *separate* defect from the perfect-contact joins, and rebuilding the joins
+does not touch it. The screen is therefore carried in the rebuilt file's manifest
+as `passes_screen`, with `train_screened` / `val_screened` splits alongside the
+full ones, so the trade -- 207 honest examples against 1053 mixed ones -- is made
+deliberately at training time rather than inherited.
+
+Claim type: **(2) the measurement was broken**, twice over. The wall probe had a
+reach shorter than the thing it measured, and the corpus was believed hollow on
+its word.
+
 ## Next, cheapest first
 
 1. DONE, twice, and it inverted the guess -- see above. The training joins are
