@@ -80,7 +80,7 @@ ls -lh "$OUT"
 # see a folded surface, a chip scar left open, or a collapsed normalisation.
 # All three have happened here.
 python scripts/render_trainset_sample.py \
-    --root "$ROOT" --src "$OUT" --dataset bbad_vessels
+    --src "$OUT" --dataset bbad_vessels \r
     --out "$ROOT/artifacts/bbad_vessels_${TAG}_sample.png"
 
 # BEFORE AND AFTER, on the quantity that was wrong. The join distribution is
