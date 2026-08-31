@@ -94,7 +94,7 @@ def measure_one(path):
 
     thick = slab_thickness(v, plane_n)
     t2va = thickness_2VA(m, frac_area)
-    ext = np.sort(v.ptp(axis=0))          # thinnest, middle, longest
+    ext = np.sort(np.ptp(v, axis=0))          # thinnest, middle, longest
     return {
         "name": Path(path).stem,
         "thick_mm": thick,
