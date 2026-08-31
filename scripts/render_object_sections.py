@@ -26,8 +26,15 @@ argument that happens to favour my own new measurement. So: cut the objects open
 and look.
 
 A SECTION, not a vertex scatter. `mesh.section()` returns the actual polygon
-where a plane crosses the surface. Hollow gives two nested loops with space
-between them; solid gives one. Vertex density cannot fake either.
+where a plane crosses the surface, and the polygon is shaded, so material and
+cavity are distinguishable by eye. Vertex density cannot fake either.
+
+Counting loops does NOT work here and the first version of this figure tried
+it: the objects are already broken into sherds, so every sherd contributes a
+closed loop whether the vessel is hollow or not, and all six objects came back
+with 6-42 loops per cut. The number printed instead is the fraction of the
+outline's area that is material -- which is what "hollow" actually means, and
+unlike the picture it does not depend on which way the plane was turned.
 
 Three cuts per object, one perpendicular to each principal axis, because a
 single slab direction can lie: the Plate in the earlier hollowness figure looked
@@ -75,6 +82,34 @@ def assemble(meshes):
     return trimesh.util.concatenate(meshes)
 
 
+def fill_fraction(planar):
+    """How much of the cut is material, versus the area its outline encloses.
+
+    The loop count is useless here: the objects are already fragmented, so every
+    sherd contributes its own closed loop whether the vessel is hollow or not.
+    Fill fraction is not fooled by that, and unlike the picture it does not
+    depend on which way the plane was turned. Solid -> ~1. A wall of t on a
+    vessel of radius r -> roughly 2t/r.
+    """
+    try:
+        from shapely.ops import unary_union
+        from shapely.geometry import Polygon
+        polys = planar.polygons_full
+    except Exception:
+        return None
+    if len(polys) == 0:
+        return None
+    uni = unary_union(list(polys))
+    geoms = getattr(uni, "geoms", [uni])
+    filled = outer = 0.0
+    for g in geoms:
+        filled += g.area
+        outer += Polygon(g.exterior).area
+    if outer <= 0:
+        return None
+    return filled / outer
+
+
 def draw(ax, mesh, axis, title):
     """Cut one plane through the centroid, perpendicular to `axis`."""
     origin = mesh.bounds.mean(axis=0)
@@ -90,14 +125,27 @@ def draw(ax, mesh, axis, title):
         ax.set_axis_off()
         return
     planar, _ = sec.to_planar()
-    n_loop = 0
+
+    # shade the material, so the picture and the number say the same thing
+    try:
+        for poly in planar.polygons_full:
+            xy = 100 * np.asarray(poly.exterior.coords) / size
+            ax.fill(xy[:, 0], xy[:, 1], color="#c6d9ec", lw=0)
+            for ring in poly.interiors:
+                xy = 100 * np.asarray(ring.coords) / size
+                ax.fill(xy[:, 0], xy[:, 1], color="white", lw=0)
+    except Exception:
+        pass
+
     for ent in planar.entities:
         pts = planar.vertices[ent.points]
         ax.plot(100 * pts[:, 0] / size, 100 * pts[:, 1] / size,
                 lw=0.9, color="#1f77b4")
-        n_loop += 1
+    ff = fill_fraction(planar)
+    tail = "fill n/a" if ff is None else ("%.0f%% of the outline is material"
+                                          % (100 * ff))
     ax.set_aspect("equal")
-    ax.set_title(title + "\n" + str(n_loop) + " loops in this cut", fontsize=8)
+    ax.set_title(title + "\n" + tail, fontsize=8)
     ax.tick_params(labelsize=7)
 
 
@@ -126,7 +174,8 @@ def main():
             del mesh
 
     fig.suptitle("Cross-sections of the training vessels, assembled.\n"
-                 "Two nested loops = a wall with a cavity.  One loop = solid.",
+                 "Shaded = material.  A hollow vessel is a thin rim of shading;\n"
+                 "a solid one is filled to the outline.",
                  fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.965))
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
