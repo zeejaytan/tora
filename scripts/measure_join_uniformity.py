@@ -93,8 +93,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="/data/gpfs/projects/punim2657/TORA")
     ap.add_argument("--limit", type=int, default=12)
+    # BEFORE AND AFTER IN ONE LOG. A rebuild is only believable against the
+    # file it replaces, measured by the same instrument in the same run --
+    # comparing two logs written weeks apart is how a changed default goes
+    # unnoticed. Naming a file here ADDS it; the two references always run.
+    ap.add_argument("--src", default="", help="extra hdf5 to measure first")
+    ap.add_argument("--dataset", default="bbad_vessels")
     a = ap.parse_args()
     root = Path(a.root)
+    if a.src:
+        run(Path(a.src), a.dataset, a.limit)
     run(root / "dataset/bbad_vessels.hdf5", "bbad_vessels", a.limit)
     run(root / "dataset/erosion_sweep.hdf5", "erosion_sweep", a.limit)
     print("\n  All columns are % of object size; p10/p50/p90 are of the contact")
