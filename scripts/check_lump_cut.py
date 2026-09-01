@@ -67,9 +67,30 @@ def main():
         def fill_of(m):
             return float(man[m.split("/", 1)[1]]["fill_fraction"])
 
+        def shape_of(m):
+            return "__".join(m.split("/", 1)[1].split("__")[:2])
+
+        def pick(members, reverse):
+            """One example per SHAPE.
+
+            fill is a property of the shape, so the raw ordering returns the
+            same pot twice under two wear levels and a five-panel row shows
+            three objects. Deduplicating is the difference between five
+            independent checks and three.
+            """
+            out, seen = [], set()
+            for m in sorted(members, key=fill_of, reverse=reverse):
+                if shape_of(m) in seen:
+                    continue
+                seen.add(shape_of(m))
+                out.append(m)
+                if len(out) == a.n:
+                    break
+            return out
+
         # worst survivors: highest fill still in; narrowest misses: lowest out
-        top_kept = sorted(kept, key=fill_of, reverse=True)[:a.n]
-        low_drop = sorted(dropped, key=fill_of)[:a.n]
+        top_kept = pick(kept, True)
+        low_drop = pick(dropped, False)
 
         fig, axes = plt.subplots(2, a.n, figsize=(3.4 * a.n, 7.4))
         for row, (members, label) in enumerate(
