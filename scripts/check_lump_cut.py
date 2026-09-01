@@ -8,11 +8,16 @@ Drawing a random sample of survivors would show obvious vases and prove
 nothing -- the easy middle is not where a threshold fails.
 
 So this renders the WORST SURVIVORS against the NARROWEST MISSES: the highest-
-fill examples still in `train`, and the lowest-fill examples just dropped. If
-the kept row still reads as vessels with a real bore and the dropped row reads
-as lumps with at most a scooped dish, the cut is in the right place. If the two
-rows look alike, it is not, and 714 examples were discarded on a number that
-does not mean what its label says.
+fill examples still in `train`, and the lowest-fill examples just dropped.
+
+The first version showed only those two rows, and they looked alike -- which
+read as a broken threshold until the distribution was plotted. It is not: fill
+is BIMODAL, kept median 0.215 against dropped median 0.994, with almost nothing
+between. Two boundary rows drawn out of an empty gap must look alike; that is
+what an empty gap is. So the histogram is now part of the figure and a row of
+TYPICAL kept objects sits above the boundary rows, because a picture of the
+rarest 4% presented on its own answers a question nobody asked -- the same trap
+as the four wear views in `docs/lessons.md`.
 
 Sections use the median of three orthogonal cuts with every scanline's measured
 interior shaded -- the same routine and the same honesty constraint as the
@@ -88,35 +93,76 @@ def main():
                     break
             return out
 
+        def pick_near(members, target):
+            """n shapes whose fill sits closest to `target`."""
+            out, seen = [], set()
+            for m in sorted(members, key=lambda m_: abs(fill_of(m_) - target)):
+                if shape_of(m) in seen:
+                    continue
+                seen.add(shape_of(m))
+                out.append(m)
+                if len(out) == a.n:
+                    break
+            return sorted(out, key=fill_of)
+
         # worst survivors: highest fill still in; narrowest misses: lowest out
         top_kept = pick(kept, True)
         low_drop = pick(dropped, False)
 
-        fig, axes = plt.subplots(2, a.n, figsize=(3.4 * a.n, 7.4))
-        for row, (members, label) in enumerate(
-                [(top_kept, "KEPT"), (low_drop, "DROPPED")]):
+        typical = pick_near(kept, float(np.median([fill_of(m) for m in kept])))
+        rows = [(typical, "TYPICAL KEPT", "#2a7"),
+                (top_kept, "WORST KEPT", "#2a7"),
+                (low_drop, "MILDEST DROPPED", "#b33")]
+
+        fig = plt.figure(figsize=(3.4 * a.n, 3.1 * len(rows) + 3.0))
+        gs = fig.add_gridspec(len(rows) + 1, a.n,
+                              height_ratios=[1.15] + [1.0] * len(rows))
+
+        # The measured quantity itself, every example, before any panel.
+        hax = fig.add_subplot(gs[0, :])
+        fk = [fill_of(m) for m in kept]
+        fd = [fill_of(m) for m in dropped]
+        bins = np.linspace(0, 1, 101)
+        hax.hist(fk, bins=bins, color="#2a7", alpha=0.85,
+                 label=f"kept, n={len(fk)} (median {np.median(fk):.3f})")
+        hax.hist(fd, bins=bins, color="#b33", alpha=0.85,
+                 label=f"dropped, n={len(fd)} (median {np.median(fd):.3f})")
+        hax.axvline(a.max_fill, color="k", lw=1.6, ls="--",
+                    label=f"the cut, fill = {a.max_fill}")
+        hax.set_xlabel("section fill: the fraction of each scanline that is "
+                       "solid, median of three orthogonal cuts")
+        hax.set_ylabel("training examples")
+        hax.legend(fontsize=9)
+        hax.set_title("The cut falls in a gap the data barely occupies -- "
+                      "which is why the two boundary rows below look alike",
+                      fontsize=10)
+
+        for r, (members, label, colour) in enumerate(rows):
             for col, full in enumerate(members):
+                ax = fig.add_subplot(gs[r + 1, col])
                 tag = full.split("/", 1)[1]
                 rec = man[tag]
                 meshes = load_meshes(h[a.dataset][tag])
                 asm = trimesh.util.concatenate(meshes)
                 got = fill_fraction(asm)
                 cells = rec.get("cells_through_wall")
-                title = (f"{label}  {tag.split('__')[0]} {tag.split('__')[1][:8]}\n"
+                title = (f"{label}  {tag.split('__')[0]} "
+                         f"{tag.split('__')[1][:8]}\n"
                          f"fill {fill_of(full):.3f}"
                          + (f", redrawn {got:.3f}" if got is not None else "")
                          + (f"   cells {cells:.2f}" if cells is not None else ""))
-                draw(axes[row, col], asm, title)
-                for s in axes[row, col].spines.values():
-                    s.set_edgecolor("#2a7" if row == 0 else "#b33")
-                    s.set_linewidth(2.0)
+                draw(ax, asm, title)
+                for sp in ax.spines.values():
+                    sp.set_edgecolor(colour)
+                    sp.set_linewidth(2.0)
 
     fig.suptitle(
-        f"The solid-lump cut at the boundary (fill < {a.max_fill}).  "
-        f"Top row = worst objects KEPT for training.  "
-        f"Bottom row = mildest objects DROPPED.  "
-        f"Pink = each scanline's measured interior.", fontsize=11)
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
+        f"Removing the solid lumps (fill < {a.max_fill}): the distribution, "
+        f"then the objects on each side of the line.\n"
+        f"Row 1 typical kept, row 2 the least hollow still kept, row 3 the "
+        f"mildest dropped.  Pink = each scanline's measured interior.",
+        fontsize=12)
+    fig.tight_layout(rect=[0, 0, 1, 0.955])
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=130)

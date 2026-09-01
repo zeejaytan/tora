@@ -38,6 +38,16 @@ matters: `tora/data/dataset.py:309` gates the pose-prior-removing global
 rotation on the split being literally "train", so a differently-named split
 would train without augmentation and fail silently.
 
+MEASURED ON THIS FILE, not on the csv. The first version of this filter read
+`manifest[tag]["fill_fraction"]`, which `build_bbad_vessel_trainset.py:394`
+copies out of `artifacts/corpus_screen.csv` -- measured by job 29765705 on the
+OLD `bbad_vessels.hdf5` at the FRESH level. Applying it to worn v3 geometry is
+a ruler borrowed from a different object. It turned out to be a good ruler
+(`check_fill_provenance.py`: median drift -0.009, and only 3 of 1882 examples
+change side), but "it happened to agree" is not a reason to keep depending on
+it, so fill is now remeasured from the meshes being filtered and the manifest
+is kept only as a cross-check that gets printed.
+
 Non-destructive: the original membership is preserved as `train_all` /
 `val_all` / `test_all` before anything is overwritten, and re-running is a
 no-op on already-filtered files. `control` is left alone -- it is the
@@ -57,6 +67,10 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import trimesh
+
+from measure_gap_as_network_sees import load_meshes                # noqa: E402
+from screen_vessel_corpus import fill_fraction                     # noqa: E402
 
 SPLITS = ("train", "val", "test")
 
@@ -80,6 +94,9 @@ def main():
     ap.add_argument("--max-fill", type=float, default=0.65,
                     help="drop examples at or above this section fill")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--trust-manifest", action="store_true",
+                    help="use the stale corpus_screen fill instead of "
+                         "remeasuring (for reproducing the first run)")
     args = ap.parse_args()
 
     src = Path(args.src)
@@ -97,6 +114,7 @@ def main():
                 f"partial previous run: {already} exist but not all of "
                 f"{SPLITS}. Not touching this file -- inspect it by hand.")
         second_run = bool(already)
+        fills_now = {}
         if second_run:
             print("NOTE: *_all already present, so this file has been filtered "
                   "before. Re-filtering from the pristine *_all lists.\n")
@@ -105,22 +123,41 @@ def main():
             source_key = f"{split}_all" if second_run else split
             members = decode(sgrp[source_key][:])
 
-            keep, drop, unknown = [], [], []
+            keep, drop, unknown, moved = [], [], [], []
             for full in members:
                 # split members are "<dataset>/<tag>"; manifest keys are "<tag>"
                 tag = full.split("/", 1)[1] if "/" in full else full
                 rec = man.get(tag)
-                if rec is None or rec.get("fill_fraction") is None:
+                old = None if rec is None else rec.get("fill_fraction")
+
+                if args.trust_manifest:
+                    f = old
+                else:
+                    asm = trimesh.util.concatenate(
+                        load_meshes(h[args.dataset][tag]))
+                    f = fill_fraction(asm)
+                    fills_now[tag] = f
+                    if (f is not None and old is not None
+                            and (float(old) >= args.max_fill)
+                                != (f >= args.max_fill)):
+                        moved.append((tag, float(old), f))
+
+                if f is None:
                     unknown.append(full)
                     continue
-                (keep if float(rec["fill_fraction"]) < args.max_fill
-                 else drop).append(full)
+                (keep if float(f) < args.max_fill else drop).append(full)
 
             if unknown:
                 raise SystemExit(
-                    f"{len(unknown)} examples in '{split}' have no fill in the "
-                    f"manifest, e.g. {unknown[:3]}. Refusing to guess -- an "
-                    f"unmeasured object must not be silently kept or dropped.")
+                    f"{len(unknown)} examples in '{split}' have no usable fill, "
+                    f"e.g. {unknown[:3]}. Refusing to guess -- an unmeasured "
+                    f"object must not be silently kept or dropped.")
+
+            if moved:
+                print(f"  {len(moved)} example(s) fall on the other side of "
+                      f"{args.max_fill} than the stale csv said:")
+                for tag, o, n in moved[:8]:
+                    print(f"    {tag:52s} csv {o:.3f} -> measured {n:.3f}")
 
             cls = collections.Counter(f.split("/")[-1].split("__")[0] for f in keep)
             shapes = {"__".join(f.split("/")[-1].split("__")[:2]) for f in keep}
@@ -150,7 +187,9 @@ def main():
             print("\nverifying against the file:")
             for split in SPLITS:
                 got = decode(sgrp[split][:])
-                fills = [float(man[f.split("/", 1)[1]]["fill_fraction"])
+                fills = [float(fills_now[f.split("/", 1)[1]])
+                         if not args.trust_manifest
+                         else float(man[f.split("/", 1)[1]]["fill_fraction"])
                          for f in got]
                 bad = [f for f in fills if f >= args.max_fill]
                 if bad:
