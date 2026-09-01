@@ -20,6 +20,7 @@ import argparse
 from pathlib import Path
 
 import h5py
+import trimesh
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -29,7 +30,8 @@ from scipy.spatial import cKDTree
 ROOT = Path("/data/gpfs/projects/punim2657/TORA")
 CASES = [
     ("dataset/bbad_vessels.hdf5", "bbad_vessels", "fresh", "TRAIN  fresh"),
-    ("dataset/bbad_vessels.hdf5", "bbad_vessels", "worn_moderate", "TRAIN  worn_moderate"),
+    ("dataset/bbad_vessels.hdf5", "bbad_vessels", "worn_moderate", "TRAIN  worn_moderate (old)"),
+    ("dataset/bbad_vessels_v3.hdf5", "bbad_vessels", "worn_moderate", "TRAIN  worn_moderate (v3)"),
     ("dataset/erosion_sweep.hdf5", "erosion_sweep", "000", "TEST  real, unworn"),
     ("dataset/erosion_sweep.hdf5", "erosion_sweep", "100", "TEST  real, eroded 1.0"),
 ]
@@ -91,6 +93,23 @@ def main():
         size = float(np.linalg.norm(allv.max(0) - allv.min(0)))
         subs, dists = nn_other(parts)
 
+        # THE RULER THE GAP MUST BE READ AGAINST, computed the way TORA
+        # actually samples: 5000 points over the whole surface, area-weighted,
+        # so spacing = sqrt(2 * area / 5000). This is NOT the mesh's vertex
+        # spacing -- the stored meshes are an order of magnitude finer than
+        # what the network is handed, and dividing by the wrong one of those
+        # two makes a sub-resolution gap look resolvable.
+        area = 0.0
+        for k in sorted(dg[tag]["pieces"].keys(),
+                        key=lambda s_: int(s_) if s_.isdigit() else s_):
+            pk = dg[tag]["pieces"][k]
+            if "faces" in pk:
+                area += float(trimesh.Trimesh(
+                    vertices=np.asarray(pk["vertices"][:]),
+                    faces=np.asarray(pk["faces"][:]),
+                    process=False).area)
+        tora_step = 100.0 * float(np.sqrt(2 * area / 5000.0)) / size
+
         # --- left: a slab through the centroid, cut across the longest axis
         c = allv.mean(0)
         ax = axes[r, 0]
@@ -115,6 +134,8 @@ def main():
                    label=f"10th pct = {p10:.3f} % of object")
         ax.axvline(0, color="royalblue", lw=1.0, ls=":",
                    label=f"exactly 0: {100 * np.mean(d <= 1e-9 / size * 100):.1f} % of vertices")
+        ax.axvline(tora_step, color="darkorange", lw=2.0,
+                   label=f"one TORA sampling step = {tora_step:.2f} % of object")
         ax.set_yscale("log")
         ax.set_xlim(-0.05, 3.0)
         ax.set_xlabel("distance from each vertex to the nearest OTHER fragment"
@@ -122,8 +143,10 @@ def main():
         ax.legend(fontsize=8)
         ax.set_title("the measured quantity, per vertex, unprojected", fontsize=9)
         h.close()
-        print(f"{title:26s} {tag:40s} p10={p10:.4f}%  zero={100*np.mean(d<=1e-7):.1f}%",
-              flush=True)
+        p50 = np.percentile(d, 50)
+        print(f"{title:28s} {tag:38s} p10={p10:.4f}% p50={p50:.4f}% "
+              f"step={tora_step:.4f}%  p50/step={p50/tora_step:.3f} "
+              f"zero={100*np.mean(d<=1e-7):.1f}%", flush=True)
 
     fig.suptitle("Join gap: what the model was trained on vs what it was tested on",
                  fontsize=12)
