@@ -69,8 +69,24 @@ def main():
         allm = decode(sgrp["train_all"][:])
         dropped = [m for m in allm if m not in kept]
 
+        # Measure fill here the same way the filter does. Reading it from the
+        # manifest instead ranked the panels by the stale corpus_screen value
+        # and put an object at the top of "worst kept" that the filter had
+        # already remeasured at 0.520 -- a figure sorted by a number other than
+        # the one that made the decision illustrates nothing.
+        cache = {}
+
         def fill_of(m):
-            return float(man[m.split("/", 1)[1]]["fill_fraction"])
+            tag = m.split("/", 1)[1]
+            if tag not in cache:
+                asm = trimesh.util.concatenate(load_meshes(h[a.dataset][tag]))
+                v = fill_fraction(asm)
+                cache[tag] = np.nan if v is None else float(v)
+            return cache[tag]
+
+        print(f"measuring fill on {len(allm)} examples ...", flush=True)
+        for m in allm:
+            fill_of(m)
 
         def shape_of(m):
             return "__".join(m.split("/", 1)[1].split("__")[:2])
@@ -144,12 +160,13 @@ def main():
                 rec = man[tag]
                 meshes = load_meshes(h[a.dataset][tag])
                 asm = trimesh.util.concatenate(meshes)
-                got = fill_fraction(asm)
                 cells = rec.get("cells_through_wall")
+                old_f = rec.get("fill_fraction")
                 title = (f"{label}  {tag.split('__')[0]} "
                          f"{tag.split('__')[1][:8]}\n"
                          f"fill {fill_of(full):.3f}"
-                         + (f", redrawn {got:.3f}" if got is not None else "")
+                         + (f"   (csv said {float(old_f):.3f})"
+                            if old_f is not None else "")
                          + (f"   cells {cells:.2f}" if cells is not None else ""))
                 draw(ax, asm, title)
                 for sp in ax.spines.values():
