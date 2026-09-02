@@ -29,9 +29,23 @@ set -euo pipefail
 # fractura_real.hdf5. Load it by that name: the loader matches the file stem
 # against a key inside the file, and "fractura_real" is not one of them.
 #
-# The config is left exactly as prior runs used it (anchor-fixed, min 3 / max
-# 12 parts, all eight pots pass) so these numbers sit next to jobs 24342475 and
-# 24343146 without adjustment.
+# max_samples_per_batch is 8, not the 1 earlier runs used. All eight pots fit in
+# one batch, so 1 saved the point clouds for a single pot -- and the npz is the
+# only thing that lets a score be recomputed without GPU time. It is what
+# exposed the units bug below on two pots; save it for all eight.
+#
+# READ THE PART ACCURACY IN THIS RUN WITH CARE. tora/eval/evaluator.py rescales
+# the clouds back to the object's own units before thresholding chamfer at a
+# fixed 0.01. Fractura's real subsets are stored in MILLIMETRES (scale ~61),
+# Breaking Bad is normalised (scale ~0.5), so the same 0.01 asks a ceramic
+# fragment to land ~15,000x more precisely than a synthetic one. Every real
+# object then scores exactly 1/n_parts -- the anchor, free by construction --
+# and that zero is the ruler, not the model. Rescore with
+# scripts/rescore_part_acc.py off the npz. rotation_error is unaffected.
+#
+# The config is otherwise left exactly as prior runs used it (anchor-fixed,
+# min 3 / max 12 parts, all eight pots pass) so these numbers sit next to jobs
+# 24342475 and 24343146 without adjustment.
 #
 # Usage:
 #   ARMS=baseline sbatch scripts/hpc/eval_ceramics_arms.slurm
@@ -95,7 +109,7 @@ run_arm () {
         "+visualizer._target_=tora.visualizer.FlowVisualizationCallback" \
         "+visualizer.renderer=mitsuba" \
         "+visualizer.image_size=512" \
-        "+visualizer.max_samples_per_batch=1" \
+        "+visualizer.max_samples_per_batch=8" \
         "+visualizer.center_points=true" \
         "+visualizer.save_trajectory=false" \
         "+visualizer.save_procrustes_assembly=true" \
