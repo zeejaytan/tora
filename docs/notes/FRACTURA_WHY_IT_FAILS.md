@@ -30,24 +30,63 @@ is clamped at ground truth by construction with chamfer ~0. Hence every real
 Fractura object scoring *exactly* `1/n_parts`: 0.250 on the 4-part pots, 0.500
 on the 2-part bones. That is the arithmetic of a free anchor, not a measurement.
 
-Rescored in the normalised frame at the Breaking-Bad-equivalent threshold
-(0.04 squared, `scripts/rescore_part_acc.py`), off the saved clouds of job
-29886425:
+The fix, in `tora/eval/metrics.py`, restores the frame the threshold was
+stated in. Breaking Bad: *"We re-scale each of them to fit a unit-length box for
+parameter choice consistency. This normalization scheme allows our method to be
+scale invariant"* (Sellan et al. 2022), and *"we set tau = 0.01 following [20]"*.
+So tau lives inside a unit-length box. `unit_box_scale` divides both clouds by
+the longest side of the **ground truth** bounding box before thresholding —
+ground truth, never the prediction, because a scattered prediction has a bigger
+box than the object it is trying to rebuild and would be handed a more forgiving
+tolerance for failing. `scripts/check_metric_scale_invariance.py` is the gate:
+the same geometry stored in millimetres, metres and normalised must score the
+same number, and it does (0.600 in all three, where the old absolute metric
+ranged 0.400–1.000).
+
+This is the same bug found and resolved once already in jobs 27858648 / 27859890
+(see the correction header of `TORA_GOOD_VS_BAD_ANALYSIS.md`);
+`real_heldout_norm.hdf5` was built in response, but the raw Fractura subsets were
+never rebuilt normalised, so scoring them directly reproduced the identical
+broken reading.
+
+### Fixing the ruler did not rescue the result
+
+**Correction, 2026-09-02.** An earlier version of this section reported that
+blue_pot went from 0% to 38% and narrow_bottle4 from 0% to 40% once rescored,
+and concluded "fragments do land in roughly the right region." **That was wrong
+and is withdrawn.** The offline rescorer used a fixed threshold of 0.04 derived
+from assuming the dataloader frame has a bounding box of side 2 (max|coord| = 1
+implies a half-extent of 1). It does not: `center_pcd` centres by centroid, not
+by bounding-box centre, so narrow_bottle4's box side is **1.695**, and the
+correct equivalent is ≈0.0287 — the threshold used was about 40% too loose. A
+`t=0.16` column, 5.6× looser than the benchmark, was printed beside it and read
+as if it bracketed the answer.
+
+Rescored correctly with the evaluator's own `unit_box_scale`, off all eight
+saved objects of job 29888540:
 
 ```
-object                   draws  t=2.7e-06   t=0.001   t=0.01   t=0.04 *   t=0.16
-ceramics/blue_pot           10      20.0%     20.0%    20.0%     38.0%     72.0%
-ceramics/narrow_bottle4     10      25.0%     25.0%    25.0%     40.0%    100.0%
+pot                parts   anchor floor   raw pred   proposed
+narrow_bottle4         4         25.0%      25.0%      25.0%
+blue_pot               5         20.0%      30.0%      20.0%
+narrow_bottle3         4         25.0%      25.0%      25.0%
+narrow_bottle1        12          8.3%       8.3%      10.0%
+pink_bowl              3         33.3%      33.3%      33.3%
+plate                  6         16.7%      16.7%      16.7%
+narrow_bottle2         3         33.3%      33.3%      33.3%
+galli_pot             10         10.0%      10.0%      13.0%
+MEAN                             21.5%      22.7%      22.0%
 ```
 
-So fragments do land in roughly the right region. This is the same bug found and
-resolved once already in jobs 27858648 / 27859890 (see the correction header of
-`TORA_GOOD_VS_BAD_ANALYSIS.md`); `real_heldout_norm.hdf5` was built in response,
-but the raw Fractura subsets were never rebuilt normalised, so scoring them
-directly reproduces the identical broken reading.
+At the benchmark's own tolerance, correctly applied, the model seats essentially
+nothing beyond the free anchor: 22.7% against a 21.5% floor is roughly one extra
+fragment across eighty attempts.
 
-**Do not stop here.** The temptation after finding a broken metric is to declare
-the failure imaginary. It is not.
+So both statements are true and neither cancels the other. **The ruler was
+broken and worth fixing** — it made a real number unreadable and would have
+faked the same finding on any future dataset stored in millimetres. **And the
+failure it was hiding is real.** Do not stop at "the metric was broken" — that
+is the tempting conclusion and it is not the one the evidence supports.
 
 ## 2. There is a real failure, and rotation error shows it
 
@@ -116,14 +155,25 @@ Naming these so the above is not mistaken for a full answer:
 - **How Fractura's ground truth poses were established.** The GARF paper does
   not document it. The conservator has confirmed the ceramics are in correct
   assembly, which closes this for the ceramics but not for the bones and eggs.
-- **The renders.** Nobody has looked at all eight assemblies yet. Two were
-  viewed and showed fragments compacted into an interpenetrating blob rather
-  than scattered — consistent with the numbers above, but two is not eight.
+- **The renders.** Two of eight have been looked at. pink_bowl (3 fragments,
+  the easiest reassembly in the set) has a clean hemispherical ground truth;
+  its predicted assembly is the three fragments compacted into one
+  interpenetrating slab, all three overlapping through each other rather than
+  seated edge to edge. That is what a 78° mean rotation error looks like, and
+  it is consistent with the anchor-floor part accuracy. Two is not eight.
 
 ## Weight this can bear
 
 Eight pots, 10 draws each, one checkpoint. The rotation comparison spans 172
-objects across seven runs, which is why it is stated more firmly than the
-part-accuracy rescoring — that rests on two saved objects, because the
-visualiser saved one sample per batch and all eight pots fit in one batch.
-`scripts/hpc/eval_ceramics_arms.slurm` now saves all eight.
+objects across seven runs, which is why it is stated most firmly. The corrected
+part-accuracy table now rests on all eight saved objects, not two:
+`scripts/hpc/eval_ceramics_arms.slurm` was changed to save every sample in the
+batch (`max_samples_per_batch: 8`) precisely so a threshold mistake could be
+repaired from the npz without spending GPU time again — which is what happened.
+
+Three scale-invariant measures agree, which is the reason this is stated as a
+real failure rather than another broken ruler: non-anchor rotation error 53–79°,
+`translation_error_unit` 0.110 (fragments sitting about 11% of the object's
+longest dimension away from home — roughly 17 mm on a 150 mm pot), and
+`object_chamfer_unit` 0.0101. None of the three can be moved by the storage
+units.

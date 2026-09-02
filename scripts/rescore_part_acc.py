@@ -1,7 +1,7 @@
-"""Rescore part accuracy with a threshold that does not depend on object units.
+"""Rescore part accuracy off saved clouds, with the threshold in a unit box.
 
-WHY THIS EXISTS. tora/eval/evaluator.py multiplies the point clouds back to
-their original units before scoring:
+WHY THIS EXISTS. tora/eval/evaluator.py used to multiply the point clouds back
+to their original units before scoring:
 
     pts_gt_rescaled = pts_gt * scales.view(B, 1, 1)
     part_acc, _ = compute_part_acc(pts_gt_rescaled, pts_pred_rescaled, ...)
@@ -15,32 +15,36 @@ is only meaningful if every dataset arrives in the same units. They do not:
     Fractura bones (real)    scale ~24   (millimetres)
     Fractura egg (real)      scale ~52   (millimetres)
 
-The real Fractura subsets are stored in millimetres. Asking a fragment to land
-within a hundredth of a millimetre is asking for the impossible, so every real
-object scores exactly one seated fragment -- the anchor, which is placed at
-ground truth by construction and has chamfer ~0. Job 24342475 read 0 earned
-fragments on all 27 real objects across three materials, and that number was
-the threshold, not the model.
+Breaking Bad states tau = 0.01 inside a unit-length box -- "We re-scale each of
+them to fit a unit-length box for parameter choice consistency. This
+normalization scheme allows our method to be scale invariant" (Sellan et al.
+2022). Rescaling to millimetres first destroys exactly that invariance. Every
+real Fractura object then scored exactly 1/n_parts, which is the free anchor.
 
-WHAT THIS DOES. The visualizer's npz keeps everything in the dataloader's
-normalized frame plus the scale factor, so nothing needs rerunning. This scores
-in that normalized frame, where every object has max|coord| = 1, and sweeps the
-threshold. The like-for-like setting is 0.04: squared distance scales as
-scale^2, and Breaking Bad objects sit at scale 0.5, so the published
-0.01-after-rescaling equals 0.01 / 0.5^2 = 0.04 before it. For a ceramic pot at
-scale 61 the same shipped threshold equals 0.0000027 -- 15,000 times stricter.
+The evaluator has since been fixed (tora/eval/metrics.py:unit_box_scale, guarded
+by scripts/check_metric_scale_invariance.py). This script exists to rescore runs
+that were evaluated BEFORE that fix, straight from the visualizer's saved npz,
+without spending GPU time.
 
-This was found and resolved once before, in jobs 27858648 / 27859890; see the
-correction header of docs/notes/TORA_GOOD_VS_BAD_ANALYSIS.md and the
-scale-normalized dataset real_heldout_norm.hdf5 built in response. The raw
-Fractura subsets were never rebuilt that way, so scoring them directly
-reproduces the same broken reading.
+CORRECTION, 2026-09-02. An earlier version of this file used a fixed threshold
+of 0.04 in the dataloader frame, derived from assuming that frame has a bounding
+box of side 2 (because max|coord| = 1). It does not. center_pcd centres by
+centroid, not by bounding-box centre, so a real object's box side is smaller --
+1.695 for narrow_bottle4. That made the old threshold about 40% too loose, and a
+0.16 column 5.6x looser still was printed alongside it. Numbers computed with
+that version, including the 38%/40% figures once written into
+docs/notes/FRACTURA_WHY_IT_FAILS.md, are wrong and were withdrawn.
 
-It also reproduces the shipped metric (--absolute) so the two can be compared
-on the same predictions, which is the check that this script is right.
+The threshold is now derived per object exactly as the evaluator derives it:
+divide both clouds by the longest side of the GROUND TRUTH bounding box, then
+apply 0.01 there. Measured on the ground truth, never the prediction -- a
+scattered prediction has a bigger box than the object it is rebuilding, and
+using it would hand a failing assembly a more forgiving tolerance.
 
 Usage:
-  python scripts/rescore_part_acc.py --clouds <run_dir>/clouds [--absolute]
+  python scripts/rescore_part_acc.py --clouds <run_dir>/clouds
+  python scripts/rescore_part_acc.py --clouds <run_dir>/clouds --absolute
+  python scripts/rescore_part_acc.py --clouds <run_dir>/clouds --which proposed
 """
 
 import argparse
@@ -50,18 +54,20 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+# Breaking Bad's tau, in the frame Breaking Bad states it in: a unit-length box.
 # compute_part_acc thresholds pytorch3d's chamfer_distance with
-# point_reduction="mean", which is the mean of SQUARED distances. Everything
-# here is in those squared units so the numbers are comparable.
-#
-# Squared distance scales as scale^2, so the shipped 0.01-after-rescaling is,
-# in the normalized frame, 0.01 / scale^2:
-#     Breaking Bad, scale 0.50   ->  0.040
-#     bone_synthetic, scale 0.56 ->  0.032
-#     Fractura ceramics, scale 61 ->  0.0000027
-# 0.04 is therefore the like-for-like setting; the rest bracket it.
-THRESHOLDS = (0.0027e-3, 0.001, 0.01, 0.04, 0.16)
-BBAD_EQUIV = 0.04
+# point_reduction="mean", which is the mean of SQUARED distances, so this is a
+# squared tolerance -- 0.1 of the object's longest dimension, linearly.
+TAU = 0.01
+
+# The shipped metric, kept for --absolute so the two can be compared on the same
+# predictions. This is the number that was scale-dependent.
+TAU_ABSOLUTE = 0.01
+
+
+def unit_box_scale(pts: np.ndarray) -> float:
+    """Longest side of a cloud's axis-aligned bounding box."""
+    return float(max((pts.max(axis=0) - pts.min(axis=0)).max(), 1e-8))
 
 
 def chamfer(a: np.ndarray, b: np.ndarray) -> float:
@@ -70,11 +76,11 @@ def chamfer(a: np.ndarray, b: np.ndarray) -> float:
     return 0.5 * (d.min(axis=1).mean() + d.min(axis=0).mean())
 
 
-def part_acc(pts_gt, pts_pred, ppp, thresholds):
-    """Fraction of parts whose chamfer to their matched GT part is under each threshold.
+def part_acc(pts_gt, pts_pred, ppp, threshold):
+    """Fraction of parts whose chamfer to their matched GT part is under threshold.
 
     Hungarian matching on the chamfer cost, as compute_part_acc does: parts are
-    interchangeable, so a prediction is allowed to claim any GT part once.
+    interchangeable, so a prediction may claim any GT part once.
     """
     ppp = [int(n) for n in ppp if int(n) > 0]
     bounds = np.cumsum([0] + ppp)
@@ -87,63 +93,72 @@ def part_acc(pts_gt, pts_pred, ppp, thresholds):
             cost[i, j] = chamfer(gt[i], pr[j])
     r, c = linear_sum_assignment(cost)
     matched = cost[r, c]
-    return {t: float((matched < t).mean()) for t in thresholds}, matched
+    return float((matched < threshold).mean()), len(ppp)
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--clouds", required=True, help="a run's clouds/ directory")
+    ap.add_argument("--which", choices=("pred", "proposed"), default="pred",
+                    help="pred = generations_pred, the raw flow output, which is "
+                         "what the evaluator scores; proposed = the input parts "
+                         "rigidly posed by the predicted SE(3)")
     ap.add_argument("--absolute", action="store_true",
-                    help="reproduce the shipped metric: rescale by the object's "
-                         "own scale, then threshold at a fixed 0.01")
+                    help="reproduce the old shipped metric: rescale by the "
+                         "object's own scale, then threshold at a fixed 0.01")
     a = ap.parse_args()
 
     files = sorted(Path(a.clouds).glob("*.npz"))
     if not files:
         raise SystemExit(f"no npz under {a.clouds}")
 
-    per_obj = defaultdict(lambda: defaultdict(list))
-    scales = []
+    rows = []
     for f in files:
         d = np.load(f, allow_pickle=True)
-        key = "generations_proposed" if "generations_proposed" in d else "generations_pred"
+        key = "generations_" + ("pred" if a.which == "pred" else "proposed")
+        if key not in d:
+            raise SystemExit(f"{f.name} has no {key}; saved keys: {list(d.keys())}")
         gens = d[key]
         gt = d["pts_gt"]
         ppp = d["points_per_part"]
         scale = float(d["scale"]) if "scale" in d else 1.0
-        scales.append(scale)
         name = str(d["name"])
+
+        unit = unit_box_scale(gt)
+        accs = []
         for g in gens:
             if a.absolute:
-                acc, _ = part_acc(gt * scale, g * scale, ppp, (0.01,))
+                acc, n = part_acc(gt * scale, g * scale, ppp, TAU_ABSOLUTE)
             else:
-                acc, _ = part_acc(gt, g, ppp, THRESHOLDS)
-            for t, v in acc.items():
-                per_obj[name][t].append(v)
+                acc, n = part_acc(gt / unit, g / unit, ppp, TAU)
+            accs.append(acc)
+        n_parts = int(sum(1 for v in ppp if int(v) > 0))
+        rows.append((name, n_parts, len(accs), float(np.mean(accs)), scale, unit))
 
-    ts = (0.01,) if a.absolute else THRESHOLDS
-    mode = ("shipped metric: rescaled to original units, squared-CD threshold 0.01"
+    mode = ("OLD shipped metric: rescaled to stored units, squared-CD threshold 0.01"
             if a.absolute else
-            f"normalized frame, max|coord| = 1; squared-CD threshold "
-            f"{BBAD_EQUIV} is the Breaking Bad equivalent")
-    print(f"\n{Path(a.clouds).parent.name}")
-    print(f"{mode}")
-    print(f"object scale: median {np.median(scales):.3f}\n")
+            f"unit box: both clouds divided by the GT bbox longest side, tau = {TAU}")
+    print(f"\n{Path(a.clouds).parent.name}   [{a.which}]")
+    print(mode)
+    print()
 
-    nw = max(len(n) for n in per_obj)
-    print(f"{'object':{nw}s}  draws  " + "  ".join(
-        f"t={t:<9.2g}{'*' if t == BBAD_EQUIV else ' '}" for t in ts))
-    print("(* = the like-for-like Breaking Bad setting)\n")
-    for name, by_t in sorted(per_obj.items()):
-        n = len(by_t[ts[0]])
-        cells = "  ".join(f"{100 * np.mean(by_t[t]):10.1f}%" for t in ts)
-        print(f"{name:{nw}s}  {n:5d}  {cells}")
+    nw = max(len(r[0]) for r in rows)
+    print(f"{'object':{nw}s}  parts  draws  {'anchor floor':>12s}  {'scored':>8s}  "
+          f"{'earned':>7s}  {'gt box':>7s}")
+    tot_score, tot_floor = [], []
+    for name, n_parts, n_draws, acc, scale, unit in sorted(rows):
+        floor = 1.0 / n_parts
+        tot_score.append(acc)
+        tot_floor.append(floor)
+        print(f"{name:{nw}s}  {n_parts:5d}  {n_draws:5d}  {100 * floor:11.1f}%  "
+              f"{100 * acc:7.1f}%  {100 * (acc - floor):6.1f}%  {unit:7.3f}")
 
-    print(f"\n{'ALL':{nw}s}  {'':5s}  " + "  ".join(
-        f"{100 * np.mean([v for by_t in per_obj.values() for v in by_t[t]]):7.1f}%" for t in ts))
-    print("\nThese percentages include the anchor fragment, which is placed at")
-    print("ground truth by construction. On a 4-fragment pot the anchor alone")
-    print("is 25%, so read anything at or below 1/n_parts as nothing placed.\n")
+    ms, mf = float(np.mean(tot_score)), float(np.mean(tot_floor))
+    print(f"\n{'MEAN':{nw}s}  {'':5s}  {'':5s}  {100 * mf:11.1f}%  "
+          f"{100 * ms:7.1f}%  {100 * (ms - mf):6.1f}%")
+    print("\nThe anchor fragment is placed at ground truth by construction and")
+    print("always passes, so 1/n_parts is the floor a model earns nothing for.")
+    print("Read the 'earned' column: that is what the model actually seated.\n")
 
 
 if __name__ == "__main__":
