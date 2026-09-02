@@ -56,5 +56,9 @@ dataset_names: ["bbad_vessels_v3"]
 
 batch_size: 8
 num_workers: 8
+# Keep the loader's workers alive between epochs. This run validates every
+# epoch, and every worker teardown is a chance for one to die on the way
+# out -- which is how job 29825847 ended, at the close of epoch 0.
+persistent_workers: true
 min_dataset_size: 600
 limit_val_samples: 0

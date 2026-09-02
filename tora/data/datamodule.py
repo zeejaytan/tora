@@ -43,6 +43,7 @@ class PointCloudDataModule(L.LightningDataModule):
         batch_size: int = 40,
         num_workers: int = 16,
         multi_anchor: bool = False,
+        persistent_workers: bool = False,
     ):
         """Data module for point cloud data.
 
@@ -64,6 +65,13 @@ class PointCloudDataModule(L.LightningDataModule):
             batch_size: Batch size.
             num_workers: Number of workers to use for loading the data.
             multi_anchor: Whether to use multiple anchors for the point cloud.
+            persistent_workers: Keep the loader's worker processes alive between
+                epochs instead of forking a fresh set and tearing the old ones
+                down each time. Default False, which is the original behaviour.
+                Set it True for long runs that validate every epoch: each
+                teardown is a chance for a worker to die on the way out, and
+                validating every epoch instead of every tenth multiplies those
+                chances by ten (job 29825847).
         """
         super().__init__()
         self.data_root = data_root
@@ -79,6 +87,7 @@ class PointCloudDataModule(L.LightningDataModule):
         self.min_dataset_size = min_dataset_size
         self.random_scale_range = random_scale_range
         self.multi_anchor = multi_anchor
+        self.persistent_workers = persistent_workers and num_workers > 0
 
         self.train_dataset: Optional[ConcatDataset] = None
         self.val_dataset: Optional[ConcatDataset] = None
@@ -206,7 +215,7 @@ class PointCloudDataModule(L.LightningDataModule):
             num_workers=self.num_workers,
             worker_init_fn=worker_init_fn,
             shuffle=True,
-            persistent_workers=False,
+            persistent_workers=self.persistent_workers,
             pin_memory=True,
         )
 
@@ -218,7 +227,7 @@ class PointCloudDataModule(L.LightningDataModule):
             num_workers=self.num_workers,
             worker_init_fn=worker_init_fn,
             shuffle=False,
-            persistent_workers=False,
+            persistent_workers=self.persistent_workers,
         )
 
     def test_dataloader(self):
@@ -228,7 +237,7 @@ class PointCloudDataModule(L.LightningDataModule):
                 dataset,
                 batch_size=self.batch_size,
                 num_workers=self.num_workers,
-                persistent_workers=False,
+                persistent_workers=self.persistent_workers,
             )
             for dataset in self.test_dataset
         ]

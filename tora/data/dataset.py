@@ -70,7 +70,9 @@ class PointCloudDataset(Dataset):
         self.disable_augmentation = disable_augmentation
 
         self.use_folder = os.path.isdir(self.data_path)
-        self.pool = ThreadPoolExecutor(max_workers=num_threads)
+        self._num_threads = num_threads
+        self._pool = None
+        self._pool_pid = None
         self._h5_file = None
 
         self.min_part_count = self.max_parts + 1
@@ -80,6 +82,29 @@ class PointCloudDataset(Dataset):
             f"| {self.dataset_name:16s} | {self.split:8s} | {len(self.fragments):8d} "
             f"| [{int(self.min_part_count):2d}, {int(self.max_part_count):2d}] |"
         )
+
+    @property
+    def pool(self):
+        """A thread pool belonging to THIS process, built on first use.
+
+        It used to be built in __init__, which happens in the parent before
+        the DataLoader forks its workers. fork() copies only the calling
+        thread, so every worker inherited an executor whose worker threads
+        do not exist in that process -- and then ran shutdown() on it at
+        exit, joining thread ids that were never valid there. Job 29825847
+        died that way at the end of its first training epoch:
+        'pthread_join failed: Invalid argument', once per worker, then
+        'DataLoader worker killed by signal: Aborted'.
+
+        Keyed on the pid rather than merely lazy, because a lazily built
+        pool would still be inherited by any worker forked after the first
+        batch. Same reasoning as the _h5_file handle just above.
+        """
+        pid = os.getpid()
+        if self._pool is None or self._pool_pid != pid:
+            self._pool = ThreadPoolExecutor(max_workers=self._num_threads)
+            self._pool_pid = pid
+        return self._pool
 
     def __len__(self):
         return len(self.fragments)
@@ -409,7 +434,10 @@ class PointCloudDataset(Dataset):
     def __del__(self):
         if self._h5_file is not None:
             self._h5_file.close()
-        self.pool.shutdown()
+        # Only shut down a pool this process actually created. Touching
+        # self.pool here would BUILD one during interpreter teardown.
+        if self._pool is not None and self._pool_pid == os.getpid():
+            self._pool.shutdown()
 
 
 if __name__ == "__main__":
