@@ -71,8 +71,8 @@ def main():
     print("A reconstruction that leaves that gap open is correct.\n")
 
     w = max(len(r["name"]) for r in rows)
-    print(f"{'arm':{w}s}  draws   sherds seated (of {parts})            "
-          f"median  best  worst   turn")
+    head = f"sherds seated (of {parts})"
+    print(f"{'arm':{w}s}  draws  {head:34s}  median  best  worst   turn")
     for r in rows:
         c = Counter(r["seated"])
         hist = " ".join(f"{k}x{c[k]}" for k in sorted(c))
