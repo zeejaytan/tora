@@ -74,8 +74,7 @@ def main():
     print("the conservator, so a bad score here is the method, not the key.\n")
 
     print(f"{'pot':{pw}s}  {'arm':{aw}s}  frags  draws  seated  earned  best  worst   turn   offset")
-    print("('earned' = seated minus the one anchor fragment handed over for free)
-")
+    print("('earned' = seated minus the one anchor fragment handed over for free)\n")
     for pot in pots:
         for arm, by_pot in arms.items():
             draws = by_pot.get(pot)
@@ -117,7 +116,9 @@ def main():
         print(f"{arm:{aw}s}  {len(by_pot):4d}  {n_draws:5d}  {tot_seat:6d}  {earned:6d}"
               f"  {earn_frag:3d}  {pct:7.1f}  {median(rots):10.1f}d")
 
-    print("\nThat percentage is the typical attempt, not the best of them.")
+    print("\nThat percentage is fragments the model actually placed, on the")
+    print("typical attempt -- not the best of them, and not counting the")
+    print("anchor it was given. Zero earned means the pot fell apart.")
     print("A gap smaller than one fragment on one pot is not a result.")
     print("Eight pots is a lead, not a conclusion -- and they are modern")
     print("breaks with no wear, so they do not settle the buried-sherd case.\n")
