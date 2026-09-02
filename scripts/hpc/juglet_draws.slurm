@@ -17,8 +17,17 @@ set -euo pipefail
 # pots with abrasion we applied ourselves. The fresh held-out set is real pots
 # that were never broken in the ground. The Juglet is the one vessel that was
 # worn by burial, broken by accident, and reassembled by hand by a conservator.
-# There is no second one: fantastic_breaks.hdf5 is not built on Spartan and
-# fractura_real.hdf5 is a 68-byte stub. n = 1 object, permanently.
+#
+# It is the only such vessel, but it is no longer the only real-fracture test.
+# An earlier version of this comment said fractura_real.hdf5 was "a 68-byte
+# stub": it is not, and never was. It is a symlink, and ls reports a symlink's
+# size as the length of the path it points at -- 68 characters. The file behind
+# it is 3.0 GB and holds 8 real broken ceramic vessels, 16 bones and 3 eggs.
+# Use dataset/ceramics.hdf5 (a symlink onto the same file, named so the loader
+# finds the ceramics split); fractura_real.hdf5 itself has no matching
+# data_split key. Those 8 pots have real fracture surfaces but no burial wear,
+# and their ground-truth poses are not documented in the GARF paper -- look at
+# them before scoring against them.
 #
 # WHY THIS JOB EXISTS AT ALL. Nine fragments means every part-accuracy score is
 # a multiple of 1/9 = 0.111. The whole spread between the three arms on job
