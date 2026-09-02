@@ -252,15 +252,31 @@ run_arm () {
 
     echo ""
     echo "########## $NAME : THE JUGLET, against the hand reassembly ##########"
-    # The only real worn archaeological pot here with a valid answer key. Read
-    # it knowing a piece is MISSING: leaving that gap open is correct, and any
-    # metric that rewards contact everywhere will punish the right answer.
+    # THE ARM THAT ACTUALLY DECIDES THIS. Everything else is simulated
+    # fracture: the vessel val set is Breaking Bad, the erosion sweep is real
+    # pots with abrasion applied by us, the fresh set is real pots that were
+    # never broken in the ground. This is the one real archaeological vessel,
+    # worn by burial, broken by accident, with an answer key a conservator
+    # produced by hand. There is no second one: fantastic_breaks and
+    # fractura_real are not built on Spartan, so n = 1 object, permanently.
+    #
+    # Read it knowing a piece is MISSING: leaving that gap open is correct,
+    # and any metric that rewards contact everywhere will punish the right
+    # answer.
+    #
+    # 20 GENERATIONS, NOT 5. Nine fragments means every part-accuracy score
+    # is a multiple of 1/9 = 0.111, and the entire spread between the three
+    # arms last time (0.511 / 0.622 / 0.644, job 29623885) was one to two
+    # sherds. Five draws cannot separate that from luck. Twenty gives a
+    # distribution per arm instead of a number, and sample.py already writes
+    # one json per generation, so the spread is readable afterwards without
+    # any further code. The cost is minutes on a ten-hour allocation.
     RUN="$LOG_ROOT/lorav3_juglet_${NAME}_${SLURM_JOB_ID}"
     python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
         data=zeroshot/juglet_gt data.batch_size=1 \
         "${LORA_ARGS[@]}" \
         log_dir="$RUN" \
-        model.n_generations=5 \
+        model.n_generations=20 \
         "+visualizer._target_=tora.visualizer.FlowVisualizationCallback" \
         "+visualizer.renderer=mitsuba" \
         "+visualizer.image_size=512" \
