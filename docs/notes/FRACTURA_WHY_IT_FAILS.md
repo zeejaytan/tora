@@ -90,10 +90,45 @@ is the tempting conclusion and it is not the one the evidence supports.
 
 ## 2. There is a real failure, and rotation error shows it
 
-Rotation error is scale-invariant: the model only ever sees data normalised to
-[-1, 1] (`dataset.py`, `scale = np.max(np.abs(pts_gt)); pts_gt /= scale`), and
-the angle between two orientations does not care what units the file used. The
-units bug cannot touch it.
+> **⚠ Correction pending, 2026-09-02. Every Fractura row in the table below is
+> under review.** The paragraph that followed said the units bug "cannot touch"
+> rotation error, on the grounds that the model only ever sees data normalised
+> to [-1, 1]. The *metric* is indeed scale-invariant. **The model is not.**
+>
+> `scales` — the object's size in its stored units — is not only bookkeeping.
+> `tora/modeling/tora.py` reads it out of the batch and passes it into the flow
+> model at **every denoising step**, and the encoding manager turns it into a
+> sinusoidal code attached to **all 5000 points**
+> (`tora/modeling/flow_model/embedding.py:151`). Breaking Bad objects arrive at
+> max|v| = 0.5 and training jitters that by (0.75, 1.25), so the model has only
+> ever seen this input in roughly **[0.375, 0.625]**. The eight ceramics arrive
+> at **45.3 – 120.5**, because they are stored in millimetres — 100–190× outside
+> the band, and far past the point where an encoding topping out at 2^9 still
+> distinguishes one value from another.
+>
+> So a millimetre-stored object was handed a description of itself the network
+> has no vocabulary for, at every step of the reconstruction. That is a third
+> possibility the table does not separate: not the material, not the ruler, but
+> **the model being told the wrong thing about the object**.
+>
+> The lead: blue_pot, galli_pot and plate appear in *both*
+> `real_heldout_norm.hdf5` (normalised) and `ceramics.hdf5` (millimetres) — the
+> same meshes, piece for piece, identical vertex and face counts, extents
+> differing by one uniform factor. Same checkpoint, same seed. blue_pot scores
+> **5.4°** normalised and **76.0°** raw. That is two historical jobs whose
+> sampler settings could not be fully recovered, so it is a lead, not a finding.
+> Job **29891327** (`scripts/hpc/eval_scale_ladder.slurm`) runs both arms plus a
+> ladder of intermediate sizes in one job with identical settings to settle it.
+>
+> Until it reports, read the table below as: the non-Fractura rows stand; every
+> Fractura row measures a pot *and* a handicap, and cannot be attributed to the
+> material. Note this does not rescue the real-versus-simulated conclusion —
+> it strengthens it, since the real bones were handicapped (stored at 24) and
+> still beat the simulated bones that were not (stored at 0.56).
+
+Rotation error is a scale-invariant *measurement*: the angle between two
+orientations does not care what units the file used. What the model was *told*
+about the object's size is a separate matter, treated above.
 
 `compute_transform_errors` skips the anchor but divides by *all* parts, so the
 reported mean is diluted by one free zero. The right column below multiplies
