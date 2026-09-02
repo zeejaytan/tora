@@ -35,6 +35,9 @@ def _load_mesh_from_ply(ply_path):
 class PointCloudDataset(Dataset):
     """Dataset class for multi-part point clouds and apply part-level augmentation."""
 
+    # The convention the shipped synthetic data uses: per object, max|v| = 0.5.
+    NORMALIZED_MAX_ABS = 0.5
+
     def __init__(
         self,
         split: str = "train",
@@ -52,6 +55,8 @@ class PointCloudDataset(Dataset):
         min_dataset_size: int = 0,
         num_threads: int = 2,
         disable_augmentation: bool = False,
+        normalize_object_scale: bool = False,
+        scale_multiplier: float = 1.0,
     ):
         super().__init__()
         self.split = split
@@ -68,6 +73,8 @@ class PointCloudDataset(Dataset):
         self.limit_val_samples = limit_val_samples
         self.min_dataset_size = min_dataset_size
         self.disable_augmentation = disable_augmentation
+        self.normalize_object_scale = normalize_object_scale
+        self.scale_multiplier = scale_multiplier
 
         self.use_folder = os.path.isdir(self.data_path)
         self._num_threads = num_threads
@@ -323,6 +330,27 @@ class PointCloudDataset(Dataset):
 
         # Rotate point clouds to y-up
         pts_gt, normals_gt = self._make_y_up(pts_gt, normals_gt)
+
+        # Restate the object in different physical units, if asked.
+        #
+        # `scales` is NOT only metric bookkeeping: tora.py passes it into the
+        # flow model at every denoising step, and PointCloudEncodingManager
+        # turns it into a sinusoidal code attached to all N points
+        # (flow_model/embedding.py). Breaking Bad objects arrive at max|v| =
+        # 0.5, so with random_scale_range the model has only ever seen scales
+        # in ~[0.375, 0.625]. The real Fractura subsets are stored in
+        # millimetres and arrive at 24-120 -- two orders of magnitude outside
+        # that, into the sinusoids' aliasing regime.
+        #
+        # Both knobs below multiply the geometry BEFORE the [-1, 1]
+        # normalization, which is exactly what saving the scan in other units
+        # would do: the coordinates the network sees are unchanged, and only
+        # `scales` moves. scripts/check_scale_conditioning.py asserts that.
+        # Defaults are inert, so no existing run changes.
+        if self.normalize_object_scale:
+            pts_gt = pts_gt * (self.NORMALIZED_MAX_ABS / max(np.max(np.abs(pts_gt)), 1e-12))
+        if self.scale_multiplier != 1.0:
+            pts_gt = pts_gt * self.scale_multiplier
 
         # Scale point clouds to [-1, 1] and apply random scaling
         scale = np.max(np.abs(pts_gt))

@@ -44,6 +44,8 @@ class PointCloudDataModule(L.LightningDataModule):
         num_workers: int = 16,
         multi_anchor: bool = False,
         persistent_workers: bool = False,
+        normalize_object_scale: bool = False,
+        scale_multiplier: float = 1.0,
     ):
         """Data module for point cloud data.
 
@@ -86,6 +88,11 @@ class PointCloudDataModule(L.LightningDataModule):
         self.limit_val_samples = limit_val_samples
         self.min_dataset_size = min_dataset_size
         self.random_scale_range = random_scale_range
+        # See the long note in dataset.py: `scales` is a model input, not only
+        # metric bookkeeping. These restate the object in other units so that
+        # only that input moves. Inert by default.
+        self.normalize_object_scale = normalize_object_scale
+        self.scale_multiplier = scale_multiplier
         self.multi_anchor = multi_anchor
         self.persistent_workers = persistent_workers and num_workers > 0
 
@@ -137,6 +144,8 @@ class PointCloudDataModule(L.LightningDataModule):
                         min_dataset_size=self.min_dataset_size,
                         anchor_free=self.anchor_free,
                         random_scale_range=self.random_scale_range,
+                        normalize_object_scale=self.normalize_object_scale,
+                        scale_multiplier=self.scale_multiplier,
                         multi_anchor=self.multi_anchor,
                     )
                     for dataset_name in self.dataset_names
@@ -156,6 +165,8 @@ class PointCloudDataModule(L.LightningDataModule):
                         num_points_to_sample=self.num_points_to_sample,
                         min_points_per_part=self.min_points_per_part,
                         limit_val_samples=self.limit_val_samples,
+                        normalize_object_scale=self.normalize_object_scale,
+                        scale_multiplier=self.scale_multiplier,
                     )
                     for dataset_name in self.dataset_names
                 ]
@@ -179,6 +190,8 @@ class PointCloudDataModule(L.LightningDataModule):
                         num_points_to_sample=self.num_points_to_sample,
                         min_points_per_part=self.min_points_per_part,
                         limit_val_samples=self.limit_val_samples,
+                        normalize_object_scale=self.normalize_object_scale,
+                        scale_multiplier=self.scale_multiplier,
                     )
                     for dataset_name in self.dataset_names
                 ]
@@ -200,6 +213,8 @@ class PointCloudDataModule(L.LightningDataModule):
                     num_points_to_sample=self.num_points_to_sample,
                     min_points_per_part=self.min_points_per_part,
                     limit_val_samples=self.limit_val_samples,
+                    normalize_object_scale=self.normalize_object_scale,
+                    scale_multiplier=self.scale_multiplier,
                 )
                 for dataset_name in self.dataset_names
             ]
