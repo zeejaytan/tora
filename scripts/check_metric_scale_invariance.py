@@ -15,11 +15,14 @@ object, store it in metres, in millimetres and in the normalized frame, and the
 score must not move. Anything that reintroduces an absolute length will fail
 here rather than three months later in a result read-out.
 
-Run on Spartan (needs torch + pytorch3d):
+Run on Spartan (needs torch + pytorch3d), from anywhere:
   python scripts/check_metric_scale_invariance.py
 """
 
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import torch
 
