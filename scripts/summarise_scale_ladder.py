@@ -76,7 +76,9 @@ def main():
     rungs.sort(key=lambda t: t[0])
 
     pots = sorted({p for _, _, bp in rungs for p in bp})
-    pw = max(len(p) for p in pots)
+    # names arrive as "<dataset>/<object>"; the dataset half is the same on
+    # every column and eats the whole header width if it is left on.
+    short = {p: p.split("/")[-1] for p in pots}
 
     print("\nOne knob, eight pots. Only `scales` differs between these rows;")
     print("the point coordinates the network sees are identical (asserted by")
@@ -84,9 +86,11 @@ def main():
     print("Rotation error on the fragments the model had to place (the anchor")
     print("is excluded), in degrees. Lower is better; 90 deg is a right angle.\n")
 
-    head = f"{'scale fed in':>12s}  {'band':>5s}  " + "  ".join(f"{p[:9]:>9s}" for p in pots)
-    print(head + f"  {'ALL POTS':>9s}")
-    print("-" * len(head + "  " + " " * 9))
+    cw = max(9, max(len(v) for v in short.values()))
+    head = (f"{'scale fed in':>12s}  {'band':>5s}  "
+            + "  ".join(f"{short[p]:>{cw}s}" for p in pots))
+    print(head + f"  {'ALL POTS':>{cw}s}")
+    print("-" * (len(head) + 2 + cw))
 
     for scale, name, by_pot in rungs:
         band = "yes" if TRAIN_LO <= scale <= TRAIN_HI else "no"
@@ -94,15 +98,15 @@ def main():
         for p in pots:
             draws = by_pot.get(p)
             if not draws:
-                cells.append(f"{'-':>9s}")
+                cells.append(f"{'-':>{cw}s}")
                 continue
             n = draws[0]["num_parts"]
             f = n / (n - 1) if n > 1 else 1.0
             vals = [x["rotation_error"] * f for x in draws]
             pooled += vals
-            cells.append(f"{median(vals):8.1f}d")
+            cells.append(f"{median(vals):{cw - 1}.1f}d")
         print(f"{scale:12.3f}  {band:>5s}  " + "  ".join(cells) +
-              f"  {median(pooled):8.1f}d")
+              f"  {median(pooled):{cw - 1}.1f}d")
 
     print()
     for scale, name, _ in rungs:

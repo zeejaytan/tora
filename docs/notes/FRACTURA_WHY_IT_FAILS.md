@@ -1,10 +1,27 @@
-# Why TORA does badly on Fractura — and why it is not the fracture surface
+# Why TORA looked bad on Fractura: two units bugs, one behind the other
+
+**Resolved 2026-09-02. Read section 2 first — sections 1 and 3 onward are kept
+as the record of how this was reasoned through, including where it went wrong.**
 
 Started from a fair question: these eight ceramics were broken last week, not
 dug up. Fresh edges, sharp and unworn. If TORA's weakness were worn fracture
-surfaces, it should sail through these. It does not. So what is it?
+surfaces, it should sail through these. It did not. So what was it?
 
-Two separate things were happening, and they had been reported as one.
+Neither the fracture surfaces nor the pots. **Two separate unit-conversion
+faults, stacked.** The first was in how the answers were scored: an absolute
+0.01 tolerance applied to objects stored in millimetres, which pinned every
+real object at exactly the free anchor. The second, found only after fixing the
+first, was in what the model is *told*: the object's stored size is fed into
+the network at every step of the reconstruction, and at 45–120 rather than the
+0.5 it was trained on, it is meaningless to the network.
+
+With both fixed, on the same eight pots with the same trained model: fragments
+correctly seated go from **1.0% to 72.6%**, and three of the eight pots
+reassemble completely. Job 29891327.
+
+The order matters, and it is the trap: fixing the scoring bug and re-reading
+the same run *felt* like confirmation that the model had genuinely failed. It
+was not. The second bug was still in the run being re-read.
 
 ## 1. The "zero fragments placed" reading was the ruler, not the model
 
@@ -82,95 +99,179 @@ At the benchmark's own tolerance, correctly applied, the model seats essentially
 nothing beyond the free anchor: 22.7% against a 21.5% floor is roughly one extra
 fragment across eighty attempts.
 
-So both statements are true and neither cancels the other. **The ruler was
-broken and worth fixing** — it made a real number unreadable and would have
-faked the same finding on any future dataset stored in millimetres. **And the
-failure it was hiding is real.** Do not stop at "the metric was broken" — that
-is the tempting conclusion and it is not the one the evidence supports.
+**Superseded, later the same day.** The paragraph that stood here concluded
+"the failure it was hiding is real" and warned against stopping at "the metric
+was broken." That warning was right in spirit and wrong on the facts: there was
+a *second* units bug one level deeper, in what the model is told about the
+object rather than in how the answer is scored. Section 2 has it. Correcting
+that one takes these same eight pots from 1.0% of fragments seated to 72.6%.
 
-## 2. There is a real failure, and rotation error shows it
+What still stands from this section: the scoring threshold really was broken,
+fixing it really was necessary, and it really would have faked the same reading
+on any future dataset stored in millimetres. What does not stand is the
+inference drawn from the corrected number — 22.7% against a 21.5% floor was
+measured on a run whose model input was still corrupted, so it was never a
+measurement of what TORA can do with these pots.
 
-> **⚠ Correction pending, 2026-09-02. Every Fractura row in the table below is
-> under review.** The paragraph that followed said the units bug "cannot touch"
-> rotation error, on the grounds that the model only ever sees data normalised
-> to [-1, 1]. The *metric* is indeed scale-invariant. **The model is not.**
->
-> `scales` — the object's size in its stored units — is not only bookkeeping.
-> `tora/modeling/tora.py` reads it out of the batch and passes it into the flow
-> model at **every denoising step**, and the encoding manager turns it into a
-> sinusoidal code attached to **all 5000 points**
-> (`tora/modeling/flow_model/embedding.py:151`). Breaking Bad objects arrive at
-> max|v| = 0.5 and training jitters that by (0.75, 1.25), so the model has only
-> ever seen this input in roughly **[0.375, 0.625]**. The eight ceramics arrive
-> at **45.3 – 120.5**, because they are stored in millimetres — 100–190× outside
-> the band, and far past the point where an encoding topping out at 2^9 still
-> distinguishes one value from another.
->
-> So a millimetre-stored object was handed a description of itself the network
-> has no vocabulary for, at every step of the reconstruction. That is a third
-> possibility the table does not separate: not the material, not the ruler, but
-> **the model being told the wrong thing about the object**.
->
-> The lead: blue_pot, galli_pot and plate appear in *both*
-> `real_heldout_norm.hdf5` (normalised) and `ceramics.hdf5` (millimetres) — the
-> same meshes, piece for piece, identical vertex and face counts, extents
-> differing by one uniform factor. Same checkpoint, same seed. blue_pot scores
-> **5.4°** normalised and **76.0°** raw. That is two historical jobs whose
-> sampler settings could not be fully recovered, so it is a lead, not a finding.
-> Job **29891327** (`scripts/hpc/eval_scale_ladder.slurm`) runs both arms plus a
-> ladder of intermediate sizes in one job with identical settings to settle it.
->
-> Until it reports, read the table below as: the non-Fractura rows stand; every
-> Fractura row measures a pot *and* a handicap, and cannot be attributed to the
-> material. Note this does not rescue the real-versus-simulated conclusion —
-> it strengthens it, since the real bones were handicapped (stored at 24) and
-> still beat the simulated bones that were not (stored at 0.56).
+## 2. RESOLVED, 2026-09-02: the ceramics failure was the storage units
 
-Rotation error is a scale-invariant *measurement*: the angle between two
+**This section previously read "There is a real failure, and rotation error
+shows it." That conclusion is withdrawn for every Fractura subset stored in
+millimetres.** Job **29891327** settled it.
+
+### What was actually wrong
+
+`scales` — the object's size in whatever units its file happened to use — is
+not metric bookkeeping. `tora/modeling/tora.py` reads it out of the batch and
+passes it into the flow model at **every denoising step**, and the encoding
+manager turns it into a sinusoidal code attached to **all 5000 points**
+(`tora/modeling/flow_model/embedding.py:151`). It is a conditioning **input**.
+
+Breaking Bad objects arrive at max|v| = 0.5 and training jitters that by
+(0.75, 1.25), so the model has only ever seen this input in roughly
+**[0.375, 0.625]**. The eight ceramics are stored in millimetres and arrive at
+**45.3 – 120.5** — 100–190× outside the band, and far past the point where an
+encoding topping out at 2^9 still separates one value from the next.
+
+`scripts/normalize_real_hdf5.py` asserted the opposite in its header —
+*"TRAINING AND INFERENCE ARE UNAFFECTED by this"* — which is why the raw-unit
+subsets were never re-run. That sentence was false and has been corrected.
+
+### The experiment
+
+`scripts/hpc/eval_scale_ladder.slurm`, one job, one settings set. Two dataset
+knobs restate the object *before* the [-1, 1] normalisation, which is exactly
+what saving the scan in other units would do.
+`scripts/check_scale_conditioning.py` runs first and asserts that nothing but
+`scales` moves — it passed with every compared tensor **bit-identical
+(0.00e+00)** on all eight pots, so a change in score cannot come from the
+geometry shifting.
+
+Non-anchor rotation error, degrees, median of 10 draws (5 on the intermediate
+rungs). Only the size number differs between rows:
+
+```
+scale fed in  band  blue_pot galli_pot   nb1    nb2    nb3    nb4  pink_bowl  plate    ALL
+      0.500    yes     30.5      34.8   62.3    4.3   81.8    7.8       2.4   48.7   30.8
+      1.000     no     20.3      39.9   60.6    4.3   71.8    8.0       2.8   30.1   23.9
+      2.500     no     45.5      39.1   73.4    4.1   73.4    7.2       3.1   28.7   30.3
+      5.000     no     18.3      29.6   65.6    4.6   79.5    7.7       2.0   46.2   25.7
+     15.000     no     45.4      59.1   77.2    8.5   41.7   13.3       3.0   62.4   44.6
+     50.000     no     90.4      74.3   82.7   54.5   74.5   74.6      76.8   69.8   74.9
+     69.217     no     83.5      66.2   87.5   82.7   90.6   71.7      85.8   88.2   81.2   <- as shipped
+    100.000     no     90.4      73.9   77.8   73.7  105.9   76.0      73.5   77.7   77.8
+```
+
+The curve is flat from 0.5 to 5, bends at 15, and has collapsed by 50. It is
+not a gentle degradation: there is a **cliff between scale 15 and scale 50**,
+and every real Fractura subset sits on the far side of it.
+
+### What the model can actually do with these pots
+
+Fragments seated, at the benchmark's own tolerance in the corrected unit-box
+frame, anchor subtracted. Same pots, same checkpoint, same seed:
+
+| pot | frags | as shipped (mm) | normalised | turn, mm to normalised |
+|---|---|---|---|---|
+| blue_pot | 5 | 0 of 4 | **4 of 4** | 66.8° → 24.4° |
+| galli_pot | 10 | 0 of 9 | **7 of 9** | 59.5° → 31.4° |
+| narrow_bottle1 | 12 | 0 of 11 | **4.5 of 11** | 80.2° → 57.1° |
+| narrow_bottle2 | 3 | 0 of 2 | **2 of 2** | 55.1° → 2.8° |
+| narrow_bottle3 | 4 | 0 of 3 | **2.5 of 3** | 68.0° → 61.3° |
+| narrow_bottle4 | 4 | 0 of 3 | **3 of 3** | 53.8° → 5.9° |
+| pink_bowl | 3 | 0 of 2 | **2 of 2** | 57.2° → 1.6° |
+| plate | 6 | 0 of 5 | **3 of 5** | 73.5° → 40.6° |
+| **pooled** | | **4 of 390 (1.0%)** | **283 of 390 (72.6%)** | 60.4° → 26.7° |
+
+Three of the eight pots go to a complete reassembly on the typical attempt.
+Fragment offset drops from about a third of the pot to 1–2% on those three.
+
+### Looked at, not just measured
+
+- **blue_pot as shipped:** the five fragments compacted into a flat slab, the
+  green wall sheared out of the body, nothing seated. **Normalised:** a closed
+  cylindrical pot with the rim fragments sitting on the rim. Against ground
+  truth it is the same vessel.
+- **pink_bowl as shipped:** three fragments overlapping through each other at
+  roughly right angles. **Normalised:** a clean hemisphere, indistinguishable
+  from ground truth at this viewing scale.
+
+Renders: `artifacts/scaleladder_29891327/`.
+
+### Which of the three this is
+
+**The measurement was broken — twice, at two different depths.** First the
+scoring threshold (section 1), then the model's own input. TORA can reassemble
+these pots. It was being handed a description of the object it has no
+vocabulary for, at every step of the reconstruction. This is not the method
+failing on real fracture surfaces.
+
+### What this does and does not overturn
+
+- **Overturned:** every Fractura row of the old rotation table that was stored
+  in millimetres — ceramics, real bones, egg. Those numbers measured the
+  handicap, not the material. They must be re-run normalised before being
+  quoted again.
+- **Strengthened:** the real-versus-simulated refutation. The *real* bones
+  carried this handicap (stored at 24) and still beat the *simulated* bones
+  that did not (stored at 0.56). Removing the handicap can only widen that gap.
+- **Untouched and still unexplained:** `bone_syn_pig` (61.4°) and
+  `bone_syn_rib` (64.4°) are already normalised, and `coxae` fails at 85.7°
+  normalised. Bones are a separate problem and this finding does not reach them.
+- **Still open:** narrow_bottle1, narrow_bottle3 and plate remain poor even
+  normalised (57°, 61°, 41°). Whatever else is hard about these pots, it is
+  not the units.
+
+### The old table, for the record
+
+Rotation error is a scale-invariant *measurement* — the angle between two
 orientations does not care what units the file used. What the model was *told*
-about the object's size is a separate matter, treated above.
+about the object's size is a separate matter, and that is what these rows
+confounded.
 
-`compute_transform_errors` skips the anchor but divides by *all* parts, so the
-reported mean is diluted by one free zero. The right column below multiplies
-back by `n/(n-1)` to give the error on fragments the model actually had to
-place. Same checkpoint throughout; real subsets from job 24342475.
+| run | objects | rot, as reported | rot, non-anchor | status |
+|---|---|---|---|---|
+| Breaking Bad vessels (synthetic) | 107 | 20.9° | 22.4° | stands |
+| real held-out pots, normalised | 6 | 29.9° | 35.9° | stands |
+| Fractura bones — REAL fracture | 16 | 28.3° | 52.3° | **stored in mm — invalid** |
+| Fractura egg — REAL fracture | 3 | 42.5° | 56.6° | **stored in mm — invalid** |
+| Fractura bone_syn_pig — SIMULATED | 21 | 55.4° | 61.4° | stands (normalised) |
+| Fractura bone_syn_rib — SIMULATED | 11 | 61.5° | 64.4° | stands (normalised) |
+| Fractura ceramics — REAL fracture | 8 | 61.4° | 79.1° | **superseded: 26.7° normalised** |
 
-| run | objects | rot, as reported | rot, non-anchor |
-|---|---|---|---|
-| Breaking Bad vessels (synthetic) | 107 | 20.9° | **22.4°** |
-| real held-out pots, normalised | 6 | 29.9° | **35.9°** |
-| Fractura bones — REAL fracture | 16 | 28.3° | **52.3°** |
-| Fractura egg — REAL fracture | 3 | 42.5° | **56.6°** |
-| Fractura bone_syn_pig — SIMULATED | 21 | 55.4° | **61.4°** |
-| Fractura bone_syn_rib — SIMULATED | 11 | 61.5° | **64.4°** |
-| Fractura ceramics — REAL fracture | 8 | 61.4° | **79.1°** |
+### Do not let this happen a third time
+
+`scripts/check_scale_conditioning.py` proves the knob is clean but does not
+stop anyone feeding the model an out-of-band size. Any future zero-shot subset
+should have its `scales` checked against [0.375, 0.625] before its score is
+read — the cliff is between 15 and 50, so anything past ~15 is already
+compromised.
 
 ## What this rules out
 
 **It is not wear.** Every Fractura object is a fresh break. The original
 intuition was right on this point.
 
-**It is not real-versus-simulated fracture surface.** This is the one the
-project had written down as the answer, and the table refutes it: Fractura's
-*simulated* pig and rib bones fail at 61–64°, worse than Fractura's *real*
-bones at 52°. If simulated fracture were the easy case, that ordering would be
-the other way round.
+**It is not real-versus-simulated fracture surface.** Fractura's *simulated*
+pig and rib bones fail at 61–64° while already normalised; Fractura's *real*
+bones scored 52° while carrying the units handicap. The real subset was the
+handicapped one and still came out ahead.
+
+**It was not the ceramics' fracture surfaces at all.** Normalised, the same
+eight pots go from 1.0% of fragments seated to 72.6%, and three of them
+reassemble completely. See section 2.
 
 **It is not piece count or object complexity.** Within the ceramics, per-pot
-non-anchor rotation error is flat against fragment count:
+rotation error was flat against fragment count in the millimetre run — a
+three-fragment bowl came out 78° wrong. That flatness was itself the tell: the
+pots were not failing in proportion to their difficulty, they were all being
+handed the same corrupted size input. Normalised, error does track difficulty:
+the 3-fragment bowl and bottle land at 1.6° and 2.8° while the 12-fragment
+bottle stays at 57°.
 
-```
-pink_bowl        3 parts  78.0°     plate            6 parts  77.0°
-narrow_bottle2   3 parts  78.2°     galli_pot       10 parts  80.9°
-narrow_bottle4   4 parts  70.1°     narrow_bottle1  12 parts  93.1°
-narrow_bottle3   4 parts  82.7°     blue_pot         5 parts  79.5°
-```
-
-A three-fragment bowl — the easiest reassembly in the set — comes out 78° wrong.
-
-The split is by **dataset**, not by material, fracture type, or difficulty:
-everything from Fractura is bad, everything not from Fractura is fine, and our
-own real pots (35.9°) sit with the good group.
+The split was by **dataset**, and the dataset boundary was the units boundary:
+everything stored in millimetres was bad, everything normalised was fine, and
+our own real pots (35.9°, normalised) sat with the good group all along.
 
 ## What has not been tested
 
@@ -185,30 +286,43 @@ Naming these so the above is not mistaken for a full answer:
   unlike anything in Breaking Bad. This would affect real subsets only, and the
   simulated bones are also bad — so it cannot be the whole story.
 - **Point budget.** 5000 points are shared across the object, allocated by
-  area; blue_pot's smallest fragment gets 107. Thin, but piece count does not
-  correlate with error, which argues against it.
+  area; blue_pot's smallest fragment gets 107. This was previously dismissed
+  because error did not track piece count — but that flatness was the units bug
+  masking everything else. Normalised, error *does* track fragment count
+  (12-fragment bottle 57°, 3-fragment bowl 1.6°), so the point budget is back
+  on the list as a candidate for the three pots that are still poor.
 - **How Fractura's ground truth poses were established.** The GARF paper does
   not document it. The conservator has confirmed the ceramics are in correct
   assembly, which closes this for the ceramics but not for the bones and eggs.
-- **The renders.** Two of eight have been looked at. pink_bowl (3 fragments,
-  the easiest reassembly in the set) has a clean hemispherical ground truth;
-  its predicted assembly is the three fragments compacted into one
-  interpenetrating slab, all three overlapping through each other rather than
-  seated edge to edge. That is what a 78° mean rotation error looks like, and
-  it is consistent with the anchor-floor part accuracy. Two is not eight.
+- **The renders.** Four have been looked at across the two arms: blue_pot and
+  pink_bowl, as shipped and normalised (section 2). Both show the same thing —
+  an interpenetrating slab in the millimetre run, a coherent vessel in the
+  normalised one. Four is not sixteen.
 
 ## Weight this can bear
 
-Eight pots, 10 draws each, one checkpoint. The rotation comparison spans 172
-objects across seven runs, which is why it is stated most firmly. The corrected
-part-accuracy table now rests on all eight saved objects, not two:
-`scripts/hpc/eval_ceramics_arms.slurm` was changed to save every sample in the
-batch (`max_samples_per_batch: 8`) precisely so a threshold mistake could be
-repaired from the npz without spending GPU time again — which is what happened.
+**The units finding is the firm part.** Eight pots, 10 draws each, one
+checkpoint, and a controlled comparison: same file, same meshes, same seed,
+same settings, one job — with a gate asserting that every tensor except the
+size number was bit-identical between the two arms. An eight-rung ladder shows
+where the cliff is (between 15 and 50) rather than only that the endpoints
+differ. That is about as tight as this can be made without a second checkpoint,
+and it is a statement about the software, not about ceramics.
 
-Three scale-invariant measures agree, which is the reason this is stated as a
-real failure rather than another broken ruler: non-anchor rotation error 53–79°,
-`translation_error_unit` 0.110 (fragments sitting about 11% of the object's
-longest dimension away from home — roughly 17 mm on a 150 mm pot), and
-`object_chamfer_unit` 0.0101. None of the three can be moved by the storage
-units.
+**What it does not establish** is how well TORA reassembles real broken pottery.
+72.6% of fragments seated on eight modern breaks, one model, is a lead. These
+are fresh fractures with no burial wear, so they still say nothing about the
+buried-sherd case — the Juglet remains the only object here that is both really
+broken and really worn. And three of the eight pots stay poor normalised.
+
+**One methodological point worth keeping.** The only reason this cost 13 GPU
+minutes rather than another week is that `eval_ceramics_arms.slurm` had been
+changed to save every sample's point clouds (`max_samples_per_batch: 8`), so a
+scoring mistake could be repaired from disk. That paid for itself twice.
+
+**And the pattern to distrust.** Both errors here were units errors, both
+survived rounds of numeric checking, and both produced numbers that looked like
+a scientific finding. The second one hid *behind the first*: fixing the ruler
+and re-reading the same corrupted run felt like confirmation. A flat result
+across objects of very different difficulty is a symptom of a broken input, not
+evidence of a uniform weakness.
