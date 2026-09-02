@@ -5,7 +5,13 @@ from typing import Any, Dict
 import torch
 import lightning as L
 
-from .metrics import compute_object_cd, compute_part_acc, compute_transform_errors, align_anchor
+from .metrics import (
+    compute_object_cd,
+    compute_part_acc,
+    compute_transform_errors,
+    align_anchor,
+    unit_box_scale,
+)
 
 
 class Evaluator:
@@ -29,21 +35,62 @@ class Evaluator:
         anchor_parts = data["anchor_parts"]             # (B, P)
         scales = data["scales"]                         # (B,)
 
-        # Rescale to original scales
+        # WHICH FRAME THE THRESHOLDS ARE SCORED IN.
+        #
+        # compute_part_acc passes a fragment when its chamfer distance is under
+        # a fixed 0.01. That number is not a physical length anyone chose: it is
+        # tau from Breaking Bad, and Breaking Bad states it in a specific frame
+        # -- "We re-scale each of them to fit a unit-length box ... This
+        # normalization scheme allows our method to be scale invariant."
+        #
+        # This evaluator used to multiply the clouds back to each object's own
+        # stored units and then apply 0.01 there, which throws away exactly the
+        # scale invariance the benchmark was built on. It is harmless while
+        # every dataset happens to be stored unit-box (Breaking Bad is, at
+        # max|coord| ~ 0.5), and silently catastrophic when one is not:
+        # Fractura's real scans are in MILLIMETRES, so the same line asked a
+        # ceramic fragment to land within 0.1 mm on a pot 150 mm across, about
+        # 125x tighter in linear terms than the synthetic case. Nothing but the
+        # anchor -- clamped at ground truth by construction, chamfer ~0 -- could
+        # pass, and all 27 real Fractura objects scored exactly 1/n_parts. That
+        # zero was the ruler, not the model. See docs/notes/FRACTURA_WHY_IT_FAILS.md.
+        #
+        # So the threshold is now applied in the unit-box frame, which is what
+        # tau = 0.01 has always meant. For data already stored that way this
+        # changes nothing measurable (Breaking Bad's box side is 0.98-1.00);
+        # for data stored in any other unit it is the difference between a
+        # measurement and an artefact. The previous value is still reported, as
+        # part_accuracy_absolute, so runs scored before this can be compared.
         B, _, _ = pts_gt.shape
         pointclouds_pred = pointclouds_pred.view(B, -1, 3)
-        pts_gt_rescaled = pts_gt * scales.view(B, 1, 1)
-        pts_pred_rescaled = pointclouds_pred * scales.view(B, 1, 1)
+        unit = unit_box_scale(pts_gt)                    # (B,) longest GT bbox side
+        u = unit.view(B, 1, 1)
+        pts_gt_unit = pts_gt / u
+        pts_pred_unit = pointclouds_pred / u
 
         # Align the predicted anchor parts to the ground truth anchor parts using ICP (only used in anchor-free mode)
+        # ICP is scale-equivariant, so aligning once here and scaling afterwards
+        # gives the same answer as aligning in each frame separately.
         if self.model.anchor_free:
-            pts_pred_rescaled = align_anchor(pts_gt_rescaled, pts_pred_rescaled, points_per_part, anchor_parts)
+            pts_pred_unit = align_anchor(pts_gt_unit, pts_pred_unit, points_per_part, anchor_parts)
+
+        # Back to the object's own stored units, for the metrics that were
+        # already reported there -- object_chamfer in particular, which
+        # config/trainer/main.yaml monitors to pick checkpoints. Do not change
+        # its meaning: it would change which epoch gets saved.
+        f = (unit * scales).view(B, 1, 1)
+        pts_gt_rescaled = pts_gt_unit * f
+        pts_pred_rescaled = pts_pred_unit * f
 
         object_cd = compute_object_cd(pts_gt_rescaled, pts_pred_rescaled)
-        part_acc, matched_parts = compute_part_acc(pts_gt_rescaled, pts_pred_rescaled, points_per_part)
+        object_cd_unit = compute_object_cd(pts_gt_unit, pts_pred_unit)
+        part_acc, matched_parts = compute_part_acc(pts_gt_unit, pts_pred_unit, points_per_part)
+        part_acc_abs, _ = compute_part_acc(pts_gt_rescaled, pts_pred_rescaled, points_per_part)
         metrics = {
             "part_accuracy": part_acc,
+            "part_accuracy_absolute": part_acc_abs,
             "object_chamfer": object_cd,
+            "object_chamfer_unit": object_cd_unit,
         }
 
         raw_errors = None
@@ -57,13 +104,29 @@ class Evaluator:
             )
             rot_recalls = self._recall_at_thresholds(rot_errors, [5, 10])
             trans_recalls = self._recall_at_thresholds(trans_errors, [0.01, 0.05])
+            # recall_at_1cm/5cm carry the same defect part accuracy did: they
+            # threshold an absolute distance, and their names only describe it
+            # if the object is stored in metres. On Fractura's millimetre scans
+            # they read "within 0.01 mm" and are always zero. The _frac pair is
+            # the same question asked scale-free -- within 1% and 5% of the
+            # object's longest dimension -- which on a 150 mm pot is 1.5 mm and
+            # 7.5 mm. The originals are kept unchanged for continuity.
+            #
+            # trans_errors is rms(t) * scales in the dataloader frame, so
+            # dividing by (scales * unit) lands it in the unit-box frame. No
+            # second ICP pass needed: translation error is linear in scale.
+            trans_errors_unit = trans_errors / (scales * unit).clamp_min(1e-8)
+            trans_recalls_unit = self._recall_at_thresholds(trans_errors_unit, [0.01, 0.05])
             metrics.update({
                 "rotation_error": rot_errors,
                 "translation_error": trans_errors,
+                "translation_error_unit": trans_errors_unit,
                 "recall_at_5deg": rot_recalls[0],
                 "recall_at_10deg": rot_recalls[1],
                 "recall_at_1cm": trans_recalls[0],
                 "recall_at_5cm": trans_recalls[1],
+                "recall_at_1pct_frac": trans_recalls_unit[0],
+                "recall_at_5pct_frac": trans_recalls_unit[1],
             })
 
         if "euler" in self.model.extra_metrics:
@@ -107,7 +170,13 @@ class Evaluator:
                     metrics["gt/euler_rotation_error"] = gt_euler_re
 
         if "unitless" in self.model.extra_metrics:
-            # Compute metrics on non-rescaled (normalized) point clouds
+            # Compute metrics on non-rescaled (normalized) point clouds.
+            #
+            # NOTE this is the DATALOADER frame (max|coord| = 1, so a box of
+            # side 2), not the benchmark's unit-length box. It is scale-free,
+            # but 0.01 applied here is 4x stricter than tau. The top-level
+            # part_accuracy above is the calibrated one; prefer it. This block
+            # is kept because older runs reported it.
             unitless_cd = compute_object_cd(pts_gt, pointclouds_pred)
             unitless_pa, unitless_matched = compute_part_acc(pts_gt, pointclouds_pred, points_per_part)
             metrics["unitless/object_chamfer"] = unitless_cd

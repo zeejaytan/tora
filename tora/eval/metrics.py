@@ -54,6 +54,32 @@ def align_anchor(
     return pointclouds_pred_aligned
 
 
+def unit_box_scale(pointclouds_gt: torch.Tensor) -> torch.Tensor:
+    """Longest side of the ground-truth assembled object's bounding box, per batch.
+
+    Dividing by this puts an object into the frame the Breaking Bad benchmark
+    defines its thresholds in: "We re-scale each of them to fit a unit-length
+    box for parameter choice consistency. This normalization scheme allows our
+    method to be scale invariant." (Sellan et al., 2022, sec. 3). The part
+    accuracy threshold tau = 0.01 is stated in THAT frame, so it only means what
+    the benchmark says it means once the object has been put back into it.
+
+    Measured on the ground truth, never the prediction: a scattered prediction
+    has a larger bounding box than the object it is trying to rebuild, and using
+    it here would hand a failing assembly a more forgiving threshold.
+
+    Args:
+        pointclouds_gt (B, N, 3): Ground truth point clouds. split_parts asserts
+            that every one of the N points belongs to a part, so there is no
+            padding to mask out here.
+
+    Returns:
+        Tensor of shape (B,), the longest bounding-box side per object.
+    """
+    extent = pointclouds_gt.amax(dim=1) - pointclouds_gt.amin(dim=1)   # (B, 3)
+    return extent.amax(dim=-1).clamp_min(1e-8)                          # (B,)
+
+
 def compute_object_cd(
     pointclouds_gt: torch.Tensor,
     pointclouds_pred: torch.Tensor,
