@@ -13,10 +13,10 @@ fix the line — do not add a correction banner. Git holds the history. That is 
 difference between `intent/` and `docs/notes/`, and it is the whole reason this
 folder can stay readable.
 
-**Numbering is permanent.** O3, O4 and O5 are retired; O8 is next. Never reuse a number — tickets
+**Numbering is permanent.** O3, O4 and O5 are retired; O9 is next. Never reuse a number — tickets
 reference them.
 
-**Last updated:** 2026-09-03.
+**Last updated:** 2026-09-05.
 
 ---
 
@@ -51,6 +51,7 @@ at the reconstruction.
 | ~~O3~~ ~~O4~~ ~~O5~~ | *moved to the CSC project 2026-09-03 — see below. Numbers retired, not reused.* | — | — |
 | [O6](O6-juglet-under-valid-reference.md) | Does the Juglet failure survive a valid reference? | open | **O2** |
 | [O7](O7-wear-grounding.md) | Is the wear model grounded in real material? | open | none |
+| [O8](O8-what-stops-the-juglet.md) | What actually stops TORA reassembling the Juglet? | open — **charted**, `.scratch/juglet-cause/` | none |
 
 **Start with O1 and O2.** O1 is one day and can stop the corpus project outright;
 until O2 closes, nothing built here can be shown to help or hurt.
@@ -64,17 +65,27 @@ Load-bearing claims, with the weight each can bear.
 | Claim | Weight | Source |
 |---|---|---|
 | TORA is **competent on real fresh fracture** — 0.861 avg / 0.928 best-of-N sherds correctly placed on 6 held-out real objects, matching its synthetic score (0.860). Assembles a 5-piece pot to 3.5° and a 10-piece ceramic at 0.8–0.9. | 6 objects, 1 checkpoint | `docs/notes/TORA_GOOD_VS_BAD_ANALYSIS.md` (jobs 27858648 / 27859890) |
-| **TORA genuinely fails on the Juglet.** Anchor sherd with the other eight clustered against one side; no vessel. Stable across generations, which themselves vary noticeably run-to-run. | 1 object, visual verdict | `docs/notes/JUGLET_TORA_ROOTCAUSE.md`, `artifacts/juglet_viz/` |
-| **The Juglet's reference answer is invalid** — it is the scattered scan/table layout, not an assembled pot. No *numerical* conclusion about Juglet reassembly can be drawn from this benchmark as shipped. | verified by rendering | same |
+| **TORA genuinely fails on the Juglet.** Anchor sherd with the other eight clustered against one side; no vessel. Stable across generations, which themselves vary noticeably run-to-run. **The failure stands; its cause does not** — the diagnosis in that note was computed on the units-corrupted run, and is now [O8](O8-what-stops-the-juglet.md). | 1 object, visual verdict | `docs/notes/JUGLET_TORA_ROOTCAUSE.md`, `artifacts/juglet_viz/` |
+| **The Juglet now has a correct reference.** `juglet_gt.hdf5`, hand-reassembled by the conservator 2026-08-10 and rigidly fitted to the source fragments at 0.0000% residual. The rotations needed to correct the old scan-table layout ran 26–177°. Numbers on this pot are readable for the first time. | 1 object, 1 conservator | `scripts/build_juglet_ground_truth.py` |
+| **TORA reassembles fresh real ceramics.** 72.6% of fragments seated across 8 Fractura pots once the object's stored size is stated at the model's own convention; 4 of the 8 reassemble completely. Was 1.0% before. | 8 objects, 1 checkpoint, 10 draws | `docs/notes/FRACTURA_WHY_IT_FAILS.md` (job 29891327) |
 | **Wear-augmented training stops heavily worn pottery collapsing**, visibly; does nothing measurable on fresh material. | visual, small n | `docs/notes/WEAR_TEST_RESULTS.md` |
 | **Real eroded archaeological fracture carries no fracture-like roughness** at any scale these scans resolve (texture rises as R^1.7; true fracture is R^0.4–0.8). Whether the ground removed it or the scanner never saw it **cannot be separated** with 0.4 mm data. | 20 RePAIR fragments | `docs/notes/GATE_A_RESULT.md` (job 29404479) |
 | **Piece count is not piece balance.** 89% of Breaking Bad vessel instances behave as one piece; filtering on raw count would have selected 89% rubbish. The inverse Simpson index on fragment sizes is the filter that works. | whole corpus | `docs/notes/GATE_B_DECISION.md` |
 
 ## Retracted — do not rebuild on these
 
-- The **synthetic-to-real capability gap**. There is none. Every "total failure at
-  exactly `1/n_parts`" was an absolute `CD < 0.01` threshold applied to raw scan
-  units, judging real objects against a bar 125–216x stricter than synthetic.
+- The **synthetic-to-real capability gap**. There is none, and it took two units bugs
+  to manufacture. Every "total failure at exactly `1/n_parts`" was an absolute
+  `CD < 0.01` threshold applied to raw scan units, judging real objects against a bar
+  125–216x stricter than synthetic. Behind it, the object's stored size is fed to the
+  network at every denoising step, and at 45–120 rather than the trained 0.5 it is
+  meaningless — so fixing the threshold and rescoring the same run looked like
+  confirmation while the second fault was still in it.
+- **"Piece count is ruled out."** It rested on rotation error being flat at 59–70°
+  from 3 to 12 pieces. That flatness *was* the second units bug. Normalised, the same
+  eight pots span 1.6–61.3° and fragment count is live again — see [O8](O8-what-stops-the-juglet.md).
+- **"TORA scores at chance on GARF's four fresh control ceramics."** Normalised,
+  `pink_bowl`, `narrow_bottle2`, `narrow_bottle4` and `blue_pot` seat every fragment.
 - The **joint-solve wall**, and the architectural coarse-shape-bootstrap
   recommendation that rested on it.
 - The **fine-tuning remedy**: it *harmed* the model (limb3 7.9° to 26.4–40.5°) to fix
@@ -92,7 +103,10 @@ failure, not a finding.
 ## Constraints
 
 - **8 ceramic vessels** in `real_finetune.hdf5`; **none is an excavated vessel type**.
-- **One real worn object** (the Juglet) — and its reference answer was wrong.
+- **One real worn object** (the Juglet), and it is **incomplete** — a visible piece was
+  never recovered, so a reconstruction that leaves that gap open is correct and one
+  that fills it is wrong. Its reference answer was wrong until 2026-08-10; it is now
+  hand-built and trustworthy.
 - **No in-house route to break a hollow vessel.** Every dataset here arrived pre-fractured.
 - **Wall thickness is the number everything turns on.** A fracture is a ribbon through
   a wall, not a face through a body. The median training vessel gets **0.78 sampling
