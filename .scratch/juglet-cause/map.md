@@ -30,6 +30,15 @@ assembly looks correct and the residual is symmetry; 40–70° it has genuinely 
 "Within 10°" reads 0.000 almost everywhere and is too strict to be useful. Report
 non-anchor rotation (`× n/(n-1)`) — the raw mean is diluted by the free anchor.
 
+**The read-out is not yet trustworthy, and tickets 01-04 all depend on it.** Five of our
+own scripts read the same `results/*.json` and only `summarise_scale_ladder.py` applies
+the non-anchor correction — so the same run gives different rotation numbers depending
+which of our readers opens it, wrong by `n/(n-1)`, which is a *different* factor per
+object (×1.125 on the Juglet, ×2.00 on a two-fragment bowl). That is exactly the
+cross-object comparison ticket 02 makes. The instrument is specified at
+`.scratch/eval-readout/spec.md` (`ready-for-agent`, no GPU); build it before 02, or hand
+02 corrected numbers some other way and say how.
+
 **Skills each session should consult:** `grilling` and `domain-modeling` for any ticket
 that turns into a judgement call; `diagnosing-bugs` if a measurement looks wrong.
 
