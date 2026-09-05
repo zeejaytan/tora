@@ -28,8 +28,11 @@ currently support.
 
 **The Juglet's rotation error sits inside the fresh-break range.** On `juglet_gt`, at
 scale 0.511 — inside the trained band, so unaffected by either bug — baseline runs read
-**35–66°** non-anchor. Fresh, unworn, normalised pots span **1.6° to 61.3°**
-(`narrow_bottle3` has 4 fragments and reads 61°). There is no wear-shaped gap left over.
+**35–66°** non-anchor. Fresh, unworn, normalised pots span **2.4° to 81.8°**
+(`narrow_bottle3` has 4 fragments and reads 81.8°). There is no wear-shaped gap left
+over — the fresh pots now bracket the Juglet on *both* sides, and the worst of them is
+turned further than the Juglet is. (Corrected 2026-09-05 from 1.6°–61.3°, which was
+the free-anchor-diluted ruler; see `docs/notes/FRACTURA_WHY_IT_FAILS.md`.)
 
 **And the wear cannot be measured in this scan.** Break faces are sampled at 0.243% of
 object size; the blunting acts at 0.3–0.5%. The dimensionless roughness ratio was tried

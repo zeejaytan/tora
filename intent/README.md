@@ -83,7 +83,7 @@ Load-bearing claims, with the weight each can bear.
   confirmation while the second fault was still in it.
 - **"Piece count is ruled out."** It rested on rotation error being flat at 59–70°
   from 3 to 12 pieces. That flatness *was* the second units bug. Normalised, the same
-  eight pots span 1.6–61.3° and fragment count is live again — see [O8](O8-what-stops-the-juglet.md).
+  eight pots span 2.4–81.8° (corrected 2026-09-05) and fragment count is live again — see [O8](O8-what-stops-the-juglet.md).
 - **"TORA scores at chance on GARF's four fresh control ceramics."** Normalised,
   `pink_bowl`, `narrow_bottle2`, `narrow_bottle4` and `blue_pot` seat every fragment.
 - The **joint-solve wall**, and the architectural coarse-shape-bootstrap
