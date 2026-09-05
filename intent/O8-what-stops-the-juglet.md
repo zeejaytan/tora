@@ -42,12 +42,24 @@ evidence: that field is a per-object 0/1 on the whole-pot mean, not a fraction o
 fragments, so on a nine-sherd pot averaging 35–60° a flat zero is what the metric must
 produce whatever the model does.
 
-**The read-out is now one instrument.** `scripts/readout.py` (gated by
-`scripts/check_readout.py`) is the single place a run is read: it undoes the free-anchor
-dilution once, reports seating as a count with its floor, refuses to pool runs made
-differently, and flags a run whose stored size fell outside the trained band. Five
-scripts previously disagreed about the same run. Every candidate below is read through
-it, or the number is not admissible.
+**The read-out is now one instrument, and every reader goes through it.**
+`scripts/readout.py` (gated by `scripts/check_readout.py`) is the single place a run is
+read: it undoes the free-anchor dilution once, reports seating as a count with its floor,
+refuses to pool runs made differently, and flags a run whose stored size fell outside the
+trained band. Eleven scripts previously kept their own copies of the arithmetic and
+disagreed about the same run; as of 2026-09-05 none do
+(`.scratch/eval-readout/issues/03`). Every candidate below is read through it, or the
+number is not admissible. Every view now also prints the render command for its own rows
+and the weight it can bear.
+
+Rewiring the last of them exposed a **second** broken ruler, in the cloud-side scoring
+rather than the run-json reading: two scripts thresholded seating at `0.01 / scale` (the
+withdrawn absolute metric, converted wrongly on top), and the module's own chamfer
+carried a stray 0.5 that made every cloud rescoring twice as forgiving as the evaluator.
+Both are fixed and both are now gate assertions. It was caught only because two
+independent implementations disagreed by a factor of two — which is the argument for the
+module, and the reason candidate 5's "wear training changed nothing" evidence needed
+re-reading before it could be trusted.
 
 It was checked against runs already published (`docs/notes/READOUT_RECONCILIATION.md`,
 2026-09-05): the ladder that was already corrected by hand does not move — 72 cells, all
@@ -62,7 +74,7 @@ edge.
 | | candidate | cost | why it is live |
 |---|---|---|---|
 | 1 | Run-to-run spread | free | The three baseline runs have effectively identical `.hydra` settings, so they *are* repeats; the 31.4° / 58.2° pair quoted from them appears to be generation 0 rather than run means, and draws within one run span ~31–69°. Confirm the spread before reading any difference below |
-| 2 | Fragment count (9) | free | Normalised, error tracks fragment count; the old "ruled out" was the units bug |
+| 2 | Fragment count (9) | free | Normalised, error tracks fragment count; the old "ruled out" was the units bug. **Now testable honestly** (2026-09-05): the free-anchor correction is ×2.000 at two fragments and ×1.125 at nine, so the old count-versus-error table's slope was partly the correction itself. Every row is now on the same ruler |
 | 3 | A missing sherd | cheap GPU | The Juglet is **incomplete** and none of the eight pots TORA reassembles are. Never tested. [U4](../../intent/U4-missing-fragments.md) names the failure mode |
 | 4 | Low-side out-of-band scale | cheap | `juglet_norm` runs report `scales = 0.041`, 9× below the trained floor of 0.375. The scale ladder only tested *above* 0.5 |
 | 5 | Wear | expensive | Cannot currently be shown to differ from fresh pots at the resolution available |

@@ -14,6 +14,14 @@ reaches a given number of sherds.
 It reads the per-draw json that sample.py already writes; nothing needs to be
 rerun to use it on an old run.
 
+REWIRED 2026-09-05. Every number here now comes from scripts/readout.py, the one
+place a run is read. WHAT MOVED: the turn column. This script used to print the
+stored `rotation_error`, which is summed over the non-anchor fragments but
+divided by all of them, so it carried a free zero. On the nine-sherd Juglet the
+observed ratio is exactly 1.125000 on every draw -- the 55.7 deg once published
+for lorav3_juglet_baseline_29880370 is 62.7 deg. Sherds seated did not move.
+Reconciliation: docs/notes/READOUT_RECONCILIATION.md.
+
 Usage:
   python scripts/summarise_juglet_draws.py --runs <run_dir> [<run_dir> ...]
 
@@ -21,21 +29,13 @@ A run_dir is an eval_runs/<name> folder; the script reads <run_dir>/results/.
 """
 
 import argparse
-import json
+import sys
 from collections import Counter
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-def load_draws(run_dir: Path) -> list[dict]:
-    res = run_dir / "results"
-    if not res.is_dir():
-        raise SystemExit(f"no results/ under {run_dir}")
-    out = []
-    for p in sorted(res.glob("*_generation*.json")):
-        out.append(json.loads(p.read_text()))
-    if not out:
-        raise SystemExit(f"no per-draw json in {res}")
-    return out
+from readout import format_flags, read_run, weight  # noqa: E402
 
 
 def median(xs: list[float]) -> float:
@@ -49,21 +49,22 @@ def main():
     ap.add_argument("--runs", nargs="+", required=True)
     a = ap.parse_args()
 
-    rows = []
+    rows, all_records = [], []
     for r in a.runs:
         d = Path(r)
-        draws = load_draws(d)
-        n_parts = draws[0]["num_parts"]
-        # part_accuracy is a fraction of fragments; turn it back into a count so
-        # the quantisation is visible instead of hidden behind three decimals.
-        seated = [round(x["part_accuracy"] * n_parts) for x in draws]
-        rot = [x["rotation_error"] for x in draws]
+        records = read_run(d)
+        if not records:
+            raise SystemExit(f"no per-draw json under {d}/results")
+        all_records += records
         rows.append({
             "name": d.name,
-            "n": len(draws),
-            "parts": n_parts,
-            "seated": seated,
-            "rot": rot,
+            "n": len(records),
+            "parts": records[0].n_fragments,
+            "floor": records[0].floor,
+            # seated is already a count of fragments, so the quantisation is
+            # visible instead of hidden behind three decimals
+            "seated": [x.seated for x in records],
+            "rot": [x.turn_deg for x in records],
         })
 
     parts = rows[0]["parts"]
@@ -97,8 +98,21 @@ def main():
             print("the two distributions share most of their range, the medians")
             print("are further apart than the arms are.")
 
+    print(f"\nOne of the {parts} is the anchor, placed correctly by construction:")
+    print(f"the floor is {rows[0]['floor']} of {parts}, and the model earns nothing")
+    print("for it. Turn is the mean over the fragments it had to place.")
+
+    for line in format_flags(all_records):
+        print(f"!! {line}")
+    print(f"\nWeight: {weight(all_records)}.")
+
     print("\nNow open the renders. This is one pot; the picture is the")
-    print("instrument and the table is the index to it.\n")
+    print("instrument and the table is the index to it. Draw them with:\n")
+    for r in a.runs:
+        print(f'  python scripts/render_assembly_grid.py \\')
+        print(f'      --runs "{Path(r).name}={r}/clouds" \\')
+        print(f'      --out artifacts/{Path(r).name}.png')
+    print()
 
 
 if __name__ == "__main__":

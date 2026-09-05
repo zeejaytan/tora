@@ -32,10 +32,16 @@ import argparse
 import glob
 import json
 import os
+import sys
+from pathlib import Path
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import cKDTree
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from readout import part_slices, seating_from_clouds  # noqa: E402
 
 
 def kabsch(P: np.ndarray, Q: np.ndarray):
@@ -46,31 +52,6 @@ def kabsch(P: np.ndarray, Q: np.ndarray):
     d = np.sign(np.linalg.det(Vt.T @ U.T))
     R = Vt.T @ np.diag([1.0, 1.0, d]) @ U.T
     return R, qc - R @ pc
-
-
-def part_slices(ppp: np.ndarray):
-    out, s = [], 0
-    for n in ppp:
-        n = int(n)
-        if n > 0:
-            out.append((s, s + n))
-            s += n
-    return out
-
-
-def part_accuracy(pred: np.ndarray, gt: np.ndarray, slices, thr: float) -> float:
-    """Replicates the evaluator: per-part chamfer, Hungarian match, threshold."""
-    k = len(slices)
-    cd = np.zeros((k, k))
-    trees_gt = [cKDTree(gt[a:b]) for a, b in slices]
-    trees_pr = [cKDTree(pred[a:b]) for a, b in slices]
-    for i, (a, b) in enumerate(slices):
-        for j, (c, d) in enumerate(slices):
-            d1, _ = trees_pr[j].query(gt[a:b])
-            d2, _ = trees_gt[i].query(pred[c:d])
-            cd[i, j] = (d1 ** 2).mean() + (d2 ** 2).mean()
-    r, c = linear_sum_assignment((cd >= thr).astype(float))
-    return float((cd[r, c] < thr).sum()) / k
 
 
 def refine(pred: np.ndarray, slices, anchor: int, iters: int,
@@ -144,8 +125,15 @@ def main() -> None:
         if len(slices) < 2:
             continue
         gt = z["pts_gt"]
-        scale = float(z["scale"]) if "scale" in z else 1.0
-        thr = 0.01 / max(scale, 1e-9)          # evaluator threshold, this frame
+        # CORRECTED 2026-09-05. The scoring was this script's own copy of the
+        # metric, thresholded at `0.01 / scale` and commented "evaluator
+        # threshold, this frame". It was neither: 0.01 in the object's own units
+        # is the WITHDRAWN absolute metric, and dividing by the scale rather
+        # than its square does not even convert it correctly, because the
+        # tolerance is compared against a squared distance. It now scores
+        # through scripts/readout.py, which also takes the free anchor out.
+        # Every before -> after seating pair this script printed before this
+        # date was scored too strictly and must be rerun before it is quoted.
         sizes = [b - a for a, b in slices]
         anchor = int(np.argmax(sizes))          # dataset uses the largest part
 
@@ -154,8 +142,8 @@ def main() -> None:
             r = refine(g, slices, anchor, args.iters, args.max_corr,
                        args.reg, args.push)
             refined.append(r)
-            before.append(part_accuracy(g, gt, slices, thr))
-            after.append(part_accuracy(r, gt, slices, thr))
+            before.append(seating_from_clouds(g, gt, slices))
+            after.append(seating_from_clouds(r, gt, slices))
 
         if args.save_refined:
             os.makedirs(args.save_refined, exist_ok=True)
@@ -166,11 +154,12 @@ def main() -> None:
             payload["generations_proposed"] = np.stack(refined)
             np.savez(os.path.join(args.save_refined,
                                   os.path.basename(fp)), **payload)
+        # seating_from_clouds already takes the free anchor out, so these are
+        # the fraction of the LOOSE fragments seated, averaged over draws.
         k = len(slices)
-        seat = lambda pa: (pa * k - 1.0) / (k - 1.0)
         rows.append({"name": str(z["name"]), "k": k,
-                     "before": float(np.mean([seat(x) for x in before])),
-                     "after": float(np.mean([seat(x) for x in after]))})
+                     "before": float(np.mean(before)),
+                     "after": float(np.mean(after))})
         print(f"  {rows[-1]['name'][:38]:<38s} k={k:2d} "
               f"seating {rows[-1]['before']:.3f} -> {rows[-1]['after']:.3f}", flush=True)
 

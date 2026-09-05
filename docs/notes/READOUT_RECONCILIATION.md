@@ -117,8 +117,54 @@ trained model for the Juglet half. The control is strong — 72 cells agreeing t
 not a coincidence. The Juglet half is one pot: it demonstrates that the correction applies
 and by how much, not anything about pots in general.
 
+## A second broken ruler, found while rewiring (2026-09-05)
+
+Rewiring the last two scripts turned up a **different** measurement error, in the
+cloud-side scoring rather than the run-json reading. Two scripts scored a reassembly
+directly from the saved point clouds, and both did it with the wrong tolerance.
+
+**What was wrong.** `scripts/score_assembly.py` and `scripts/refine_seating.py` each kept
+their own copy of the seating metric and thresholded it at `0.01 / scale`. That is the
+**withdrawn absolute metric** — a fixed hundredth in each dataset's own units, which is
+2% of a Breaking Bad vessel and 0.014% of a millimetre-stored ceramic pot. It is the
+units bug that faked a finding once already (jobs 27858648 / 27859890; see
+`TORA_GOOD_VS_BAD_ANALYSIS.md`). It was not even a faithful copy of it: the tolerance is
+compared against a **squared** distance, so converting it into the stored frame divides
+by `scale²`, not `scale`. At a Breaking Bad scale of 0.5 the shipped threshold is 0.04 in
+that frame; these scripts used 0.02, twice as strict.
+
+**And one in the module itself.** `readout.chamfer` carried a `0.5` factor with a
+docstring claiming it was what pytorch3d does. It is not. At the pinned version —
+pytorch3d 0.7.8, the wheel named in `pyproject.toml`, which is what `compute_part_acc`
+calls — `chamfer_distance(single_directional=False, point_reduction="mean")` returns
+`cham_x + cham_y`, with no halving. The halved version made every cloud rescoring
+**exactly twice as forgiving** as the evaluator it was being compared against.
+
+It was caught because `score_assembly.py` had computed the same quantity independently,
+without the halving, so the two disagreed by a factor of two on the same clouds. That is
+the argument for one module: not that a single implementation is more likely to be right,
+but that a second one disagreeing is the only thing that says it is wrong.
+
+**Which of the three this is.** The measurement was broken — twice, in the same direction
+of carelessness, and both times in the tolerance rather than the geometry. No method
+result changed and no reference answer was in question.
+
+**What must be rerun before it is quoted.** Anything scored from `clouds/*.npz`:
+`scripts/rescore_part_acc.py` (its threshold sweep read as reaching a given accuracy at
+half the threshold it really needs), `scripts/score_assembly.py --validate` (its
+score-versus-truth correlations were measured against a seating far stricter than the
+real one), and `scripts/refine_seating.py` (every before → after seating pair). The
+run-json tables are untouched by this: they read stored fields and never recompute a
+chamfer.
+
+**The gate now holds both conventions.** `scripts/check_readout.py` asserts that the
+chamfer sums both directions (two points 3 apart → 18.0, not 9.0) and that the unit-box
+tolerance squares the size (a box of 2.0 → 0.04). Both are one-line assertions, and both
+would have caught this on the day it was written.
+
 ## What this does not yet cover
 
-Only two of the five readers were exercised here. Rewiring the rest, and listing every
-published figure that moves, is `.scratch/eval-readout/issues/03`. No note has been
-rewritten yet.
+Every reader now goes through the module and the rewiring is done; what remains is the
+prose. No note has been rewritten. The notes that quote a figure which moved are listed
+in `.scratch/eval-readout/issues/03`, and correcting them needs a decision about what the
+corrected number now supports — that is not a mechanical edit.

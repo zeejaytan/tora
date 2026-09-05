@@ -27,7 +27,6 @@ import argparse
 import glob
 import json
 import os
-
 import sys
 from pathlib import Path
 
@@ -36,17 +35,8 @@ from scipy.optimize import linear_sum_assignment
 from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from readout import part_slices, seating_from_clouds  # noqa: E402
 from vessel_features import vessel_features  # noqa: E402
-
-
-def part_slices(ppp):
-    out, s = [], 0
-    for n in ppp:
-        n = int(n)
-        if n > 0:
-            out.append((s, s + n))
-            s += n
-    return out
 
 
 def gt_free_features(pts, slices, diag):
@@ -94,22 +84,6 @@ def gt_free_features(pts, slices, diag):
     }
 
 
-def true_seating(pred, gt, slices, thr):
-    """Ground truth — VALIDATION ONLY, never used to choose."""
-    k = len(slices)
-    cd = np.zeros((k, k))
-    tg = [cKDTree(gt[a:b]) for a, b in slices]
-    tp = [cKDTree(pred[a:b]) for a, b in slices]
-    for i, (a, b) in enumerate(slices):
-        for j, (c, d) in enumerate(slices):
-            d1, _ = tp[j].query(gt[a:b])
-            d2, _ = tg[i].query(pred[c:d])
-            cd[i, j] = (d1 ** 2).mean() + (d2 ** 2).mean()
-    r, c = linear_sum_assignment((cd >= thr).astype(float))
-    pa = float((cd[r, c] < thr).sum()) / k
-    return (pa * k - 1.0) / (k - 1.0) if k > 1 else float("nan")
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--clouds-dir", required=True)
@@ -128,8 +102,14 @@ def main() -> None:
         if len(sl) < 2:
             continue
         gt = z["pts_gt"]
-        scale = float(z["scale"]) if "scale" in z else 1.0
-        thr = 0.01 / max(scale, 1e-9)
+        # CORRECTED 2026-09-05. The validation seating was this script's own
+        # copy of the metric, thresholded at `0.01 / scale`: the withdrawn
+        # absolute metric, and not even a faithful copy of it, since the
+        # tolerance is compared against a squared distance and so scales as
+        # scale^2. It now scores through scripts/readout.py. Any --validate
+        # correlation printed before this date was computed against a seating
+        # roughly twice as strict as the real one on Breaking Bad vessels, and
+        # wildly stricter on the millimetre-stored subsets.
         diag = float(np.linalg.norm(gt.max(0) - gt.min(0)))
         for gi, g in enumerate(z["generations_proposed"]):
             rec = {"name": str(z["name"]), "gen": gi}
@@ -140,7 +120,7 @@ def main() -> None:
                 rec.update({"axis_residual": np.nan, "profile_smooth": np.nan,
                             "thickness_cv": np.nan, "radial_gap": np.nan})
             if args.validate:
-                rec["true_seating"] = true_seating(g, gt, sl, thr)
+                rec["true_seating"] = seating_from_clouds(g, gt, sl)
             rows.append(rec)
 
     if not rows:

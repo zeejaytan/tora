@@ -24,6 +24,27 @@ nothing placed by the model at all. The baseline run 24342475 scored exactly 1
 on all eight pots across all three draws -- a flat 17% that means zero. The
 "earned" column subtracts the freebie so that cannot be misread again.
 
+REWIRED 2026-09-05. Every number here now comes from scripts/readout.py, the one
+place a run is read. TWO COLUMNS MOVED:
+
+  turn. The free anchor was subtracted from the seated count here but not from
+  the rotation error, which is summed over the non-anchor fragments and divided
+  by all of them. The correction is n/(n-1), so it is a DIFFERENT factor for
+  every pot in the table -- x1.500 on the three-fragment pink_bowl, x1.091 on
+  the twelve-fragment narrow_bottle1 -- which is exactly the shape that
+  corrupts a pot-by-pot comparison. On the normalized scale-ladder rung the
+  eight pots move like this: blue_pot 24.4 -> 30.5 deg, pink_bowl 1.6 -> 2.4
+  deg, narrow_bottle1 57.1 -> 62.3 deg. Nothing changed rank; the pots with
+  few fragments were being flattered most.
+
+  offset. It was translation_error divided by the stored `scales`. A run scored
+  after the unit-box fix stores translation_error_unit, already divided by the
+  longest side of the ground truth box, which is the denominator the seating
+  threshold uses. The read-out prefers that and names which one it used, so the
+  column cannot silently mean two different things down one page.
+
+Sherds seated did not move. Reconciliation: docs/notes/READOUT_RECONCILIATION.md.
+
 Usage:
   python scripts/summarise_ceramics_arms.py --runs <run_dir> [<run_dir> ...]
 
@@ -31,19 +52,13 @@ A run_dir is an eval_runs/<name> folder; the script reads <run_dir>/results/.
 """
 
 import argparse
-import json
+import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-def load_draws(run_dir: Path) -> list[dict]:
-    res = run_dir / "results"
-    if not res.is_dir():
-        raise SystemExit(f"no results/ under {run_dir}")
-    out = [json.loads(p.read_text()) for p in sorted(res.glob("*_generation*.json"))]
-    if not out:
-        raise SystemExit(f"no per-draw json in {res}")
-    return out
+from readout import format_flags, read_run, weight  # noqa: E402
 
 
 def median(xs):
@@ -57,12 +72,16 @@ def main():
     ap.add_argument("--runs", nargs="+", required=True)
     a = ap.parse_args()
 
-    arms = {}
+    arms, all_records = {}, []
     for r in a.runs:
         d = Path(r)
+        records = read_run(d)
+        if not records:
+            raise SystemExit(f"no per-draw json under {d}/results")
+        all_records += records
         by_pot = defaultdict(list)
-        for x in load_draws(d):
-            by_pot[x["name"]].append(x)
+        for x in records:
+            by_pot[x.object_name].append(x)
         arms[d.name] = by_pot
 
     pots = sorted({p for by_pot in arms.values() for p in by_pot})
@@ -80,13 +99,13 @@ def main():
             draws = by_pot.get(pot)
             if not draws:
                 continue
-            n_parts = draws[0]["num_parts"]
-            seated = [round(x["part_accuracy"] * n_parts) for x in draws]
-            rot = [x["rotation_error"] for x in draws]
-            # translation in object units is meaningless on its own; scale is
-            # the object's own size, so trans/scale is a fraction of the pot.
-            off = [x["translation_error"] / x["scales"] for x in draws if x.get("scales")]
-            earned = [max(0, s - 1) for s in seated]
+            n_parts = draws[0].n_fragments
+            seated = [x.seated for x in draws]
+            rot = [x.turn_deg for x in draws]
+            # translation in object units is meaningless on its own; this is a
+            # fraction of the pot, and gap_denominator says a fraction of what.
+            off = [x.gap_object_fraction for x in draws]
+            earned = [max(0, c - x.floor) for c, x in zip(seated, draws)]
             print(f"{pot:{pw}s}  {arm:{aw}s}  {n_parts:5d}  {len(draws):5d}  "
                   f"{median(seated):6.1f}  {median(earned):6.1f}  "
                   f"{max(seated):4d}  {min(seated):5d}  "
@@ -100,21 +119,35 @@ def main():
         tot_seat = tot_frag = 0
         rots = []
         n_draws = 0
+        free = 0
         for pot, draws in by_pot.items():
-            n_parts = draws[0]["num_parts"]
             # pool the per-draw counts, so this is the AVERAGE attempt, not the
             # luckiest one. Best-of-N is not reported here on purpose.
-            tot_seat += sum(round(x["part_accuracy"] * n_parts) for x in draws)
-            tot_frag += n_parts * len(draws)
-            rots += [x["rotation_error"] for x in draws]
+            tot_seat += sum(x.seated for x in draws)
+            tot_frag += sum(x.n_fragments for x in draws)
+            free += sum(x.floor for x in draws)
+            rots += [x.turn_deg for x in draws]
             n_draws += len(draws)
-        # every draw gets one anchor for free, so the honest denominator and
-        # numerator both drop by the number of draws.
-        earned = tot_seat - n_draws
-        earn_frag = tot_frag - n_draws
+        # every draw gets its anchor for free, so the honest denominator and
+        # numerator both drop by the fragments that were handed over.
+        earned = tot_seat - free
+        earn_frag = tot_frag - free
         pct = 100.0 * earned / earn_frag if earn_frag else float("nan")
         print(f"{arm:{aw}s}  {len(by_pot):4d}  {n_draws:5d}  {tot_seat:6d}  {earned:6d}"
               f"  {earn_frag:3d}  {pct:7.1f}  {median(rots):10.1f}d")
+
+    dens = ", ".join(sorted({x.gap_denominator for x in all_records}))
+    print(f"\noffset is a fraction of the pot: {dens}.")
+    for line in format_flags(all_records):
+        print(f"!! {line}")
+    print(f"Weight: {weight(all_records)}.")
+
+    print("\nA seated count is an index to a picture. Draw each arm before")
+    print("quoting a row of this table:\n")
+    for r in a.runs:
+        print(f"  python scripts/render_assembly_grid.py \\")
+        print(f'      --runs "{Path(r).name}={r}/clouds" \\')
+        print(f"      --out artifacts/{Path(r).name}.png")
 
     print("\nThat percentage is fragments the model actually placed, on the")
     print("typical attempt -- not the best of them, and not counting the")

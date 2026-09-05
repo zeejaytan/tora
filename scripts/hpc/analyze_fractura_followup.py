@@ -12,6 +12,30 @@ For each subset and run, computes:
 - BoN curve N=1..10 (only for N=10 run)
 
 Writes a markdown report.
+
+REWIRED 2026-09-05. Every number here now comes from scripts/readout.py, the one
+place a run is read. WHAT MOVED:
+
+  every rotation figure in this report GREW. The stored `rotation_error` is
+  summed over the non-anchor fragments and divided by ALL of them, so the free
+  anchor is a zero in the average. The correction is n/(n-1), and n differs by
+  subset here -- the ceramics, the egg and the two bone sets do not have the
+  same piece count -- so this report's whole point, comparing subsets side by
+  side, was distorted by a DIFFERENT factor in every row. Small-k subsets moved
+  most.
+
+  the translation column changed denominator. It was trans/scale, the object's
+  own stored scale. It is now `gap_object_fraction`, which names what it divided
+  by, because a run scored after the unit-box fix already stores a fraction and
+  dividing it again would be wrong.
+
+  recall@5deg / recall@10deg are RENAMED, not recomputed. They were never a
+  fraction of fragments. `Evaluator._recall_at_thresholds` thresholds a
+  per-OBJECT mean, so each is 0 or 1 for a whole object on one draw. They print
+  as `pot<5d` / `pot<10d`: the share of attempts in which the WHOLE object
+  averaged under the threshold.
+
+Reconciliation: docs/notes/READOUT_RECONCILIATION.md.
 """
 
 from __future__ import annotations
@@ -19,6 +43,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from collections import defaultdict
 from pathlib import Path
 from statistics import mean, median, stdev
@@ -26,67 +51,84 @@ from typing import Dict, List
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from readout import format_flags, read_run, weight  # noqa: E402
+
 SUBSETS = ["bone_syn_pig", "bone_syn_rib", "ceramics", "egg", "bones"]
 
 
-def load_run(results_dir: Path) -> Dict[str, List[dict]]:
-    """Group per-sample JSONs by sample name."""
-    files = sorted(results_dir.glob("*.json"))
-    per_sample: Dict[str, List[dict]] = defaultdict(list)
-    for f in files:
-        d = json.loads(f.read_text())
-        per_sample[d.get("name", str(f))].append(d)
-    # Sort generations within sample by generation_idx
+def load_run(results_dir: Path):
+    """Every draw of one run, grouped by sample, read through the module.
+
+    Accepts either a run directory or its results/ subdirectory, because every
+    call site in this file passes the latter.
+    """
+    run_dir = Path(results_dir)
+    if run_dir.name == "results":
+        run_dir = run_dir.parent
+    per_sample = defaultdict(list)
+    for rec in read_run(run_dir):
+        per_sample[rec.object_name].append(rec)
     for k in per_sample:
-        per_sample[k].sort(key=lambda x: x.get("generation_idx", 0))
+        per_sample[k].sort(key=lambda r: r.draw)
     return per_sample
 
 
-def best_of_n(gens: List[dict], n: int, key: str = "rotation_error") -> float:
-    """Return min of `key` over the first n generations."""
-    sub = gens[:n]
-    return min(g[key] for g in sub)
+def best_of_n(gens, n: int) -> float:
+    """Lowest turn in degrees over the first n draws.
+
+    Best-of-N reports only the best draw of N; the average over draws is the
+    honest number. It is here because this batch was designed around a BoN
+    curve, and it is labelled as such everywhere it is printed.
+    """
+    return min(r.turn_deg for r in gens[:n])
 
 
-def aggregate(per_sample: Dict[str, List[dict]], n: int) -> dict:
-    """Best-of-N aggregate over a set of samples."""
-    rot, trans, pa, r5d, r10d, r1cm, r5cm = [], [], [], [], [], [], []
-    chamfer = []
-    n_parts = []
-    scales = []
+def aggregate(per_sample, n: int) -> dict:
+    """Best-of-N aggregate over a set of samples, via the module."""
+    rot, gap, pa, pot5, pot10, r1cm, r5cm = [], [], [], [], [], [], []
+    chamfer, n_parts, scales = [], [], []
+    seated, free, earned = [], [], []
+    denoms = set()
     for name, gens in per_sample.items():
-        idxs = list(range(min(n, len(gens))))
-        # Best-of-N selection by rotation_error
-        rots = [gens[i]["rotation_error"] for i in idxs]
-        best_idx = idxs[int(np.argmin(rots))]
-        g = gens[best_idx]
-        rot.append(g["rotation_error"])
-        trans.append(g["translation_error"])
-        pa.append(g["part_accuracy"])
-        r5d.append(g["recall_at_5deg"])
-        r10d.append(g["recall_at_10deg"])
-        r1cm.append(g["recall_at_1cm"])
-        r5cm.append(g["recall_at_5cm"])
-        chamfer.append(g.get("object_chamfer", float("nan")))
-        n_parts.append(g.get("num_parts", 0))
-        s = g.get("scales")
-        if isinstance(s, list):
-            s = float(np.mean(s))
-        scales.append(float(s) if s is not None else float("nan"))
-    norm_trans = [t / s if s and not np.isnan(s) and s > 0 else float("nan")
-                  for t, s in zip(trans, scales)]
+        picks = gens[:n]
+        if not picks:
+            continue
+        # best-of-N selection on the CORRECTED turn, not the diluted one
+        g = min(picks, key=lambda r: r.turn_deg)
+        rot.append(g.turn_deg)
+        gap.append(g.gap_object_fraction)
+        denoms.add(g.gap_denominator)
+        pa.append(g.seated_fraction)
+        seated.append(float(g.seated))
+        free.append(float(g.floor))
+        earned.append(max(0.0, g.seated - g.floor) / g.placed
+                      if g.placed else float("nan"))
+        # per-OBJECT 0/1, so the mean over samples is a share of OBJECTS
+        pot5.append(g.pot_under(5))
+        pot10.append(g.pot_under(10))
+        r1cm.append(g.raw.get("recall_at_1cm", float("nan")))
+        r5cm.append(g.raw.get("recall_at_5cm", float("nan")))
+        chamfer.append(g.raw.get("object_chamfer", float("nan")))
+        n_parts.append(g.n_fragments)
+        scales.append(g.model_scale)
     return {
         "n_samples": len(per_sample),
         "rot_mean": float(np.mean(rot)),
         "rot_median": float(np.median(rot)),
-        "trans_mean": float(np.mean(trans)),
-        "trans_norm_mean": float(np.nanmean(norm_trans)),
+        "gap_mean": float(np.nanmean(gap)),
+        "trans_norm_mean": float(np.nanmean(gap)),
+        "gap_denominators": ", ".join(sorted(denoms)) or "unknown",
         "scale_mean": float(np.nanmean(scales)),
         "part_acc": float(np.mean(pa)),
-        "r@5deg": float(np.mean(r5d)),
-        "r@10deg": float(np.mean(r10d)),
-        "r@1cm": float(np.mean(r1cm)),
-        "r@5cm": float(np.mean(r5cm)),
+        "seated_mean": float(np.mean(seated)),
+        "free_mean": float(np.mean(free)),
+        "earned_mean": float(np.nanmean(earned)),
+        "pot<5d": float(np.nanmean(pot5)),
+        "pot<10d": float(np.nanmean(pot10)),
+        "r@1cm": float(np.nanmean(r1cm)),
+        "r@5cm": float(np.nanmean(r5cm)),
         "chamfer_mean": float(np.nanmean(chamfer)),
         "n_parts_mean": float(np.mean(n_parts)),
         "fail@30": float(np.mean([1.0 if r >= 30 else 0.0 for r in rot])),
@@ -94,11 +136,16 @@ def aggregate(per_sample: Dict[str, List[dict]], n: int) -> dict:
     }
 
 
-def gate_analysis(per_sample: Dict[str, List[dict]], thresholds=(0.5, 1.0, 2.0, 5.0)) -> dict:
-    """Compute std(rot_err) per sample, then accuracy at gate thresholds."""
+def gate_analysis(per_sample, thresholds=(0.5, 1.0, 2.0, 5.0)) -> dict:
+    """Spread of the turn across draws per sample, then accuracy at gate thresholds.
+
+    Both the spread and the gate move with the correction: a std computed on the
+    diluted turn was itself diluted by the same n/(n-1), so a "std < 1 degree"
+    gate was a stricter gate than it read as.
+    """
     sample_stats = []
     for name, gens in per_sample.items():
-        rots = [g["rotation_error"] for g in gens]
+        rots = [r.turn_deg for r in gens]
         if len(rots) < 2:
             continue
         std_r = float(np.std(rots, ddof=1)) if len(rots) > 1 else 0.0
@@ -139,15 +186,15 @@ def gate_analysis(per_sample: Dict[str, List[dict]], thresholds=(0.5, 1.0, 2.0, 
     return out
 
 
-def bon_curve(per_sample: Dict[str, List[dict]], max_n: int = 10) -> List[dict]:
-    """Mean best-of-N rotation_error for N = 1..max_n."""
+def bon_curve(per_sample, max_n: int = 10) -> List[dict]:
+    """Mean best-of-N turn in degrees for N = 1..max_n."""
     out = []
     n_avail = max_n
     for n in range(1, max_n + 1):
         rots = []
         for name, gens in per_sample.items():
             if len(gens) >= n:
-                rots.append(min(g["rotation_error"] for g in gens[:n]))
+                rots.append(min(r.turn_deg for r in gens[:n]))
         if rots:
             out.append({"N": n, "mean_rot": float(np.mean(rots))})
     return out
@@ -166,6 +213,8 @@ def main():
     fu_job = args.followup_job
 
     runs = {}  # subset -> {"baseline": agg, "bon10": agg, "anchorfree": agg, "gate_*": gate, "bon_curve": curve}
+    pooled = []    # every record read, for the health flags and the weight line
+    seen_dirs = []  # every run directory found, for the render commands
     for sub in SUBSETS:
         baseline_dir = eval_root / f"fractura_{sub}_{base_job}" / "results"
         bon10_dir    = eval_root / f"fractura_{sub}_BoN10_{fu_job}" / "results"
@@ -174,10 +223,14 @@ def main():
         entry = {}
         if baseline_dir.exists():
             ps = load_run(baseline_dir)
+            pooled.extend(r for v in ps.values() for r in v)
+            seen_dirs.append(baseline_dir.parent)
             entry["baseline_n3"] = aggregate(ps, n=3)
             entry["gate_baseline_n3"] = gate_analysis(ps)
         if bon10_dir.exists():
             ps = load_run(bon10_dir)
+            pooled.extend(r for v in ps.values() for r in v)
+            seen_dirs.append(bon10_dir.parent)
             entry["bon10_n10"] = aggregate(ps, n=10)
             entry["bon10_n3_subset"] = aggregate(ps, n=3)  # for direct N=3 vs N=10 comparison on same job
             entry["gate_bon10_n10"] = gate_analysis(ps)
@@ -187,6 +240,8 @@ def main():
             entry["bon_curve"] = bon_curve(ps, max_n=10)
         if af_dir.exists():
             ps = load_run(af_dir)
+            pooled.extend(r for v in ps.values() for r in v)
+            seen_dirs.append(af_dir.parent)
             entry["anchorfree_n3"] = aggregate(ps, n=3)
             entry["gate_anchorfree_n3"] = gate_analysis(ps)
         runs[sub] = entry
@@ -205,7 +260,10 @@ def main():
     # --- Test A: BoN headline ---
     L("## Test A — Best-of-N=10 sweep")
     L("")
-    L("Mean rotation_error (degrees) and normalised translation_error (trans/scale) per subset.")
+    L("Mean turn in degrees on the fragments the model had to place, and the")
+    L("offset as a fraction of the object, per subset. Both come from")
+    L("`scripts/readout.py`; the turn is corrected for the free anchor, so it is")
+    L("larger than the `rotation_error` stored in the result files.")
     L("")
     L("| Subset | n | parts | rot N=3 (base) | rot N=3 (A run) | rot N=10 | Δ(10−3) | trans norm N=10 |")
     L("|---|---|---|---|---|---|---|---|")
@@ -315,6 +373,34 @@ def main():
           f"{b.get('rot_mean', float('nan')):.2f} | "
           f"{a10.get('rot_mean', float('nan')):.2f} | "
           f"{c.get('rot_mean', float('nan')):.2f} |")
+    L("")
+
+    # --- health of the runs this report was built from ---
+    L("## How much weight this report can bear")
+    L("")
+    L(f"{weight(pooled)}.")
+    L("")
+    flags = format_flags(pooled)
+    if flags:
+        L("Health warnings across every run read:")
+        L("")
+        for line in flags:
+            L(f"- **{line}**")
+        L("")
+    denoms = sorted({e[k].get("gap_denominators", "unknown")
+                     for e in runs.values() for k in e
+                     if isinstance(e[k], dict) and "gap_denominators" in e[k]})
+    L(f"Offset is a fraction of the object; denominator: {', '.join(denoms) or 'unknown'}.")
+    L("")
+    L("A turn in degrees is an index to a picture. Draw the reassemblies before")
+    L("quoting any row above:")
+    L("")
+    L("```bash")
+    for d in seen_dirs:
+        L('python scripts/render_assembly_grid.py '
+          f'--runs "{d.name}={d.as_posix()}/clouds" '
+          f'--out artifacts/{d.name}.png')
+    L("```")
     L("")
 
     out_path = Path(args.output)

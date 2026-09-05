@@ -22,19 +22,34 @@ Two things this prints that the per-draw json does not:
   The rung's actual `scales`, read back out of the run rather than assumed from
   the multiplier -- if the knob did not take effect, that column says so.
 
+REWIRED 2026-09-05. This script already applied the n/(n-1) correction, and it
+was the only one of the five that did. It now gets the same number from
+scripts/readout.py instead of computing it here, so there is one place to fix
+if the anchor count ever stops being one. WHAT MOVED: nothing. The eight rungs
+by eight pots plus the pooled column -- 72 cells -- regenerate identically, the
+largest difference being 0.048 deg, which is the rounding of the one-decimal
+figures already published. That control is what licenses the module elsewhere:
+docs/notes/READOUT_RECONCILIATION.md. The flags, weight and render lines below
+the table are new; the table itself is byte-for-byte what it was.
+
 Usage:
   python scripts/summarise_scale_ladder.py --runs <run_dir> [<run_dir> ...]
 """
 
 import argparse
-import json
+import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from readout import TRAINED_SCALE_BAND, format_flags, read_run, weight  # noqa: E402
+
 # Breaking Bad stores max|v| = 0.5; training multiplies by random_scale_range
 # (0.75, 1.25). Outside this the model is extrapolating on an input it has
-# never seen, in an encoding whose top frequency is 2^9.
-TRAIN_LO, TRAIN_HI = 0.375, 0.625
+# never seen, in an encoding whose top frequency is 2^9. The band is the
+# module's, so the ladder and the health flags cannot disagree about it.
+TRAIN_LO, TRAIN_HI = TRAINED_SCALE_BAND
 
 
 def median(xs):
@@ -45,30 +60,26 @@ def median(xs):
     return s[n // 2] if n % 2 else 0.5 * (s[n // 2 - 1] + s[n // 2])
 
 
-def load(run_dir: Path):
-    res = run_dir / "results"
-    if not res.is_dir():
-        return None
-    draws = [json.loads(p.read_text()) for p in sorted(res.glob("*_generation*.json"))]
-    return draws or None
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", nargs="+", required=True)
     a = ap.parse_args()
 
-    rungs = []
+    rungs, all_records = [], []
     for r in a.runs:
         d = Path(r)
-        draws = load(d)
-        if draws is None:
+        if not (d / "results").is_dir():
             print(f"(skipping {d.name}: no results/)")
             continue
+        records = read_run(d)
+        if not records:
+            print(f"(skipping {d.name}: no results/)")
+            continue
+        all_records += records
         by_pot = defaultdict(list)
-        for x in draws:
-            by_pot[x["name"]].append(x)
-        scale = median([x["scales"] for x in draws if x.get("scales")])
+        for x in records:
+            by_pot[x.object_name].append(x)
+        scale = median([x.model_scale for x in records if x.model_scale])
         rungs.append((scale, d.name, by_pot))
 
     if not rungs:
@@ -100,9 +111,7 @@ def main():
             if not draws:
                 cells.append(f"{'-':>{cw}s}")
                 continue
-            n = draws[0]["num_parts"]
-            f = n / (n - 1) if n > 1 else 1.0
-            vals = [x["rotation_error"] * f for x in draws]
+            vals = [x.turn_deg for x in draws]
             pooled += vals
             cells.append(f"{median(vals):{cw - 1}.1f}d")
         print(f"{scale:12.3f}  {band:>5s}  " + "  ".join(cells) +
@@ -113,15 +122,27 @@ def main():
         print(f"  {scale:10.3f}  {name}")
 
     best = min(rungs, key=lambda t: median(
-        [x["rotation_error"] * (x["num_parts"] / max(x["num_parts"] - 1, 1))
-         for bp in [t[2]] for ds in bp.values() for x in ds]))
+        [x.turn_deg for bp in [t[2]] for ds in bp.values() for x in ds]))
     worst = max(rungs, key=lambda t: median(
-        [x["rotation_error"] * (x["num_parts"] / max(x["num_parts"] - 1, 1))
-         for bp in [t[2]] for ds in bp.values() for x in ds]))
+        [x.turn_deg for bp in [t[2]] for ds in bp.values() for x in ds]))
     print(f"\nBest rung: scale {best[0]:.3f}.  Worst rung: scale {worst[0]:.3f}.")
     print("If those two are far apart and the trend is monotone, the storage")
     print("units were doing the damage. If every rung is within a few degrees")
     print("of the others, they were not, and this line of enquiry is closed.\n")
+
+    for line in format_flags(all_records):
+        print(f"!! {line}")
+    print(f"Weight: {weight(all_records)}.")
+
+    print("\nA degree figure is an index to a picture, not a substitute for")
+    print("one. Draw the two ends of the ladder and look at whether the pots")
+    print("differ the way the numbers say they do:\n")
+    for label, rung in (("best", best), ("worst", worst)):
+        print(f"  # {label} rung, scale {rung[0]:.3f}")
+        print(f"  python scripts/render_assembly_grid.py \\")
+        print(f'      --runs "{rung[1]}=eval_runs/{rung[1]}/clouds" \\')
+        print(f"      --out artifacts/{rung[1]}.png")
+    print()
 
 
 if __name__ == "__main__":

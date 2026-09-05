@@ -54,6 +54,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+from scipy.spatial import cKDTree
 
 # The band the flow model was trained on. Breaking Bad objects arrive at max|v| = 0.5
 # and training adds random_scale_range (0.75, 1.25).
@@ -93,6 +94,7 @@ class Provenance:
     anchor_free: str = UNRECOVERABLE
     dataset_config: str = UNRECOVERABLE
     points_sampled: str = UNRECOVERABLE
+    multi_anchor: str = UNRECOVERABLE
 
     @property
     def complete(self) -> bool:
@@ -104,8 +106,8 @@ class Provenance:
     def describe(self) -> str:
         ckpt = self.checkpoint if self.checkpoint == UNRECOVERABLE else Path(self.checkpoint).name
         return (f"checkpoint={ckpt} seed={self.seed} draws={self.n_generations} "
-                f"anchor_free={self.anchor_free} data={self.dataset_config} "
-                f"points={self.points_sampled}")
+                f"anchor_free={self.anchor_free} multi_anchor={self.multi_anchor} "
+                f"data={self.dataset_config} points={self.points_sampled}")
 
 
 @dataclass(frozen=True)
@@ -142,6 +144,23 @@ class Record:
         """Fragments the model was given for free. It cannot score below this."""
         return self.n_anchors
 
+    def pot_under(self, degrees: int) -> float:
+        """Did the WHOLE object average under `degrees` on this draw? 1.0 or 0.0.
+
+        `recall_at_5deg` and `recall_at_10deg` are not a fraction of fragments,
+        however often they have been read as one.
+        `Evaluator._recall_at_thresholds` (tora/eval/evaluator.py:205) thresholds
+        a per-OBJECT mean of shape (B,), so each is 0 or 1 for a whole object on
+        one draw. Averaged over draws it is the SHARE OF ATTEMPTS in which the
+        pot came in under the threshold -- and the mean it thresholds is the
+        anchor-diluted one, so the bar is easier to clear than it reads.
+
+        A nine-sherd pot with eight sherds perfect and one turned a right angle
+        scores zero here. Compare models on `seated` and `turn_deg` instead;
+        this is reported only because past notes quote it.
+        """
+        return float(self.raw.get(f"recall_at_{degrees}deg", float("nan")))
+
     @property
     def placed(self) -> int:
         """Fragments the model actually had to place."""
@@ -150,6 +169,36 @@ class Record:
     @property
     def anchor_correction(self) -> float:
         return self.n_fragments / max(self.n_fragments - self.n_anchors, 1)
+
+    @property
+    def gap_denominator(self) -> str:
+        """What `gap_object_fraction` is a fraction OF.
+
+        Two different normalisers are in play across the runs on disk and they must
+        not be quoted as one column. A run scored after the unit-box fix stores
+        `translation_error_unit`, already divided by the longest side of the ground
+        truth bounding box. An older run stores only `translation_error` in the
+        object's own units, and the only size beside it is the stored `scales`.
+        """
+        if "translation_error_unit" in self.raw:
+            return "unit box (GT longest side)"
+        if self.model_scale and not math.isnan(self.model_scale):
+            return "stored scale"
+        return UNRECOVERABLE
+
+    @property
+    def gap_object_fraction(self) -> float:
+        """Offset as a fraction of the object's own size.
+
+        A raw translation error in an object's stored units means nothing on its own:
+        the ceramics are millimetres, so an offset of 167 is unreadable until it is
+        divided by the pot. Read `gap_denominator` beside it.
+        """
+        if "translation_error_unit" in self.raw:
+            return self.gap
+        if self.model_scale and not math.isnan(self.model_scale) and self.model_scale:
+            return self.gap / self.model_scale
+        return float("nan")
 
     @property
     def seated_fraction(self) -> float:
@@ -191,24 +240,28 @@ def _load_hydra(run_dir: Path) -> Provenance:
         anchor_free=get("data", "anchor_free"),
         dataset_config=get("data", "_target_"),
         points_sampled=get("data", "num_points_to_sample"),
+        multi_anchor=get("data", "multi_anchor"),
     )
 
 
 def _n_anchors_from(prov: Provenance) -> tuple[int, str]:
     """How many fragments were excluded from the error sum.
 
-    `compute_transform_errors` skips every part flagged as an anchor. In every run in
-    this project that is exactly one, and every hand-correction written so far has
-    assumed one. Where the config settles it, say so; where it does not, say that too
-    rather than presenting an assumption as a reading.
+    `compute_transform_errors` skips every part flagged as an anchor.
+    `tora/data/dataset.py:324` flags exactly one -- the part with the most points --
+    and does so whether or not `anchor_free` is set; anchor-free changes what the model
+    is *given*, not which part the metric skips. The one way to get more than one is
+    `multi_anchor`, which adds extras at random and only in anchor-fixed mode.
+
+    So: `multi_anchor: false` in the config settles the count at one. A run with
+    `multi_anchor: true` varies per sample and cannot be corrected from the summary
+    json alone -- say so rather than quietly dividing by the wrong number.
     """
-    if prov.anchor_free == UNRECOVERABLE:
+    if str(prov.multi_anchor).lower() in ("false", "0"):
+        return 1, "config"
+    if prov.multi_anchor == UNRECOVERABLE:
         return 1, "assumed"
-    if str(prov.anchor_free).lower() in ("true", "1"):
-        # An anchor is still designated for the error computation even when the model
-        # is not handed it as a condition. Ticket 02 confirms this against a real run.
-        return 1, "assumed"
-    return 1, "config"
+    return 1, "multi_anchor"
 
 
 def read_run(
@@ -328,14 +381,33 @@ def format_turn(record: Record) -> str:
 
 
 def format_flags(records: list[Record]) -> list[str]:
-    """Every distinct health warning across these records, for printing above a table."""
+    """Every distinct health warning across these records, for printing above a table.
+
+    Warnings are collapsed, not repeated. A sweep that deliberately walks the size
+    input across two orders of magnitude would otherwise print the same sentence once
+    per rung, which is how a warning stops being read.
+    """
     seen: list[str] = []
+    out_of_band = [r.model_scale for r in records
+                   if any(f.startswith(FLAG_SCALE_OUT_OF_BAND) for f in r.flags)]
+    if out_of_band:
+        lo, hi = TRAINED_SCALE_BAND
+        seen.append(
+            f"{FLAG_SCALE_OUT_OF_BAND}: {len(out_of_band)} of {len(records)} draws, "
+            f"{min(out_of_band):.4g} to {max(out_of_band):.4g}, outside [{lo}, {hi}]")
     for r in records:
         for f in r.flags:
-            if f not in seen:
-                seen.append(f)
+            if f.startswith(FLAG_SCALE_OUT_OF_BAND) or f in seen:
+                continue
+            seen.append(f)
         if r.n_anchors_source == "assumed":
             note = "anchor count assumed to be 1 (the run did not record it)"
+            if note not in seen:
+                seen.append(note)
+        if r.n_anchors_source == "multi_anchor":
+            note = ("multi_anchor was on: the number of free fragments varies per "
+                    "sample and the correction here assumes one -- do not trust the "
+                    "turn column on this run")
             if note not in seen:
                 seen.append(note)
         if not r.provenance.complete:
@@ -371,9 +443,103 @@ def unit_box_scale(pts: np.ndarray) -> float:
 
 
 def chamfer(a: np.ndarray, b: np.ndarray) -> float:
-    """Symmetric mean of squared nearest-neighbour distances, as pytorch3d does."""
+    """Symmetric SUM of the two mean squared nearest-neighbour distances.
+
+    This must match what the evaluator thresholds, exactly, or every rescoring
+    done here is measured with a different ruler from the one that produced the
+    numbers it is being compared against.
+
+    `compute_part_acc` (tora/eval/metrics.py:151) calls pytorch3d
+    `chamfer_distance(single_directional=False, point_reduction="mean",
+    batch_reduction=None)`. At the pinned version -- pytorch3d 0.7.8, the wheel
+    named in pyproject.toml -- that returns `loss = cham_x + cham_y`, each side
+    summed over its points and divided by that side's point count. There is no
+    0.5 anywhere in it.
+
+    CORRECTED 2026-09-05. This function carried a 0.5 factor and a docstring
+    claiming it was what pytorch3d does. It was not: it made every rescoring
+    here exactly TWICE AS FORGIVING as the evaluator against the same 0.01
+    threshold. Caught by `scripts/score_assembly.py`, which had computed the
+    same quantity independently and without the halving, so the two disagreed
+    by a factor of two on the same clouds. Anything rescored from clouds before
+    this date -- `rescore_from_clouds`, `scripts/rescore_part_acc.py` -- was
+    scored too generously and must be rerun before it is quoted.
+    """
     d = ((a[:, None, :] - b[None, :, :]) ** 2).sum(-1)
-    return 0.5 * (d.min(axis=1).mean() + d.min(axis=0).mean())
+    return float(d.min(axis=1).mean() + d.min(axis=0).mean())
+
+
+def unit_box_threshold(pts_gt: np.ndarray) -> float:
+    """TAU, expressed in the frame the saved clouds are actually stored in.
+
+    A script that scores from `clouds/*.npz` works in the dataloader's normalised
+    frame, so it needs the unit-box tolerance translated into that frame rather
+    than applied there directly. Two conversions are easy to get wrong and both
+    have been got wrong here:
+
+      - dividing by the stored scale rather than its SQUARE. The threshold is
+        compared against a SQUARED chamfer distance, so it scales as scale^2. At
+        a Breaking Bad scale of 0.5 the shipped 0.01 is 0.04 in this frame, not
+        0.02 -- a script using 0.02 is twice as strict as the metric it claims
+        to be reproducing.
+
+      - using the stored scale at all. That is the WITHDRAWN absolute metric: a
+        fixed 0.01 in each dataset's own units, which is 2% of a Breaking Bad
+        vessel and 0.014% of a millimetre-stored ceramic pot. It faked a finding
+        once already (docs/notes/TORA_GOOD_VS_BAD_ANALYSIS.md, jobs 27858648 /
+        27859890).
+
+    The tolerance is a fraction of the OBJECT, so it is derived from the ground
+    truth bounding box and never from the prediction.
+    """
+    return TAU * unit_box_scale(pts_gt) ** 2
+
+
+def part_slices(points_per_part) -> list[tuple[int, int]]:
+    """Start and end index of each non-empty part in a flattened cloud."""
+    out, start = [], 0
+    for n in points_per_part:
+        n = int(n)
+        if n > 0:
+            out.append((start, start + n))
+            start += n
+    return out
+
+
+def seating_from_clouds(pred, gt, slices, threshold=None, n_anchors: int = 1):
+    """Anchor-corrected seating rate for one assembly, from its saved clouds.
+
+    Returns the fraction of the fragments the model actually had to place that
+    landed within tolerance -- 1.0 = every loose fragment seated, 0.0 = none
+    beyond the ones handed over for free. It is the cloud-side twin of
+    `Record.seated` minus `Record.floor`, over `Record.placed`, and it exists so
+    that a script scoring `clouds/*.npz` does not have to keep its own copy of
+    the metric. Two did, and both had the tolerance wrong.
+
+    `threshold` defaults to `unit_box_threshold(gt)`. Pass one only to compare
+    conventions deliberately.
+
+    Uses KD-trees rather than the dense matrix in `part_acc`, because the
+    callers run this over every draw of every object in a run.
+    """
+    if threshold is None:
+        threshold = unit_box_threshold(gt)
+    k = len(slices)
+    if k < 2:
+        return float("nan")
+    cd = np.zeros((k, k))
+    trees_gt = [cKDTree(gt[a:b]) for a, b in slices]
+    trees_pr = [cKDTree(pred[a:b]) for a, b in slices]
+    for i, (a, b) in enumerate(slices):
+        for j, (c, d) in enumerate(slices):
+            d1, _ = trees_pr[j].query(gt[a:b])
+            d2, _ = trees_gt[i].query(pred[c:d])
+            # both directions SUMMED, as pytorch3d 0.7.8 does; see chamfer()
+            cd[i, j] = (d1 ** 2).mean() + (d2 ** 2).mean()
+    r, c = linear_sum_assignment((cd >= threshold).astype(float))
+    seated = float((cd[r, c] < threshold).sum())
+    placed = max(k - n_anchors, 1)
+    return (seated - n_anchors) / placed
 
 
 def part_acc(pts_gt, pts_pred, points_per_part, threshold) -> tuple[float, int]:

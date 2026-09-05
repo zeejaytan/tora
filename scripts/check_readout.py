@@ -26,7 +26,16 @@ WHAT THIS ASSERTS.
   7.  Model size 0.041 and 61.0 raise the out-of-band flag; 0.511 does not. A run
       evaluated before the unit-box fix raises its own flag.
   8.  A subset of 8 of 9 fragments divides by 8, not 9.
-  9.  The chamfer and unit-box derivations moved out of rescore_part_acc.py unchanged.
+  9.  The unit-box derivation moved out of rescore_part_acc.py unchanged, and the
+      chamfer matches pytorch3d 0.7.8 -- both directions SUMMED, no 0.5;
+      `anchor_free` does not change the anchor count and `multi_anchor` warns instead
+      of silently correcting by the wrong number.
+  10. A warning is printed once however many draws or rungs raise it, and a size sweep
+      collapses to one line naming its range. A warning repeated fourteen times is a
+      warning nobody reads.
+  11. An offset is only ever reported as a fraction of the object, and the read-out
+      states which size it divided by -- the unit box on a run scored after the fix,
+      the stored scale on an older one. They are not the same denominator.
 
 NO SNAPSHOT TESTS. A golden-output test written any time in the last month would have
 frozen the diluted figure and certified the bug.
@@ -51,6 +60,7 @@ from readout import (  # noqa: E402
     FLAG_SCALE_OUT_OF_BAND,
     ProvenanceMismatch,
     chamfer,
+    unit_box_threshold,
     format_flags,
     format_seated,
     format_turn,
@@ -81,6 +91,7 @@ def make_run(
     part_accuracy: float = 0.0,
     scale: float = 0.5,
     post_fix: bool = True,
+    unit_translation: bool = True,
     hydra: dict | None = None,
     draws: int = 1,
     object_name: str = "juglet",
@@ -98,9 +109,10 @@ def make_run(
             "part_accuracy": part_accuracy,
             "rotation_error": stored_rotation,
             "translation_error": stored_translation,
-            "translation_error_unit": stored_translation,
             "object_chamfer": 0.0,
         }
+        if unit_translation:
+            entry["translation_error_unit"] = stored_translation
         if post_fix:
             entry["part_accuracy_absolute"] = part_accuracy
         (run / "results" / f"juglet_sample00000_generation{g:02d}.json").write_text(
@@ -125,6 +137,7 @@ FULL_HYDRA = {
     "model": {"n_generations": 5},
     "data": {
         "anchor_free": "true",
+        "multi_anchor": "false",
         "_target_": "tora.data.zeroshot.JugletGT",
         "num_points_to_sample": 5000,
     },
@@ -254,15 +267,76 @@ def main() -> int:
               f"got {sub[0].turn_deg}")
 
         # ------------------------------------------------------------------
-        print("\n9. The rescoring derivation moved unchanged.")
+        print("\n9. The rescoring derivation, and the ruler it thresholds.")
         pts = np.array([[0.0, 0, 0], [2.0, 0, 0], [0, 1.0, 0]])
         check("unit_box_scale is the longest bounding-box side (2.0)",
               abs(unit_box_scale(pts) - 2.0) < 1e-12)
         a = np.array([[0.0, 0, 0]])
         b = np.array([[3.0, 0, 0]])
-        # Symmetric mean of SQUARED nearest-neighbour distances: 0.5*(9+9) = 9.
-        check("chamfer is a mean of squared distances (3 apart -> 9.0)",
-              abs(chamfer(a, b) - 9.0) < 1e-12, f"got {chamfer(a, b)}")
+        # pytorch3d 0.7.8 chamfer_distance(point_reduction="mean") returns
+        # cham_x + cham_y, with no 0.5 -- so two points 3 apart give 9 + 9 = 18.
+        # This assertion exists because the halved version shipped here on
+        # 2026-09-05 and made every cloud rescoring twice as forgiving as the
+        # evaluator it was being compared against.
+        check("chamfer sums both directions, as pytorch3d does (3 apart -> 18.0)",
+              abs(chamfer(a, b) - 18.0) < 1e-12, f"got {chamfer(a, b)}")
+        # The tolerance is compared against a SQUARED distance, so translating it
+        # into the stored frame squares the size. A unit box of 2.0 puts TAU at
+        # 0.01 * 4 = 0.04. Two scripts here divided by the scale instead of its
+        # square, and by the stored scale rather than the box, which is the
+        # withdrawn absolute metric.
+        check("unit-box tolerance squares the size (box 2.0 -> 0.04)",
+              abs(unit_box_threshold(pts) - 0.04) < 1e-12,
+              f"got {unit_box_threshold(pts)}")
+
+        # dataset.py:324 flags exactly one anchor -- the largest part -- whatever
+        # anchor_free says; only multi_anchor adds more. So multi_anchor settles it,
+        # and anchor_free must NOT be read as if it did.
+        cfg_free = {**FULL_HYDRA, "data": {**FULL_HYDRA["data"], "anchor_free": "true"}}
+        (rf,) = read_run(make_run(tmp, "afree", n_fragments=9,
+                                  stored_rotation=stored, hydra=cfg_free))
+        check("anchor_free: true still means one free fragment, from config",
+              rf.n_anchors == 1 and rf.n_anchors_source == "config",
+              rf.n_anchors_source)
+
+        cfg_multi = {**FULL_HYDRA,
+                     "data": {**FULL_HYDRA["data"], "multi_anchor": "true"}}
+        (rm,) = read_run(make_run(tmp, "amulti", n_fragments=9,
+                                  stored_rotation=stored, hydra=cfg_multi))
+        check("multi_anchor: true warns that the turn column cannot be trusted",
+              any("multi_anchor was on" in f for f in format_flags([rm])),
+              str(format_flags([rm])))
+
+        # A sweep that walks the size input on purpose must not print the same
+        # sentence once per rung. It printed fourteen identical lines before this.
+        spread = []
+        for i, sc in enumerate((1.0, 5.0, 15.0, 50.0, 100.0)):
+            spread += read_run(make_run(tmp, f"rung{i}", n_fragments=9,
+                                        stored_rotation=stored, scale=sc,
+                                        hydra=FULL_HYDRA))
+        band_lines = [f for f in format_flags(spread)
+                      if f.startswith(FLAG_SCALE_OUT_OF_BAND)]
+        check("a size sweep raises the band warning once, with its range",
+              len(band_lines) == 1 and "1 to 100" in band_lines[0],
+              str(band_lines))
+
+        # An offset in an object's own units is unreadable: the ceramics are
+        # millimetres. Which size it is divided by must be stated, not assumed.
+        (post,) = read_run(make_run(tmp, "gapnew", n_fragments=9,
+                                    stored_rotation=stored, stored_translation=0.08,
+                                    scale=0.5, hydra=FULL_HYDRA))
+        (old_run,) = read_run(make_run(tmp, "gapold", n_fragments=9,
+                                       stored_rotation=stored, stored_translation=8.0,
+                                       scale=61.0, unit_translation=False,
+                                       post_fix=False, hydra=FULL_HYDRA))
+        check("a run with translation_error_unit is already a fraction",
+              post.gap_denominator == "unit box (GT longest side)"
+              and abs(post.gap_object_fraction - post.gap) < 1e-12,
+              post.gap_denominator)
+        check("an older run is divided by its stored scale, and says so",
+              old_run.gap_denominator == "stored scale"
+              and abs(old_run.gap_object_fraction - old_run.gap / 61.0) < 1e-12,
+              old_run.gap_denominator)
 
         # A repeated warning printed once per draw is a warning nobody reads;
         # this fired five times on a five-draw run before it was fixed.

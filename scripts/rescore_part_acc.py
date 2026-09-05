@@ -44,8 +44,17 @@ using it would hand a failing assembly a more forgiving tolerance.
 MOVED, 2026-09-05. The unit-box derivation, the chamfer and the Hungarian
 matching now live in scripts/readout.py, which is the single place an evaluation
 run is read. This script keeps its command line and its table; it computes
-nothing of its own. The move changed location, not numbers --
-scripts/check_readout.py asserts the derivation directly.
+nothing of its own.
+
+THE MOVE DID CHANGE ONE NUMBER, and the change is a correction, so any table
+this script printed before 2026-09-05 must be rerun before it is quoted. The
+chamfer carried a 0.5 factor, which made every fragment exactly TWICE as easy to
+pass at a given threshold as it is under the evaluator. pytorch3d 0.7.8 -- the
+wheel pinned in pyproject.toml, and what compute_part_acc calls -- returns
+cham_x + cham_y with no halving. Every seating count this script has printed was
+therefore too generous, and a threshold sweep read as reaching a given accuracy
+at half the threshold it really needs. scripts/check_readout.py now asserts the
+summed convention directly.
 
 Usage:
   python scripts/rescore_part_acc.py --clouds <run_dir>/clouds
