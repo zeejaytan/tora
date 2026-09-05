@@ -334,8 +334,10 @@ def format_flags(records: list[Record]) -> list[str]:
         for f in r.flags:
             if f not in seen:
                 seen.append(f)
-        if r.n_anchors_source == "assumed" and "anchor count assumed to be 1" not in seen:
-            seen.append("anchor count assumed to be 1 (the run did not record it)")
+        if r.n_anchors_source == "assumed":
+            note = "anchor count assumed to be 1 (the run did not record it)"
+            if note not in seen:
+                seen.append(note)
         if not r.provenance.complete:
             note = f"{r.run}: settings partly {UNRECOVERABLE} -- {r.provenance.describe()}"
             if note not in seen:

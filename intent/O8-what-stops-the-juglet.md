@@ -49,6 +49,14 @@ differently, and flags a run whose stored size fell outside the trained band. Fi
 scripts previously disagreed about the same run. Every candidate below is read through
 it, or the number is not admissible.
 
+It was checked against runs already published (`docs/notes/READOUT_RECONCILIATION.md`,
+2026-09-05): the ladder that was already corrected by hand does not move — 72 cells, all
+within 0.05° — and the Juglet run read by an uncorrected reader rises by exactly 9/8,
+**55.7° → 62.7° median**, with the render agreeing that draw 0 is not a vessel. So the
+Juglet's non-anchor figure on a valid reference is worse than the number this question
+was opened with, not better, and it sits inside the collapsed band rather than at its
+edge.
+
 ## The candidates
 
 | | candidate | cost | why it is live |

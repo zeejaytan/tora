@@ -264,6 +264,15 @@ def main() -> int:
         check("chamfer is a mean of squared distances (3 apart -> 9.0)",
               abs(chamfer(a, b) - 9.0) < 1e-12, f"got {chamfer(a, b)}")
 
+        # A repeated warning printed once per draw is a warning nobody reads;
+        # this fired five times on a five-draw run before it was fixed.
+        many = read_run(make_run(tmp, "dedup", n_fragments=9,
+                                 stored_rotation=stored, draws=5))
+        check("a warning that applies to every draw is printed once",
+              len(format_flags(many)) == len(set(format_flags(many)))
+              and sum("anchor count assumed" in f for f in format_flags(many)) <= 1,
+              str(format_flags(many)))
+
         # ------------------------------------------------------------------
         print("\n10. A view states the weight it can bear.")
         w = weight(same)
