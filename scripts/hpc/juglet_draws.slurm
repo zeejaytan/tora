@@ -83,10 +83,19 @@ cd "$TORA_ROOT/repo"
 # more than one, something changed in the checkpointing and picking by date
 # would silently select the final epoch again, which is the error that made
 # job 29623885 uninterpretable. So stop instead of guessing.
+#
+# FIXED 2026-09-06. The filter used to be `*lora_vessels_v3_*` alone, which by
+# now matches three checkpoints, because two of them are smoke tests:
+#   lora_vessels_v3_29880370/epoch-0.ckpt        <- the real one
+#   lora_vessels_v3_smoke_29825847/epoch-0.ckpt  <- smoke
+#   lora_vessels_v3_smoke_29880370/epoch-0.ckpt  <- smoke
+# The strict count then made the job exit before touching a GPU. Smoke runs are
+# excluded by name rather than by loosening the count: the count is the guard,
+# and it stays.
 if [ -z "${TRAINED_CKPT:-}" ]; then
-    FOUND=$(find "$TORA_ROOT/output" -path "*lora_vessels_v3_*" -name "epoch-*.ckpt" | sort)
+    FOUND=$(find "$TORA_ROOT/output" -path "*lora_vessels_v3_*" -name "epoch-*.ckpt" | grep -v "_smoke_" | sort)
     N=$(echo "$FOUND" | grep -c . || true)
-    [ "$N" = "1" ] || { echo "expected exactly one v3 adapter checkpoint, found $N:"; echo "$FOUND"; exit 1; }
+    [ "$N" = "1" ] || { echo "expected exactly one v3 adapter checkpoint (smoke runs excluded), found $N:"; echo "$FOUND"; exit 1; }
     TRAINED_CKPT="$FOUND"
 fi
 for f in "$DATA_ROOT/juglet_gt.hdf5" "$CKPT" "$TRAINED_CKPT"; do

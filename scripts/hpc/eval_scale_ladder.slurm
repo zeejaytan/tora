@@ -51,9 +51,36 @@ set -euo pipefail
 # A's numbers around rung 100. If the ladder is flat, the hypothesis is dead
 # and the failure is in the material after all.
 #
+# THE OTHER HALF, ADDED 2026-09-06. The rungs above only ever climbed: 0.5 and
+# upward, which answered the Fractura question (millimetres) and nothing else.
+# Below 0.5 has never been run. That matters because the Juglet's `juglet_norm`
+# family sits at 0.0408 -- nine times UNDER the trained floor of 0.375 -- and at
+# that size the sherds-seated measure saturates at 9 of 9 on every draw of every
+# arm while the same runs report sherds turned 85 deg out of true. The audit in
+# .scratch/juglet-cause/issues/03-low-side-out-of-band-scale.md establishes that
+# the seating RULER breaks down there. It does NOT establish that a small scale
+# damages the RECONSTRUCTION, because nothing below 0.5 was ever run as a
+# controlled rung. Rotation is an angle and does not saturate, so it is the
+# column to read on the way down.
+#
+# STATED IN ADVANCE SO IT CAN FAIL. If a too-small scale is damaging, rotation
+# should climb monotonically as the rung falls away from 0.5, with rung 0.08
+# (scale 0.04, where juglet_norm sits) clearly worse than rung 1 (scale 0.5).
+# If the downward ladder is FLAT, then small scales are harmless to the
+# reconstruction, only the seating metric breaks, and candidate 4 on intent/O8
+# is ruled out.
+#
+# Rung m gives scale 0.5*m, so the downward rungs are fractional:
+#   0.08 -> 0.04   0.16 -> 0.08   0.3 -> 0.15   0.5 -> 0.25   1 -> 0.5 (control)
+#
 # Usage:
 #   sbatch scripts/hpc/eval_scale_ladder.slurm
 #   DRAWS=10 LADDER_DRAWS=5 sbatch scripts/hpc/eval_scale_ladder.slurm
+#
+#   # downward ladder only -- arms A and B are already done by job 29891327 and
+#   # re-running them buys nothing, so ARMS= skips them:
+#   ARMS= RUNGS="0.08 0.16 0.3 0.5 1" LADDER_DRAWS=10 \
+#       sbatch scripts/hpc/eval_scale_ladder.slurm
 
 echo "=== scale ladder started at $(date) on $(hostname) ==="
 nvidia-smi | head -15 || true
@@ -68,6 +95,11 @@ LADDER_DRAWS=${LADDER_DRAWS:-5}
 # Rung m puts the object at scale 0.5*m. 1 -> 0.5 (Breaking Bad's own
 # convention), 200 -> 100, which brackets the ceramics' stored 45-120.
 RUNGS=${RUNGS:-"2 5 10 30 100 200"}
+# Which of the two full-draw arms to run. Default is both, unchanged.
+# ARMS= (empty, note the bare -) runs the rungs alone -- used for the
+# downward ladder, where A (millimetres) and B (0.5) are already answered
+# by job 29891327 and re-running them would buy nothing.
+ARMS=${ARMS-"A B"}
 
 module purge
 module load Anaconda3/2024.02-1
@@ -121,11 +153,15 @@ run_arm () {
 }
 
 # Arm A -- exactly what the dataset ships: millimetres, scale 45-120.
-run_arm A_raw_mm model.n_generations="$DRAWS"
+case " $ARMS " in *" A "*)
+    run_arm A_raw_mm model.n_generations="$DRAWS" ;;
+esac
 
 # Arm B -- the same pots restated at Breaking Bad's own convention, scale 0.5.
-run_arm B_normalized model.n_generations="$DRAWS" \
-    +data.normalize_object_scale=true
+case " $ARMS " in *" B "*)
+    run_arm B_normalized model.n_generations="$DRAWS" \
+        +data.normalize_object_scale=true ;;
+esac
 
 # The ladder between them. Fewer draws each: these are for the shape of the
 # curve, not for a headline number on any one rung.
@@ -138,11 +174,20 @@ echo ""
 echo "### rotation against the number fed in ###"
 python scripts/summarise_scale_ladder.py --runs "${DONE_DIRS[@]}" || true
 
-echo ""
-echo "### arms A and B, pot by pot, in fragments seated ###"
-python scripts/summarise_ceramics_arms.py \
-    --runs "$LOG_ROOT/scaleladder_A_raw_mm_${SLURM_JOB_ID}" \
-           "$LOG_ROOT/scaleladder_B_normalized_${SLURM_JOB_ID}" || true
+if [ -d "$LOG_ROOT/scaleladder_A_raw_mm_${SLURM_JOB_ID}" ] && \
+   [ -d "$LOG_ROOT/scaleladder_B_normalized_${SLURM_JOB_ID}" ]; then
+    echo ""
+    echo "### arms A and B, pot by pot, in fragments seated ###"
+    python scripts/summarise_ceramics_arms.py \
+        --runs "$LOG_ROOT/scaleladder_A_raw_mm_${SLURM_JOB_ID}" \
+               "$LOG_ROOT/scaleladder_B_normalized_${SLURM_JOB_ID}" || true
+else
+    echo ""
+    echo "### arms A/B not run this job -- rungs only. Do not reach for a"
+    echo "### fragments-seated count on the way down: below the trained band"
+    echo "### it saturates at every-sherd-seated regardless of where the"
+    echo "### sherds actually are. Read the rotation table above."
+fi
 
 echo ""
 echo "### renders (LOOK at A vs B on the same pot before quoting any of this) ###"

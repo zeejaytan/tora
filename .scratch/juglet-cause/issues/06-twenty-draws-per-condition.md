@@ -31,10 +31,35 @@ against 9° once this lands, and that has to be findable.
    `lora_vessels_v3_29880370/epoch-0.ckpt` (the real one),
    `lora_vessels_v3_smoke_29825847/epoch-0.ckpt`, `lora_vessels_v3_smoke_29880370/epoch-0.ckpt`.
    Pass `TRAINED_CKPT=` explicitly, or exclude `_smoke_` from the search.
-2. **It runs three arms, and this ticket needs one.** `adapter_on`, `adapter_off` and
-   `baseline` at twenty draws each. Only `baseline` sharpens the rule. The other two
-   settle "does the adapter hurt on the Juglet" — never established, but **not one of
-   O8's five candidates**. Running them is a scope decision, not a default.
+2. **It runs three arms.** `adapter_on`, `adapter_off` and `baseline` at twenty draws
+   each. Running all three is a scope decision, not a default — but the arithmetic below
+   changed on 2026-09-06 and now favours it.
+
+## Correction, 2026-09-06: the baseline arm is already bought
+
+The four historical `baseline` runs on `juglet_gt` — `lorav_juglet_baseline_29527496`,
+`lorav_juglet_baseline_29623885`, `lorav3_juglet_baseline_29880370`,
+`wearft2_jugletgt_baseline_29308186` — **pool cleanly**: `readout.pool()` accepts all
+twenty draws with no `across=` override, because the provenance matches on every field it
+checks. So the baseline already has its twenty draws, and a fifth baseline run adds
+precision at the margin rather than halving anything.
+
+The arms that are *not* bought are the adapter arms, and they **cannot** be pooled:
+
+```
+adapter_off (29527496 + 29623885)  -> REFUSED, different adapter checkpoints
+adapter_on  (29623885 + 29880370)  -> REFUSED, last.ckpt vs epoch-0.ckpt
+```
+
+Each therefore stands at five draws, which under 01's rule cannot separate anything
+smaller than 17° — and the whole adapter effect on this pot is one to two sherds. So the
+value of this job now sits almost entirely in the two arms the ticket originally proposed
+to drop.
+
+(Small gap noticed while checking: the first refusal prints two *identical* provenance
+lines, because the LoRA adapter path is not among the fields `readout` displays. The
+refusal is correct; the explanation it prints is not usable. Worth a line in `readout.py`
+when something depends on it.)
 
 ## Acceptance criteria
 
