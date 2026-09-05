@@ -15,8 +15,12 @@ disagree.
 
 `tora/eval/metrics.py:compute_transform_errors` skips the anchor fragment when it
 averages rotation error, but divides by *all* fragments — so the number it writes to
-`results/*.json` is diluted by a free zero. Only one of the five readers corrects for
-that:
+`results/*.json` is diluted by a free zero. **Corrected 2026-09-05: this was first
+described here as a rotation-only fault. It is not.** The same `/ n_parts` divides the
+translation sum and the euler-angle rotation sum in the same function, so
+`translation_error`, `translation_error_unit` and `euler/rotation_error` are diluted by
+the identical factor. The module corrects all of them. Only one of the five readers
+corrects for any of it:
 
 | script | field read | correction |
 |---|---|---|

@@ -36,6 +36,14 @@ months from now can use to tell which version of a number they are looking at.
       the only one any of these five reads.
 - [ ] Each script's docstring gains a dated paragraph naming **which of its figures
       moved and by how much** — the actual ratio observed, not the theoretical one.
+- [ ] `audit_placement_metrics.py`'s docstring describes `within10` as "the fraction of
+      fragments within ten degrees of correct orientation". **It is not.**
+      `_recall_at_thresholds` thresholds the per-object *mean*, so the field is a per-object
+      0 or 1 — a whole pot passes or fails. Correct the description, and list every note
+      that reads it as a fraction. `docs/notes/WEAR_TEST_RESULTS.md` quotes it as
+      "recall@10° flat at 0.000"; on nine sherds averaging 35–60° a flat zero is what a
+      per-object threshold must produce, so that sentence may be reporting the metric's
+      shape rather than a result. (Found 2026-09-05 in ticket 01.)
 - [ ] `summarise_scale_ladder.py` produces byte-identical output to before. It was
       already correct; if it changes, stop.
 - [ ] Every view prints, beneath its table, the exact `scripts/render_juglet_attempts.py`

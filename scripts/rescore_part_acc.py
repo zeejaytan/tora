@@ -41,6 +41,12 @@ apply 0.01 there. Measured on the ground truth, never the prediction -- a
 scattered prediction has a bigger box than the object it is rebuilding, and
 using it would hand a failing assembly a more forgiving tolerance.
 
+MOVED, 2026-09-05. The unit-box derivation, the chamfer and the Hungarian
+matching now live in scripts/readout.py, which is the single place an evaluation
+run is read. This script keeps its command line and its table; it computes
+nothing of its own. The move changed location, not numbers --
+scripts/check_readout.py asserts the derivation directly.
+
 Usage:
   python scripts/rescore_part_acc.py --clouds <run_dir>/clouds
   python scripts/rescore_part_acc.py --clouds <run_dir>/clouds --absolute
@@ -48,52 +54,20 @@ Usage:
 """
 
 import argparse
-from collections import defaultdict
+import sys
 from pathlib import Path
 
 import numpy as np
-from scipy.optimize import linear_sum_assignment
 
-# Breaking Bad's tau, in the frame Breaking Bad states it in: a unit-length box.
-# compute_part_acc thresholds pytorch3d's chamfer_distance with
-# point_reduction="mean", which is the mean of SQUARED distances, so this is a
-# squared tolerance -- 0.1 of the object's longest dimension, linearly.
-TAU = 0.01
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# The derivation lives in one place now, so this script and the read-out module
+# cannot drift apart about what "seated" means. See scripts/readout.py.
+from readout import TAU, chamfer, part_acc, unit_box_scale  # noqa: E402,F401
 
 # The shipped metric, kept for --absolute so the two can be compared on the same
 # predictions. This is the number that was scale-dependent.
 TAU_ABSOLUTE = 0.01
-
-
-def unit_box_scale(pts: np.ndarray) -> float:
-    """Longest side of a cloud's axis-aligned bounding box."""
-    return float(max((pts.max(axis=0) - pts.min(axis=0)).max(), 1e-8))
-
-
-def chamfer(a: np.ndarray, b: np.ndarray) -> float:
-    """Symmetric mean of squared nearest-neighbour distances, as pytorch3d does."""
-    d = ((a[:, None, :] - b[None, :, :]) ** 2).sum(-1)
-    return 0.5 * (d.min(axis=1).mean() + d.min(axis=0).mean())
-
-
-def part_acc(pts_gt, pts_pred, ppp, threshold):
-    """Fraction of parts whose chamfer to their matched GT part is under threshold.
-
-    Hungarian matching on the chamfer cost, as compute_part_acc does: parts are
-    interchangeable, so a prediction may claim any GT part once.
-    """
-    ppp = [int(n) for n in ppp if int(n) > 0]
-    bounds = np.cumsum([0] + ppp)
-    gt = [pts_gt[bounds[i]:bounds[i + 1]] for i in range(len(ppp))]
-    pr = [pts_pred[bounds[i]:bounds[i + 1]] for i in range(len(ppp))]
-    p = len(ppp)
-    cost = np.zeros((p, p))
-    for i in range(p):
-        for j in range(p):
-            cost[i, j] = chamfer(gt[i], pr[j])
-    r, c = linear_sum_assignment(cost)
-    matched = cost[r, c]
-    return float((matched < threshold).mean()), len(ppp)
 
 
 def main():

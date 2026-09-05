@@ -37,13 +37,23 @@ and withdrawn: the worn Juglet reads 0.169, fresh `blue_pot` reads 0.167. Betwee
 variation swamps the effect (`WEAR_TEST_RESULTS.md` §2, `GATE_A_RESULT.md`).
 
 **Wear training has already been run twice.** Jobs 29027773 and 29308186: rotation
-51.5° → 49.2° → 52.9°, recall@10° flat at 0.000.
+51.5° → 49.2° → 52.9°. The "recall@10° flat at 0.000" once quoted alongside those is not
+evidence: that field is a per-object 0/1 on the whole-pot mean, not a fraction of
+fragments, so on a nine-sherd pot averaging 35–60° a flat zero is what the metric must
+produce whatever the model does.
+
+**The read-out is now one instrument.** `scripts/readout.py` (gated by
+`scripts/check_readout.py`) is the single place a run is read: it undoes the free-anchor
+dilution once, reports seating as a count with its floor, refuses to pool runs made
+differently, and flags a run whose stored size fell outside the trained band. Five
+scripts previously disagreed about the same run. Every candidate below is read through
+it, or the number is not admissible.
 
 ## The candidates
 
 | | candidate | cost | why it is live |
 |---|---|---|---|
-| 1 | Run-to-run spread | free | `lorav` baseline 31.4°, `lorav3` baseline 58.2° — same pot, same reference. If the spread is ~27° most of the differences below are unreadable |
+| 1 | Run-to-run spread | free | The three baseline runs have effectively identical `.hydra` settings, so they *are* repeats; the 31.4° / 58.2° pair quoted from them appears to be generation 0 rather than run means, and draws within one run span ~31–69°. Confirm the spread before reading any difference below |
 | 2 | Fragment count (9) | free | Normalised, error tracks fragment count; the old "ruled out" was the units bug |
 | 3 | A missing sherd | cheap GPU | The Juglet is **incomplete** and none of the eight pots TORA reassembles are. Never tested. [U4](../../intent/U4-missing-fragments.md) names the failure mode |
 | 4 | Low-side out-of-band scale | cheap | `juglet_norm` runs report `scales = 0.041`, 9× below the trained floor of 0.375. The scale ladder only tested *above* 0.5 |
@@ -69,3 +79,4 @@ list, and saying so is the result.
 
 `docs/notes/JUGLET_TORA_ROOTCAUSE.md`, `WEAR_TEST_RESULTS.md`, `GATE_A_RESULT.md`,
 `scripts/build_juglet_ground_truth.py`, job 29891327. Map: `.scratch/juglet-cause/map.md`.
+Instrument: `scripts/readout.py`, `.scratch/eval-readout/`.
