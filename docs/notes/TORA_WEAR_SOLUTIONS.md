@@ -6,6 +6,28 @@ and **the candidate fixes**, with what each is worth and what it would cost.
 
 Written 2026-07-28. Status of each idea is marked; several are already settled.
 
+> **✅ Checked against the 2026-09-05 evaluator correction — nothing in this
+> document moves.** Every other note in `docs/notes/` had figures shifted by the
+> free-anchor bug (rotation and translation error were summed over the loose
+> fragments but divided by the total, so each carried one free zero). This one is
+> unaffected, for three separate reasons, each verified rather than assumed:
+>
+> 1. **It quotes no rotation or translation error at all.** Its results are
+>    seating fractions, cosine similarities and Wilcoxon tests.
+> 2. **Its seating figures are already anchor-free.** §S3 records `coxae` and
+>    `vert9` at **0.00**, which is impossible for `part_accuracy` — that floors at
+>    1/n, i.e. 0.333 on a three-fragment object. These are fractions of the
+>    *loose* fragments, which is the corrected definition.
+> 3. **The 2.5× displacement figure in §1 excludes the anchor.** Its source table
+>    (`JUGLET_TORA_TEST_PLAN.md`, "the fragments are not roughly in place")
+>    reports **12 % of fragments within 0.06 at full wear** across 6 objects × 5
+>    wear levels. Had the six anchors been counted, that figure could not have
+>    fallen below 6/30 = 20 %. It is 12 %, so they were not.
+>
+> The cosine-similarity tables in §3 are feature-space measurements taken inside
+> the network and never touch the evaluator. Recorded 2026-09-05 as part of the
+> `docs/notes/` walkthrough; ticket `.scratch/eval-readout/issues/03`.
+
 ---
 
 ## 1. The diagnosis in one line

@@ -5,6 +5,23 @@ mandatory controls below; nothing here is allowed to conclude until its
 known-answer control passes (see the metric-bug post-mortem in
 `TORA_GOOD_VS_BAD_ANALYSIS.md` § "Correction (2026-07-22)").
 
+> **⚠️ CORRECTION (2026-09-05) — every absolute rotation figure in this plan and
+> its results log is too kind; every ratio and every gate verdict is unchanged.**
+>
+> **Which of the three: the measurement was broken.** Stored `rotation_error`
+> skips the anchor fragment when summing and still divides by the total fragment
+> count (`eval/metrics.py`), so it carries a free zero: **×2.000 on any pair,
+> ×1.125 on the nine-sherd Juglet.** This plan leans on rot_err specifically
+> *because* it is scale-invariant and therefore immune to the 2026-07-22 bug —
+> that reasoning was sound and the conclusion was wrong, because scale-invariant
+> is not the same as bug-free. `recall@Ndeg` moved with it (thresholded on the
+> diluted mean) and is a **per-object 0 or 1 on the whole pot's average turn**,
+> not a fraction of fragments.
+>
+> Corrected figures are set beside the originals in the results log below.
+> Recomputed through `scripts/readout.py`, the single gated reader; nothing
+> re-run. Ticket `.scratch/eval-readout/issues/03`.
+
 ---
 
 ## The problem this plan has to solve first
@@ -17,12 +34,16 @@ After the 2026-07-22 metric correction we are in an awkward epistemic spot:
    **is the scattered scan/table layout, not an assembled vessel**
    (`JUGLET_TORA_ROOTCAUSE.md`, and independently `GARF/.../JUGLET_DEPLOY_INFERENCE_ANALYSIS.md`).
    So `part_acc = 1.0`, `object_chamfer ≈ 0`, *and* `rotation_error = 46–61°`
+   (corrected 2026-09-05: **52–69°**)
    are all measuring against the wrong target. A "failure" number here is
    uninterpretable; so is a "success" number.
 
 2. **The corrected whole-object result shows TORA is competent on real fracture**
    (0.861 avg / 0.928 best-of-n part-acc on 6 held-out real objects incl. a
-   10-piece ceramic — `TORA_GOOD_VS_BAD_ANALYSIS.md` §Resolution). So the prior
+   10-piece ceramic — `TORA_GOOD_VS_BAD_ANALYSIS.md` §Resolution; corrected
+   2026-09-05, **0.819 / 0.915 of the loose fragments seated at a mean turn of
+   38.7°**, which is "places most fragments, orientations still visibly wrong"
+   rather than "competent"). So the prior
    is no longer "TORA fails on real ceramics"; it is "unknown whether TORA fails
    on the *Juglet specifically*, and we lack a valid instrument to check."
 
@@ -46,7 +67,7 @@ two of GARF's decisive tools do **not** port cleanly and are replaced (below).
 | No-GT layout quality panel (`pfpp_layout_probes.py`) | **Yes, adapt I/O** | Reads posed part clouds; feed TORA's `proposed_assembly` clouds. Baselines already exist (PF++ 0.961, GARF 0.719, random 0.650). |
 | Validated erosion / de-weather mollifier (`fracture_mesh_ops.py`) | **Yes, as-is** | Pure mesh op, no model. Reused for the wear-bridge. |
 | **FracSeg fracture-response introspection (Exp 10)** | **NO** | Confirmed against the TORA paper (App. 0.A.1): overlap/mating prediction is a **linear probe of teacher-feature quality by design**, never an assembly module; the inference path uses only the frozen encoder's per-point conditioning features **c** (`_encode()` keeps `out_dict["point"]`). `overlap_head` also reads as dead (fires 75–98%, AUC ≈ chance). Replaced by **C2**, a paper-faithful readout of the on-path features. |
-| Pair oracle scored by `rotation_error` (`analyze_pairwise_oracle.py`) | **Partly** | rot_err is scale-safe, but on the Juglet there is no valid GT rotation, so rot_err is invalid there. Use the symmetry-invariant chamfer instead on Juglet; keep rot_err only on valid-GT controls. |
+| Pair oracle scored by `rotation_error` (`analyze_pairwise_oracle.py`) | **Partly** | rot_err is scale-safe, but on the Juglet there is no valid GT rotation, so rot_err is invalid there. Use the symmetry-invariant chamfer instead on Juglet; keep rot_err only on valid-GT controls. **⚠️ 2026-09-05: "scale-safe" is not "bug-free".** Stored `rotation_error` skips the anchor when summing and divides by the total fragment count, so it carries a free zero — **×2.000 on any pair**. Every absolute degree figure in this document doubles; every mate/non-mate *ratio* is untouched, because the same factor sits on both sides |
 
 ### Architecture, confirmed against the paper (arXiv 2604.04050v1, 2026-07-24)
 
@@ -255,6 +276,17 @@ control clears the instrument gate (13.35×, true-mate part_acc 1.000).
 |---|---|---|---|---|
 | synthetic (control) | 1.000 | 0.850 | 0.99° | 13.16° |
 | real, normalized | **0.943** | **0.769** | 15.17° | 24.13° |
+| — *corrected 2026-09-05, ×2.000 (pairs)* — | | | | |
+| synthetic (control), corrected | 1 of 1 seated | 0.700 seated | **1.98°** | 26.32° |
+| real, normalized, corrected | **0.886 seated** | **0.538 seated** | **30.34°** | 48.26° |
+
+**Corrected 2026-09-05.** Every sample is a pair, so the free-anchor discount is
+×2.000 on both rot_err columns and the **1.59× separation is unchanged**. `part_acc`
+restated as the fraction of the *loose* piece seated — 0.943 → **0.886**, 0.769 →
+**0.538** — which is the same discrimination, on a scale that starts at zero
+instead of at 0.5. The physical reading changes a good deal: TORA puts a real
+**true mate about 30° out, not 15°**, and a non-mate about 48°. The claim that it
+discriminates stands; the claim that it places true mates accurately does not.
 
 - **Trustworthy:** `part_acc` now **discriminates** real true-mates (0.943) from
   non-mates (0.769). The pre-fix "no discrimination" (both pinned 0.5) was a
@@ -264,6 +296,12 @@ control clears the instrument gate (13.35×, true-mate part_acc 1.000).
   un-normalized reproduces true-mate 26.6° / non-mate 28.7° → **1.08×** (≈ the
   historical 1.03×) with part_acc pinned 0.500/0.500. So normalization moved
   rot_err 27°→15° / 1.08×→1.59× even though rot_err should be scale-invariant.
+  *(Corrected 2026-09-05: 53.2° / 57.4° un-normalized, 30.3° / 48.3° normalized —
+  ×2.000 throughout, so both ratios and this whole anomaly are unchanged. The
+  anomaly is not the anchor bug: `scales` is a conditioning **input** to the model,
+  so re-scaling changes the prediction itself. See `FRACTURA_WHY_IT_FAILS.md` §2,
+  which resolved exactly this — it is the model being told a size it was never
+  trained at, not the metric misbehaving.)*
   **Conclusion:** `part_acc` is the robust signal (0.5-pin → 0.943/0.769 is the
   expected metric-bug fix); `rot_err` here is **scale/stochastic-sensitive and
   the less reliable metric** — do not lead with the rot_err delta or compare
@@ -314,14 +352,19 @@ proximity is controlled by construction rather than post-hoc.
 Sub-assemblies of one 10-piece real ceramic at k = 2…10 (5 replicates each,
 k=10 has 1). Rate = anchor-corrected non-anchor placement rate.
 
-| k | subsets | placement rate (mean / best-of-n) | rot_err |
-|---|---|---|---|
-| 2 | 5 | **0.800** / 1.000 | 15.3° |
-| 3 | 5 | 0.633 / 0.700 | 23.4° |
-| 4 | 5 | 0.356 / 0.467 | 33.0° |
-| 6 | 5 | 0.573 / 0.680 | 41.0° |
-| 8 | 5 | 0.590 / 0.714 | 44.1° |
-| 10 | 1 | 0.778 / 0.889 | 32.2° |
+| k | subsets | placement rate (mean / best-of-n) | rot_err | rot_err **corrected 2026-09-05** |
+|---|---|---|---|---|
+| 2 | 5 | **0.800** / 1.000 | 15.3° | **30.6°** (×2.000) |
+| 3 | 5 | 0.633 / 0.700 | 23.4° | **35.1°** (×1.500) |
+| 4 | 5 | 0.356 / 0.467 | 33.0° | **44.0°** (×1.333) |
+| 6 | 5 | 0.573 / 0.680 | 41.0° | **49.2°** (×1.200) |
+| 8 | 5 | 0.590 / 0.714 | 44.1° | **50.4°** (×1.143) |
+| 10 | 1 | 0.778 / 0.889 | 32.2° | **35.8°** (×1.111) |
+
+The placement-rate column was already anchor-corrected, so **the load-bearing
+result — 0.800 at k=2 versus 0.778 at k=10, H2 not supported — is untouched.**
+The rot_err column was not, and its discount is a function of k, the axis being
+plotted.
 
 **H2 is NOT supported** (k=2 → k=10: 0.800 → 0.778; Spearman ρ = −0.124, p = 0.55).
 More context does **not** unlock placement — and crucially **k=2 is the *best*
@@ -335,6 +378,17 @@ refuted on real fracture.** (rot_err does climb with k, 15°→44° — the docu
 piece-count cliff is real, but it degrades *pose precision*, not seating.)
 Caveat: 5 subsets/k is noisy (the k=4 dip to 0.356 is small-sample), and k=10 is
 a single subset; the *level* at k=2 is the load-bearing result, not the curve shape.
+
+> **⚠️ Corrected 2026-09-05 — the parenthesis above overstates the pose cliff.**
+> "rot_err does climb with k, 15°→44°" was read off diluted figures whose discount
+> shrinks as k grows: ×2.000 at k=2 down to ×1.111 at k=10. On the same ruler the
+> climb is **31° → 50°**, and it is not monotone (k=10 comes back to 36°). So pose
+> precision does still degrade with piece count, but from a much worse starting
+> point: **even the two-piece case is about 31° out — a third of a right angle on a
+> single loose sherd.** The sentence "TORA seats 80% of isolated real 2-piece
+> fractures correctly" remains true about *seating*, and should not be read as
+> "places them accurately". Seating and orientation are different claims here, and
+> this is the table that shows the gap between them.
 
 ### 2026-07-27 — C2: mating linear probe on ON-PATH features (job 28198811)
 Paper-faithful probe (App. 0.A.1 methodology) on the frozen encoder's per-point

@@ -23,6 +23,39 @@ The order matters, and it is the trap: fixing the scoring bug and re-reading
 the same run *felt* like confirmation that the model had genuinely failed. It
 was not. The second bug was still in the run being re-read.
 
+---
+
+**Checked against the corrected ruler, 2026-09-05 — and this note already had
+both rulers inside it.** A third measurement fault, unrelated to the two above,
+runs through the eval code: `compute_transform_errors` sums rotation and
+translation over the **non-anchor** fragments but divides by **all** of them, so
+every stored `rotation_error` carries one free zero. The correction is
+`x n/(n-1)`, a different factor for every pot — `x1.500` on the three-fragment
+`pink_bowl`, `x1.091` on the twelve-fragment `narrow_bottle1`.
+
+What that does to this note:
+
+- **The finding is untouched.** Fragments seated (1.0% -> 72.6%, 4 of 390 ->
+  283 of 390) was already anchor-subtracted, and regenerates **exactly**, pot
+  for pot, from job 29891327's stored results. So does every seated count in the
+  per-pot table. The scale cliff, the renders and the conclusion all stand.
+- **The scale-ladder table below is already correct.** It is labelled
+  "Non-anchor rotation error" and it means it: its `0.500` row *is* the
+  corrected version of the per-pot table's `normalised` turn, and its `69.217`
+  row *is* the corrected version of the `as shipped` turn. Read the ladder.
+- **The per-pot table's turn column is on the old ruler**, as is the old
+  rotation table's `rot, as reported` column and two sentences further down.
+  Each is corrected in place below.
+- **The hazard specific to this note:** it prints `as reported` and `non-anchor`
+  side by side in one table. Those are the two rulers. Never quote a figure from
+  one column against a figure from the other.
+
+Recomputed from all 160 stored result files of job 29891327
+(`artifacts/notes_recheck/scaleladder_{A_raw_mm,B_normalized}_29891327/`), which
+reproduced every printed figure in this note before correcting it.
+
+---
+
 ## 1. The "zero fragments placed" reading was the ruler, not the model
 
 `tora/eval/evaluator.py` multiplies the point clouds back to the object's own
@@ -183,6 +216,35 @@ frame, anchor subtracted. Same pots, same checkpoint, same seed:
 | plate | 6 | 0 of 5 | **3 of 5** | 73.5° → 40.6° |
 | **pooled** | | **4 of 390 (1.0%)** | **283 of 390 (72.6%)** | 60.4° → 26.7° |
 
+**Corrected turn column, 2026-09-05.** The seated counts above need no change.
+The turn column does — and its corrected values are already printed one table
+up, as the ladder's `69.217` and `0.500` rows. Restated here so that the two
+tables cannot be read against each other:
+
+| pot | frags | seated, normalised | turn as shipped | turn normalised |
+|---|---|---|---|---|
+| blue_pot | 5 | 4 of 4 | 83.6° | **30.5°** |
+| galli_pot | 10 | 7 of 9 | 66.2° | **34.9°** |
+| narrow_bottle1 | 12 | 4.5 of 11 | 87.5° | **62.3°** |
+| narrow_bottle2 | 3 | 2 of 2 | 82.7° | **4.3°** |
+| narrow_bottle3 | 4 | 2.5 of 3 | 90.6° | **81.8°** |
+| narrow_bottle4 | 4 | 3 of 3 | 71.7° | **7.8°** |
+| pink_bowl | 3 | 2 of 2 | 85.9° | **2.4°** |
+| plate | 6 | 3 of 5 | 88.2° | **48.7°** |
+| **pooled** | | **283 of 390 (72.6%)** | **81.2°** | **30.8°** |
+
+The pooled turn is the median across all eighty pot-draws, which is the
+convention the original row used; it is not fragment-weighted, so it sits below
+the average of the per-pot medians. The three-fragment pots move most, because
+they were being flattered most.
+
+In plain terms, on the corrected ruler: the pots that work are left turned about
+**2 to 8 degrees** out of true — a tilt you would have to look for. The three
+that do not work sit at **49 to 82 degrees**, between a half and a full right
+angle, which is a fragment stuck on the wrong way round. The pooled **30.8
+degrees** is not a typical pot; it is the two groups averaged together.
+
+
 Three of the eight pots go to a complete reassembly on the typical attempt.
 Fragment offset drops from about a third of the pot to 1–2% on those three.
 
@@ -220,7 +282,8 @@ failing on real fracture surfaces.
   normalised. Bones are a separate problem and this finding does not reach them.
 - **Still open:** narrow_bottle1, narrow_bottle3 and plate remain poor even
   normalised (57°, 61°, 41°). Whatever else is hard about these pots, it is
-  not the units.
+  not the units. **Corrected 2026-09-05: 62°, 81.8°, 48.7° — narrow_bottle3 is
+  worse than it looked, and is now the worst of the eight.**
 
 ### The old table, for the record
 
@@ -228,6 +291,10 @@ Rotation error is a scale-invariant *measurement* — the angle between two
 orientations does not care what units the file used. What the model was *told*
 about the object's size is a separate matter, and that is what these rows
 confounded.
+
+**The `rot, as reported` column is the diluted ruler; `rot, non-anchor` is
+the corrected one** (2026-09-05). Two measurements of the same runs. Quote
+the second.
 
 | run | objects | rot, as reported | rot, non-anchor | status |
 |---|---|---|---|---|
@@ -237,7 +304,7 @@ confounded.
 | Fractura egg — REAL fracture | 3 | 42.5° | 56.6° | **stored in mm — invalid** |
 | Fractura bone_syn_pig — SIMULATED | 21 | 55.4° | 61.4° | stands (normalised) |
 | Fractura bone_syn_rib — SIMULATED | 11 | 61.5° | 64.4° | stands (normalised) |
-| Fractura ceramics — REAL fracture | 8 | 61.4° | 79.1° | **superseded: 26.7° normalised** |
+| Fractura ceramics — REAL fracture | 8 | 61.4° | 79.1° | **superseded: 30.8° normalised** (quoted as 26.7° until 2026-09-05, which was the old ruler) |
 
 ### Do not let this happen a third time
 
@@ -267,7 +334,10 @@ three-fragment bowl came out 78° wrong. That flatness was itself the tell: the
 pots were not failing in proportion to their difficulty, they were all being
 handed the same corrupted size input. Normalised, error does track difficulty:
 the 3-fragment bowl and bottle land at 1.6° and 2.8° while the 12-fragment
-bottle stays at 57°.
+bottle stays at 57°. **Corrected 2026-09-05: 2.4°, 4.3° and 62°. The point
+holds, and is in fact sharper — the free-anchor dilution was largest on exactly
+the few-fragment pots that score best, so it was flattening the very trend this
+paragraph is drawing.**
 
 The split was by **dataset**, and the dataset boundary was the units boundary:
 everything stored in millimetres was bad, everything normalised was fine, and

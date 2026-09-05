@@ -36,6 +36,9 @@ WHAT THIS ASSERTS.
   11. An offset is only ever reported as a fraction of the object, and the read-out
       states which size it divided by -- the unit box on a run scored after the fix,
       the stored scale on an older one. They are not the same denominator.
+  12. `recall_at_10deg` is thresholded by the evaluator on the DILUTED mean, so a
+      two-fragment pair whose one placed sherd is turned 19 deg stores a pass. The
+      read-out thresholds the corrected turn and fails it.
 
 NO SNAPSHOT TESTS. A golden-output test written any time in the last month would have
 frozen the diluted figure and certified the bug.
@@ -95,6 +98,7 @@ def make_run(
     hydra: dict | None = None,
     draws: int = 1,
     object_name: str = "juglet",
+    stored_recall: dict[int, float] | None = None,
 ) -> Path:
     """A minimal run directory: results/ plus optionally .hydra/config.yaml."""
     run = tmp / name
@@ -115,6 +119,8 @@ def make_run(
             entry["translation_error_unit"] = stored_translation
         if post_fix:
             entry["part_accuracy_absolute"] = part_accuracy
+        for deg, val in (stored_recall or {}).items():
+            entry[f"recall_at_{deg}deg"] = val
         (run / "results" / f"juglet_sample00000_generation{g:02d}.json").write_text(
             json.dumps(entry))
     if hydra is not None:
@@ -352,6 +358,32 @@ def main() -> int:
         w = weight(same)
         check("weight names objects, draws and trained models",
               "1 object(s)" in w and "2 draw(s)" in w, w)
+
+        # ------------------------------------------------------------------
+        print("\n11. The whole-pot degree bar is thresholded on the corrected turn.")
+        # `Evaluator._recall_at_thresholds` is handed `rot_errors` straight out of
+        # `compute_transform_errors` -- the anchor-diluted mean. So the stored recall
+        # passes objects it should fail, and by the dilution factor, which is largest
+        # exactly where the rotation column was already most wrong. Both errors push
+        # the same way; they compound rather than cancel.
+        r = make_run(tmp, "recall2", n_fragments=2, stored_rotation=9.5,
+                     hydra=FULL_HYDRA, stored_recall={5: 0.0, 10: 1.0})
+        (rc,) = read_run(r)
+        check("two fragments, the placed one turned 19 deg: the file stores 9.5",
+              abs(rc.turn_deg_diluted_by_free_anchor - 9.5) < 1e-9,
+              f"got {rc.turn_deg_diluted_by_free_anchor}")
+        check("and the file stores a PASS at ten degrees",
+              abs(rc.pot_under_diluted_by_free_anchor(10) - 1.0) < 1e-9)
+        check("corrected turn is 19.0, so the read-out fails it",
+              abs(rc.turn_deg - 19.0) < 1e-9 and rc.pot_under(10) == 0.0,
+              f"turn {rc.turn_deg}, pot_under {rc.pot_under(10)}")
+
+        r = make_run(tmp, "recall9", n_fragments=9, stored_rotation=8.0,
+                     hydra=FULL_HYDRA, stored_recall={5: 0.0, 10: 1.0})
+        (rc,) = read_run(r)
+        check("nine fragments at a corrected 9.0 deg still clears the ten-degree bar",
+              rc.pot_under(10) == 1.0 and rc.pot_under(5) == 0.0,
+              f"turn {rc.turn_deg}")
 
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

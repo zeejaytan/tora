@@ -191,3 +191,18 @@ same assembly.
 **Render every assembly beside its correct answer, and read rotation error with
 ~40° as the collapse threshold rather than 10°.** Both stated in
 `WEAR_TEST_RESULTS.md` §5, both learned the hard way.
+
+> **⚠️ Updated 2026-09-05 — use ~50°, and only with corrected figures.** The
+> "~40°" line was calibrated against rotation errors that each carried a free
+> zero for the anchor fragment, so it sat on a ruler that read low by ×1.5 on a
+> three-fragment pot. Recalibrated against the same four anchor objects, the
+> looks-assembled band now tops out at **45°** and the collapsed band starts at
+> **50.5°**, putting the practical line at roughly **48–50°** (the table is in
+> `WEAR_TEST_RESULTS.md` §5). Applying "40°" to a figure from the fixed evaluator
+> would condemn several correctly assembled objects. **The two rulers must not be
+> mixed** — check which one a number came from before judging it.
+>
+> Two things about this section do **not** change, and they are the important
+> ones: part accuracy still over-credits, and **the render is still the primary
+> instrument.** The threshold is a sanity check on the picture, not a substitute
+> for it.

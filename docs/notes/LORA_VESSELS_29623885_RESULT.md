@@ -3,6 +3,32 @@
 Completed 2026-08-27 01:08, 02:31:35 wall, A100. Supersedes job 29527496, which
 was a full fine-tune wearing an adapter (see `docs/lessons.md`).
 
+> **⚠️ Corrected 2026-09-05 — the conclusions all stand, the numbers are worse
+> than printed.** The evaluator averaged each fragment's error over the *loose*
+> fragments but divided by *all* of them, so every rotation and translation figure
+> carried one free zero for the anchor fragment; `part_accuracy` counted the free
+> anchor as a success. Both are fixed below by recomputing from the stored result
+> files (`artifacts/notes_recheck/lorav_*_29623885/`, fetched 2026-09-05) — nothing
+> here is hand-scaled.
+>
+> **Why the argument survives.** Every arm was scored on the same objects, so the
+> per-object correction factor is identical on both sides of every comparison and
+> cancels out of every ratio. "Rotation rises 26 % and translation 35 % with the
+> adapter on" is still 26 % and 36 % corrected. The *absolute* level is what moves,
+> and it moves a lot: the untouched baseline on the worn sweep is **49.5°**, not
+> 36.9°. Read as: even before the adapter, the model was turning a typical fragment
+> most of a right angle away from where it belongs. Nothing in this run was close
+> to assembled.
+>
+> **The one figure that reverses** is `rec@10deg` on the worn sweep, which is not
+> load-bearing here: `adapter_off` printed 0.167 against the baseline's 0.100 and
+> corrects to **0.078 against 0.089** — slightly worse, not better. It is a
+> per-object all-or-nothing count on a diluted average, so it was the most fragile
+> column in the tables.
+>
+> The geometry sections (join gap, contact band, wall thickness, fill ladder) come
+> from mesh measurements, never touch the evaluator, and are unchanged.
+
 ## The freeze held this time
 
 Stage 5 gate, `scripts/diff_adapter_checkpoint.py --fail-on-frozen`:
@@ -36,6 +62,12 @@ In-domain validation (every 10 epochs, 262 held-out simulated-fracture vessels):
 | 49 | 0.808 | 4.28e-4 |
 | 59 | 0.816 | 3.90e-4 |
 
+*(`part_acc` here counts the free anchor as correctly placed, so it reads a few
+points high; the trained vessels run 3–20 fragments, so the inflation is between
+5 and 33 points depending on the object and cannot be undone from the logged
+average alone. The **trend** is unaffected — every epoch is inflated the same
+way.)*
+
 +1.1 points over fifty epochs, non-monotonic. The adapter had essentially
 converged by epoch 9 and then wandered. Per-batch train loss is flat and noisy
 from epoch ~8 (0.03-0.19, no trend).
@@ -53,6 +85,24 @@ Worn erosion sweep, n=30 — the arm that matters:
 | adapter_off | 0.7337 | 0.7878 | 33.94 | 0.1667 | 0.3778 | 0.0017 |
 | baseline    | 0.7941 | 0.8622 | 36.86 | 0.1000 | 0.3222 | 0.0010 |
 
+**Corrected 2026-09-05** — 30 objects (3–10 fragments), 3 draws each. `seating` is
+the fraction of the *loose* fragments placed correctly, with the free anchor taken
+out; `best-of-3` is the best of the three draws, so the plain column is the honest
+one.
+
+| arm | seating | best-of-3 seating | rot_err | trans_err | rec@10deg | rec@5cm | chamfer |
+|---|---|---|---|---|---|---|---|
+| adapter_on  | **0.4765** | 0.6150 | **62.47** | **0.1319** | 0.0444 | 0.0667 | 0.0024 |
+| adapter_off | **0.6398** | 0.7176 | **45.61** | **0.0938** | 0.0778 | 0.3222 | 0.0017 |
+| baseline    | **0.7201** | 0.8170 | **49.51** | **0.0970** | 0.0889 | 0.2111 | 0.0010 |
+
+**In plain terms.** On worn vessels the untouched model seats about **72 % of the
+loose sherds** and leaves a typical misplaced one turned **50°** — half a right
+angle, obviously wrong on sight. Switching the adapter on drops that to **48 %
+seated** and **62°**. The damage is bigger than the printed table showed: the
+seating gap between baseline and adapter-on is **24 points**, where the
+part-accuracy columns made it look like 18.
+
 Fresh (unworn) real held-out, n=6:
 
 | arm | part_acc | best-of-5 | rot_err | rec@10deg | rec@5cm | chamfer |
@@ -61,6 +111,16 @@ Fresh (unworn) real held-out, n=6:
 | adapter_off | 0.8537 | 0.8722 | 31.12 | 0.0556 | 0.4444 | 0.0006 |
 | baseline    | 0.8481 | 0.9278 | 36.52 | 0.0556 | 0.2778 | 0.0005 |
 
+**Corrected 2026-09-05** — 6 objects, 3 draws each:
+
+| arm | seating | best-of-3 seating | rot_err | trans_err | rec@10deg | rec@5cm | chamfer |
+|---|---|---|---|---|---|---|---|
+| adapter_on  | **0.6741** | 0.8315 | **52.24** | **0.1029** | 0.0000 | 0.1111 | 0.0010 |
+| adapter_off | **0.8037** | 0.8315 | **42.04** | **0.0771** | 0.0000 | 0.2778 | 0.0006 |
+| baseline    | **0.7975** | 0.9148 | **48.94** | **0.0950** | 0.0556 | 0.1667 | 0.0005 |
+
+Six objects. Any ordering here is a lead, not a result.
+
 Juglet, n=1 object, 9 fragments, 5 runs:
 
 | arm | part_acc | best-of-5 | rot_err | rec@5cm | chamfer |
@@ -68,6 +128,17 @@ Juglet, n=1 object, 9 fragments, 5 runs:
 | adapter_on  | 0.5111 | 0.6667 | 58.56 | 0.0000 | 0.0021 |
 | adapter_off | 0.6444 | 0.7778 | 61.40 | 0.0000 | 0.0011 |
 | baseline    | 0.6222 | 0.7778 | 46.75 | 0.2000 | 0.0011 |
+
+**Corrected 2026-09-05** — one object, 9 fragments, so the factor is a flat
+×1.125 and every ordering is preserved exactly:
+
+| arm | seating | best-of-5 seating | rot_err | trans_err | rec@5cm | chamfer |
+|---|---|---|---|---|---|---|
+| adapter_on  | **0.4500** | 0.6250 | **65.88** | **0.1459** | 0.0000 | 0.0021 |
+| adapter_off | **0.6000** | 0.7500 | **69.08** | **0.1669** | 0.0000 | 0.0011 |
+| baseline    | **0.5750** | 0.7500 | **52.60** | **0.1106** | 0.2000 | 0.0011 |
+
+Nine fragments on one pot, five runs. Read the renders below, not this table.
 
 ## What the renders show (mitsuba, `artifacts/lora29623885/`)
 
@@ -164,7 +235,8 @@ be indistinguishable from contact at the network's input resolution (see below).
 Neither situation exists on any real object.
 
 **It also explains the residual the wear story could not.** The FRESH unworn real
-arm fell too (0.848 -> 0.759), with no abrasion applied. Under the wear-mismatch
+arm fell too (0.848 -> 0.759; corrected seating **0.798 -> 0.674**), with no
+abrasion applied. Under the wear-mismatch
 story that made no sense. Under this one it is the same failure: the problem is
 not wear, it is that every training join is a perfect-contact join and no real
 join ever is.
@@ -184,7 +256,23 @@ Split the error into orientation and position, over all saved result JSONs.
 | | adapter_on | 0.616 | **46.57** | **0.0977** | 0.00244 |
 | fresh (n=18) | baseline | 0.848 | 36.52 | 0.0716 | 0.00054 |
 | | adapter_off | 0.854 | **31.12** | **0.0577** | 0.00062 |
-| | adapter_on | 0.759 | 38.55 | 0.0766 | 0.00105 |
+| | adapter_on | 0.759 | **38.55** | **0.0766** | 0.00105 |
+
+**Corrected 2026-09-05 — the split is unchanged, the level is not:**
+
+| set | arm | seating | rot err | trans err | chamfer |
+|---|---|---|---|---|---|
+| sweep (n=90) | baseline | 0.720 | 49.51 deg | 0.0970 | 0.00100 |
+| | adapter_off | 0.640 | **45.61** | **0.0938** | 0.00167 |
+| | adapter_on | 0.477 | **62.47** | **0.1319** | 0.00244 |
+| fresh (n=18) | baseline | 0.798 | 48.94 | 0.0950 | 0.00054 |
+| | adapter_off | 0.804 | **42.04** | **0.0771** | 0.00062 |
+| | adapter_on | 0.674 | **52.24** | **0.1029** | 0.00105 |
+
+Because every arm ran on the same objects, the percentage changes the argument
+below rests on are almost identical corrected: adapter-on raises rotation by
+**26 %** (was 26 %) and translation by **36 %** (was 35 %). The reasoning holds
+line for line; only the numbers it quotes change.
 
 **This refutes the mechanism I was about to give.** "The model learned push-until-
 contact, so it misjudges distance" predicts damage concentrated in TRANSLATION.
@@ -203,16 +291,20 @@ left is the SHAPE of the break -- which the tuned comparison no longer grips.
 Orientation is where that shows first, and does. A body sherd off a smooth wall is
 a nearly featureless curved patch; the only thing saying which way round it goes is
 the outline and relief of its broken edge. Rotation error 37 -> 47 deg is that
-ability degrading.
+ability degrading. *(Corrected: **50 -> 62 deg**. Same 26 % degradation, from a
+starting point that was already half a right angle out.)*
 
 **It also localises the harm, and NOT to the pose head.** Retraining the head alone
 (adapter_off) did not damage orientation -- it improved it, 36.5 -> 31.1 deg on the
-fresh real pots, with part_acc level (0.848 -> 0.854). The harm appears only when
+fresh real pots, with part_acc level (0.848 -> 0.854). *(Corrected: **48.9 -> 42.0
+deg**, seating level at 0.798 -> 0.804. Unchanged conclusion.)* The harm appears only when
 the adapter in the comparison layers is switched on. So the earlier worry that
 `train_head=true` bakes in irreversible damage is not supported: the head is fine.
 
 UNEXPLAINED: on the sweep, adapter_off's part_acc falls (0.794 -> 0.734) while both
-its mean errors improve. part_acc is a threshold count, so a distribution can shift
+its mean errors improve. *(Corrected: seating falls further, 0.720 -> 0.640, so the
+puzzle is real and slightly larger than printed — not an artefact of counting the
+anchor.)* part_acc is a threshold count, so a distribution can shift
 across the threshold while the mean improves, but that is a guess, not a finding.
 
 Weight: one training run, no seed repeats; 30 objects x 3 draws (sweep), 6 x 3

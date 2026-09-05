@@ -1,5 +1,57 @@
 # What TORA is actually good at, what it's bad at, and why
 
+> ## ⚠️ SECOND CORRECTION (2026-09-05) — every rotation figure in this
+> ## document is too kind, and the banner below it is wrong about which numbers
+> ## were safe
+>
+> **Which of the three: the measurement was broken.** No method result changed
+> here and no reference answer is in question; the ruler was being read wrong.
+>
+> The evaluator skips the anchor fragment when it sums rotation error but divides
+> by the **total** fragment count (`eval/metrics.py:compute_transform_errors`), so
+> every stored `rotation_error` carries one free zero. The fewer the fragments the
+> larger the discount: **×2.000 at two fragments, ×1.500 at three, ×1.125 at
+> nine, ×1.091 at twelve.** In plain terms, a two-fragment pair whose one loose
+> sherd sits **40°** from correct was written down as 20°.
+>
+> **It is not an offset that cancels across a table.** Any table that pools
+> objects of different fragment counts — the TL;DR contrast below pools objects of
+> 2, 3, 4, 5 and 6 fragments — was discounted by a *different* factor in each row,
+> which is exactly the distortion a contrast table exists to avoid.
+>
+> **The 2026-07-22 banner immediately below says the rotation numbers are the safe
+> ones. That was true of the scale bug and is false of this one.** Rotation error
+> is scale-invariant, so the unit-box bug never touched it — and the anchor bug
+> touches nothing else. Its three "Still valid" items now read:
+>
+> | "Still valid" item (2026-07-22) | Status 2026-09-05 |
+> |---|---|
+> | the pairwise 1.03× → 1.36× separation (Probe 3 / Check C) | **stands.** Every pairwise sample is a pair, so ×2.000 applies to both sides of the ratio and cancels exactly. The absolute degrees quoted in those sections **double**; every DISCRIMINATES / NO DISCRIMINATION verdict is unchanged |
+> | the fracture roughness measurement (1.4–2.5× rougher) | **stands.** Pure mesh geometry — no model, no evaluator |
+> | "the rotation gains from fine-tuning" | **does not stand as written.** Absolute degrees pooled over mixed fragment counts; see the corrected §1 and §2 tables below |
+>
+> **A second field moved with it.** `recall@5deg` / `recall@10deg` were thresholded
+> on the *diluted* mean (`eval/evaluator.py:100-106`), so they passed objects they
+> should have failed — in the same direction, so the two errors compound rather
+> than cancel. And the field is a **per-object 0 or 1 on the whole pot's average
+> turn**, not "the fraction of fragments within ten degrees". On a nine-sherd pot
+> averaging 35–60° a flat 0.000 is what that metric must produce whatever the
+> model does.
+>
+> **How much weight this correction can bear:** all of it. Every corrected figure
+> below was recomputed from the stored per-object result files through
+> `scripts/readout.py`, the single gated reader (`scripts/check_readout.py`);
+> nothing was re-run on the cluster and no model or reference changed. The control
+> is `summarise_scale_ladder.py`, whose 72-cell table regenerates **byte-identical**
+> through the corrected module. Ticket: `.scratch/eval-readout/issues/03`.
+>
+> **One more thing this exposed, which is not a reading error:** most of the runs
+> quoted below were scored at an object size **outside the band the model was
+> trained on** (`[0.375, 0.625]`). The held-out real objects sit at 0.32–38, the
+> `fractura_*` real subsets at 18–243 (raw scan units), the normalised Juglet at
+> 0.041. Those runs were handicapped at source, not merely mis-read. Each affected
+> table is flagged below.
+
 > ## ⚠️ CORRECTION (2026-07-22) — read before trusting any `part_accuracy` /
 > ## `recall@1cm` / `recall@5cm` / `object_chamfer` number for REAL data in this doc
 >
@@ -26,10 +78,15 @@
 > *broken*, not identically bad), and the architectural coarse-shape-bootstrap
 > recommendation that rested on them.
 >
-> **Still valid:** everything measured with **scale-invariant** `rotation_error`
+> ~~**Still valid:** everything measured with **scale-invariant** `rotation_error`
 > — the pairwise 1.03x -> 1.36x separation (Probe 3 / Check C), the fracture
 > roughness measurement (pure mesh geometry, no model involved), and the
-> rotation gains from fine-tuning. Those were the real signals throughout.
+> rotation gains from fine-tuning. Those were the real signals throughout.~~
+>
+> **⚠️ Struck 2026-09-05.** Scale-invariant did not mean bug-free. `rotation_error`
+> was immune to *this* banner's bug and not to the free-anchor one found later; the
+> pairwise ratio and the roughness measurement survive, the absolute rotation
+> figures do not. See the 2026-09-05 banner above.
 >
 > The lesson for re-use: `part_accuracy` reading *exactly* `1/n_parts` across
 > every checkpoint, piece count and fine-tune — and `recall@5cm` at exactly
@@ -94,6 +151,19 @@ fractured pig/rib bones vs. really-fractured museum bones.
 | samples where **zero** non-anchor parts ever match | **100%** | **0%** |
 | mean rotation error | 39.5° | 22.3° |
 | mean part_accuracy | 0.393 (= chance, always exactly 1/n_parts) | 0.860 |
+| — *corrected 2026-09-05* — | | |
+| mean turn on the loose fragments | **62.9°** | **27.0°** |
+| fraction of loose fragments seated | **0.000** | **0.830** |
+
+**Corrected 2026-09-05.** Recomputed from the same 108 result files through
+`scripts/readout.py`. The real arm pools objects of 2, 3, 4, 5 and 6 fragments
+(39 / 18 / 9 / 6 / 3 samples), so its free-anchor discount ranged from ×2.000 to
+×1.200 down the column; the synthetic arm is 5–7 fragments throughout, a nearly
+flat ×1.20. Correcting each object by its own fragment count widens the gap the
+table was drawn to show, from **1.77× to 2.32×** — but the gap is not a finding:
+the real arm was scored at object sizes of **18 to 243** raw scan units against a
+bar meant for 0.5, which is the 2026-07-22 bug, and is why its seating is a flat
+zero. The two arms were never on the same ruler in either respect.
 
 **2026-07-21 update — reason confirmed, not just the comparison.** Three
 follow-up probes (first Addendum below) triangulate *why*: (1) real fracture
@@ -393,6 +463,20 @@ pair sets (job 27791584), then joined results against the adjacency labels
 |---|---|---|---|---|---|
 | **synthetic** (n=34, 14 mates) | **0.92° / 0.64°** | **1.000** | 13.31° / 7.47° | 0.850 | **14.46×** |
 | **real** (n=79, 53 mates) | 27.12° / 27.35° | **0.500** | 27.85° / 26.03° | **0.500** | **1.03×** |
+| — *corrected 2026-09-05, ×2.000 throughout* — | | | | | |
+| **synthetic**, corrected | **1.84° / 1.28°** | 1 of 1 loose piece seated | 26.62° / 14.94° | 0.700 seated | **14.46×** (unchanged) |
+| **real**, corrected | 54.24° / 54.70° | **0 of 1 seated** | 55.70° / 52.06° | **0 of 1 seated** | **1.03×** (unchanged) |
+
+**Corrected 2026-09-05 — and this is the case worth keeping straight.** Every
+sample here is a *pair*, so the free-anchor discount is ×2.000 on every row: the
+absolute degrees all double. **The separation ratio does not move at all**, because
+the same factor sits on both sides of it. Every DISCRIMINATES / NO DISCRIMINATION
+verdict this probe has ever printed still stands. What changes is the physical
+reading: on real fracture the model turns the one loose sherd by **about 55°**,
+not 27° — a quarter turn wrong rather than an eighth. "The ruler was broken" did
+not make the conclusion wrong here, and saying so precisely is worth more than a
+blanket retraction. `part_acc = 0.500` was always "the free anchor and nothing
+else"; stated as a count it is **0 of 1** loose pieces seated.
 
 **TORA discriminates true mates from non-mates on synthetic fractures with a
 huge margin** — sub-degree error, perfect part accuracy, 14.46× separation
@@ -474,10 +558,19 @@ same pairwise oracle (job 27792668) on the held-out 6 objects (79 pairs, same
 |---|---|---|---|
 | **before fine-tune** (Probe 3 baseline) | 27.12° / 27.35° | 27.85° / 26.03° | 1.03× — no discrimination |
 | **after fine-tune** (21 real objects, 30 epochs, ~16 min) | **19.20° / 16.57°** | 26.15° / 21.48° | **1.36× — DISCRIMINATES** |
+| — *corrected 2026-09-05, ×2.000 (all pairs)* — | | | |
+| before, corrected | 54.24° / 54.70° | 55.70° / 52.06° | 1.03× (unchanged) |
+| after, corrected | **38.40° / 33.14°** | 52.30° / 42.96° | **1.36× (unchanged)** |
+
+**Corrected 2026-09-05.** Pairs throughout, so ×2.000 on every cell and the gate
+verdict is untouched. The gain restated physically: fine-tuning took the loose
+sherd from about **54° out — a bad quarter-turn — to about 38°**, still plainly
+wrong to the eye. The "~8° drop" quoted below is really **~16°**.
 
 **Real, measurable improvement, and it crosses the pre-registered discrimination
 gate (>1.25×, same threshold used throughout this investigation and in GARF's
-Exp 6/6b).** True-mate rotation error dropped ~8° (mean) / ~11° (median) with
+Exp 6/6b).** True-mate rotation error dropped ~8° (mean) / ~11° (median) — corrected
+2026-09-05, **~16° / ~22°** — with
 just 21 training objects and a few minutes of compute. `part_accuracy` is
 still pinned at exactly 0.500 for both arms (the strict 1cm chamfer threshold
 hasn't been crossed yet — this remains a partial, not complete, recovery),
@@ -557,9 +650,15 @@ item 2. Recipe (mirroring GARF's real:synthetic replay, Exp 11-15):
 | quick fine-tune (no replay) | 19.20° | — | 1.36× | yes |
 | **robust `epoch-59` (best)** | **14.89°** | 19.02° | **1.28×** | **yes** |
 | **robust `last`** | **14.74°** | 19.67° | **1.33×** | **yes** |
+| — *corrected 2026-09-05, ×2.000 (all pairs); every gate verdict unchanged* — | | | | |
+| baseline, corrected | 54.24° | ~56° | 1.03× | no |
+| quick fine-tune, corrected | 38.40° | — | 1.36× | yes |
+| **robust `epoch-59`, corrected** | **29.78°** | 38.04° | 1.28× | yes |
+| **robust `last`, corrected** | **29.48°** | 39.34° | 1.33× | yes |
 
 Both robust checkpoints cross the discrimination gate, and true-mate rotation
-error nearly **halved** vs. baseline (27° → ~14.8°) — a bigger absolute gain
+error nearly **halved** vs. baseline (27° → ~14.8°; corrected 2026-09-05,
+54° → ~29.6°, still nearly halved) — a bigger absolute gain
 than the quick fine-tune, and achieved *with* synthetic replay in the mix, so
 it is not the "forgot synthetic to learn real" degenerate the quick fine-tune
 risked. The separation *ratio* (1.28-1.33×) is marginally below the quick
@@ -575,9 +674,27 @@ accurately than the shipped checkpoint could.**
 | part_accuracy | ~0.11 | 0.222 | 0.222 |
 | rotation_error | ~60-80° | 58.59° | 54.45° |
 | recall@10° | 0 | 0 | 0 |
+| — *corrected 2026-09-05, ×1.125 (nine sherds)* — | | | |
+| best draw's fragments seated, of 8 loose | ~0-1 | **1 of 8** | **1 of 8** |
+| turn on the loose sherds | ~68-90° | **65.92°** | **61.25°** |
+| pots averaging under 10° | 0 | 0 | 0 |
 
-Numbers nudged (part_acc 0.11 → 0.22, rot_err into the mid-50s°) but recall@10°
-is still exactly **0** — not a single sherd lands within 10° of its true pose.
+Numbers nudged (part_acc 0.11 → 0.22, rot_err into the mid-50s°; corrected, into
+the **low 60s**) but recall@10° is still exactly **0**.
+
+> **⚠️ Corrected 2026-09-05 — the sentence that followed was wrong about what the
+> metric is.** It read "not a single sherd lands within 10° of its true pose".
+> `recall@10deg` is **not** a fraction of fragments: `_recall_at_thresholds`
+> thresholds the *whole pot's average* turn, so the field is a per-object 0 or 1.
+> A flat zero here means **the pot never averaged under ten degrees** — which, on
+> nine sherds averaging 61–66°, is what the metric must produce whatever the model
+> does. It is not evidence about any individual sherd, and it could not have
+> distinguished a partial success from a total one. (Worse, before the fix it was
+> thresholded on the *diluted* mean, so it was also too generous.) The claim that
+> the Juglet is not reassembled stands, but it rests on the **renders** below, not
+> on this row.
+
+~~not a single sherd lands within 10° of its true pose.~~
 The Procrustes proposed-assembly PNGs (all 3 seeds, both checkpoints, pulled to
 `artifacts/juglet_probe/robust_27798522/`) show the **identical documented
 failure pattern**: a large tan anchor-piece blob on one side, and the other 8
@@ -867,6 +984,27 @@ means for synthetic:
 | **baseline** (`bbad_everyday_cka`, synthetic-only) | **0.861** | **0.928** | **28.5°** | **21.2°** | 0.0009 |
 | robust fine-tune (`epoch-59`) | 0.863 | 0.939 | 33.6° | 25.0° | 0.0011 |
 
+**Corrected 2026-09-05** — same 18 result files, read through `scripts/readout.py`.
+Seating is now the fraction of the **loose** fragments seated, with the free anchor
+removed; turn is corrected by each object's own fragment count (these six span 3,
+5, 6 and 10 fragments, so the discount ranged ×1.500 to ×1.111):
+
+| checkpoint | loose fragments seated | best-of-3 | turn on the loose fragments | best-of-3 | pots averaging <10° |
+|---|---|---|---|---|---|
+| **baseline** (synthetic-only) | **0.819** | 0.915 | **38.7°** | **28.4°** | 0.167 |
+| robust fine-tune (`epoch-59`) | 0.823 | 0.930 | 45.0° | 33.2° | **0.000** |
+
+In plain terms: the shipped model **seats about 4 in 5 of the loose fragments**, and
+the ones it misplaces are turned about **39° from correct on average — a bit over a
+third of a right angle, obvious to the eye across a bench**. That is a competent but
+not clean reassembly, not the near-solve the 28.5° figure suggested.
+
+⚠️ **These six objects were scored at stored sizes of 0.320–0.385, below the
+trained floor of 0.375** (`plate` 0.3198 and `coxae` 0.3316 are the furthest out).
+The model was conditioned on a size it had not been trained at, so this table
+understates it by an unknown amount. That is a handicap at source, not a reading
+error, and it is untested.
+
 Per-object, baseline:
 
 | object | pieces | part_acc (3 seeds) | rot_err |
@@ -877,6 +1015,24 @@ Per-object, baseline:
 | galli_pot | **10** | 0.9 / 0.8 / 0.8 | 27.2 / 31.5 / 37.3° |
 | coxae | 3 | 0.67 / 0.67 / 1.0 | 71.7 / 38.1 / 60.6° |
 | plate | 6 | 0.67 / 0.67 / 0.67 | 29.9 / 36.1 / 41.0° |
+
+Corrected 2026-09-05, seating as a count of the loose fragments and turn corrected
+per object. The stored size is included because half these objects fall below the
+trained floor:
+
+| object | loose fragments | seated (3 draws) | turn on the loose fragments | stored size |
+|---|---|---|---|---|
+| blue_pot | 4 of 5 | **4 / 4 / 4** | **4.4 / 4.9 / 5.7°** | 0.4128 |
+| limb3 | 2 of 3 | **2 / 2 / 2** | 18.0 / 11.8 / 17.9° | 0.4096 |
+| vert9 | 2 of 3 | 2 / 1 / 2 | 42.0 / 70.6 / 31.1° | 0.3813 |
+| galli_pot | 9 of **10** | 8 / 7 / 7 | 30.2 / 35.0 / 41.5° | 0.3854 |
+| coxae | 2 of 3 | 1 / 1 / 2 | **107.5** / 57.2 / 90.9° | 0.3316 ⚠️ below floor |
+| plate | 5 of 6 | 3 / 3 / 3 | 35.9 / 43.3 / 49.2° | 0.3198 ⚠️ below floor |
+
+The shape of the result is unchanged — blue_pot is genuinely well solved, coxae and
+plate are not — but the failures are worse than they read. `coxae` on its worst draw
+puts the loose bone **107° out, past a right angle**, where the printed 71.7° sounded
+like a large but recoverable error.
 
 For comparison, the *same objects* under the broken metric read exactly
 0.333 / 0.333 / 0.333 / 0.10 / 0.167 / 0.20 — i.e. "100% total failure."
@@ -892,6 +1048,13 @@ The robust fine-tune is flat on part_accuracy (within noise on n=6) and
 `recall@10deg` 0.222 -> 0.056. Per object it damaged the two the baseline was
 best at: limb3 7.9-12.0° -> 26.4-40.5°, blue_pot 3.5-4.5° -> 9.6-10.9°.
 
+**Corrected 2026-09-05, and the conclusion gets stronger.** Turn avg **38.7° ->
+45.0°**, best-of-3 **28.4° -> 33.2°**, and the whole-pot ten-degree count goes
+**0.167 -> 0.000** — after fine-tuning, *not one of the six objects* averaged under
+ten degrees on any draw, where the baseline managed it on one. Seating is flat
+(0.819 -> 0.823), so the fine-tune bought nothing and cost about six degrees of
+turn on every object.
+
 Fine-tuning on 21 real objects (8 after the `min_parts>=3` filter) overfits and
 degrades a checkpoint that already generalized. The joint-solve run (27842479)
 was cancelled at epoch ~72/120 once this was known; its checkpoints are kept at
@@ -905,8 +1068,17 @@ Normalized Juglet (9 pieces, anchor-free, 5 generations):
 |---|---|---|---|---|---|
 | baseline | **1.000** | ~0.0000 | 1.000 | 45.9° | 0.000 |
 | robust | **1.000** | ~0.0000 | 1.000 | 47.3° | 0.000 |
+| — *corrected 2026-09-05, ×1.125 (nine sherds)* — | | | | | |
+| baseline, corrected | 8 of 8 loose seated | ~0.0000 | 1.000 | **51.7°** | 0.000 |
+| robust, corrected | 8 of 8 loose seated | ~0.0000 | 1.000 | **53.3°** | 0.000 |
 
-`part_accuracy = 1.0` with `rot_err = 46-61°` is internally contradictory for a
+The internal contradiction the next paragraph rests on is **sharper** after
+correction, not softer: every sherd scores as seated while the pot as a whole is
+turned **52–53°** — half a right angle — from its reference. ⚠️ This run was also
+scored at a stored size of **0.0408, nine times below the trained floor**.
+
+`part_accuracy = 1.0` with `rot_err = 46-61°` (corrected, **52-79°**) is
+internally contradictory for a
 real reassembly — and the visualizations explain why. **The Juglet's ground
 truth is not an assembled vessel.** `*_scan_ref.png` (the GT) shows a large tan
 blob beside a separate cluster of coloured sherds — the scattered scan/table
@@ -955,13 +1127,16 @@ of what this doc previously concluded.
 
 | Claim | Status |
 |---|---|
-| Baseline solves real fracture (0.861 / 0.928 part_acc) | **Established** (27858648) |
+| Baseline solves real fracture (0.861 / 0.928 part_acc) | **Established** (27858648), but **restate it**: corrected, it seats **0.819 / 0.915** of the *loose* fragments at a mean turn of **38.7°**. "Solves" is too strong for a reassembly a third of a right angle out; "competently places most fragments, orientations still visibly wrong" is the honest claim (2026-09-05) |
 | Fine-tuning degrades the baseline | **Established** (27858648) |
 | Juglet GT is an invalid scan layout; benchmark cannot measure reassembly | **Established** (27859890 + visuals) |
-| Real fracture surfaces are 1.4-2.5x rougher than synthetic | Valid measurement, but **explains nothing** — there is no failure to explain |
+| Real fracture surfaces are 1.4-2.5x rougher than synthetic | Valid measurement, but **explains nothing** — there is no failure to explain. Unaffected by either bug (pure mesh geometry) — 2026-09-05 |
 | "TORA is bad at real fracture / real-vs-synthetic gap is the main factor" | **REFUTED** — metric artifact |
 | "Training-data coverage gap, not architecture" | **REFUTED** — premise void |
-| "Fine-tuning recovers a missing capability (1.03x -> 1.36x)" | **Reinterpreted** — the rot_err separation is a valid number, but it was not recovering a missing capability; end-to-end the fine-tune is net harmful |
+| "Fine-tuning recovers a missing capability (1.03x -> 1.36x)" | **Reinterpreted** — the rot_err separation is a valid number, but it was not recovering a missing capability; end-to-end the fine-tune is net harmful. The **ratio survives the 2026-09-05 correction exactly** (pairs throughout, so the factor cancels); the absolute degrees behind it double |
+| Every absolute rotation figure in this document | **Too kind by n/(n-1)** — corrected in place beside each table, 2026-09-05. See the second banner at the top |
+| "recall@10deg = 0 means no sherd landed within 10°" | **WRONG as stated** — it is a per-object 0/1 on the whole pot's mean turn, and before 2026-09-05 it was thresholded on the diluted mean as well |
+| Held-out real objects were scored inside the trained size band | **NOT ESTABLISHED** — `real_heldout_norm` sits at 0.320-0.385 against a trained floor of 0.375, and the normalised Juglet at 0.0408. A handicap at source, untested (2026-09-05) |
 | "The wall is joint-solve, not the 6-piece cliff" | **RETRACTED** — metric artifact |
 | "Needs architectural coarse-shape bootstrap" | **WITHDRAWN** — unevidenced |
 | Overlap head unusable as a probe | Valid (code-path fact) |
@@ -987,3 +1162,11 @@ Rules adopted going forward for this workspace:
   was the signal.
 - **Check unit conventions when mixing data sources.** Synthetic was
   unit-normalized, real was raw scan units; nothing in the pipeline warned.
+- **Added 2026-09-05, after the second bug in the same file:** *fixing one bug in
+  an instrument does not validate the rest of it.* The 2026-07-22 correction
+  cleared `part_accuracy` and then declared `rotation_error` safe by elimination,
+  without reading `compute_transform_errors`. The free anchor was sitting in the
+  denominator four lines from the code that had just been fixed. **Read the whole
+  function, and prefer a gate to a paragraph** — every claim in this section is
+  now an assertion in `scripts/check_readout.py`, which is why the next reader
+  cannot repeat it silently.

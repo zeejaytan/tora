@@ -1,5 +1,32 @@
 # Why TORA fails to assemble the Juglet — probe findings + test plan
 
+> ## ⚠️ SECOND CORRECTION (2026-09-05) — the piece-count control is the one
+> ## finding here that the correction does not merely shift but **reverses**
+>
+> **Which of the three: the measurement was broken.** Every stored
+> `rotation_error` carries a free zero for the anchor fragment — the evaluator
+> skips it when summing and still divides by the total fragment count
+> (`eval/metrics.py:compute_transform_errors`). The discount is **×1.500 at three
+> fragments and ×1.091 at twelve**, so it is largest exactly where the fragment
+> count is smallest.
+>
+> **That is fatal to a table plotted against fragment count.** The "Piece-count
+> control, resolved from already-fetched data" section below reported rotation
+> error *flat* from 3 to 12 pieces and ruled piece count out on that basis. Read
+> on the same ruler it is **not flat, and it slopes the wrong way** — see the
+> corrected table in that section. Piece count is no longer ruled out here; it is
+> untested.
+>
+> The Juglet's own figures move by ×1.125 (nine sherds). `recall@10deg` is also
+> corrected: it was thresholded on the diluted mean, and it is a **per-object 0
+> or 1 on the whole pot's average turn**, not the fraction of sherds within ten
+> degrees.
+>
+> Recomputed from the stored per-object result files through `scripts/readout.py`
+> (gated by `scripts/check_readout.py`); nothing re-run, no model or reference
+> changed. Ticket `.scratch/eval-readout/issues/03`; the full write-up of both
+> bugs is the second banner in `TORA_GOOD_VS_BAD_ANALYSIS.md`.
+
 > ## ⚠️ CORRECTION (2026-07-22) — `part_accuracy` / `recall@1cm` / `recall@5cm` /
 > ## `object_chamfer` figures for REAL data in this doc are affected by a metric bug
 >
@@ -142,6 +169,23 @@ assembly," only as an internal-consistency check.
 | 25528198 | juglet_deploy_local02 | 0.1111 | 71.4° | 63.4° |
 | 25594802 | juglet_deploy_local02 | 0.1111 | 64.1° | 54.0° |
 
+Corrected 2026-09-05 — nine sherds, so ×1.125 throughout, and `part_acc = 0.1111`
+restated as a count is **0 of 8 loose sherds seated** in every run:
+
+| job | config | loose sherds seated | avg turn | best-of-n turn | stored size |
+|---|---|---|---|---|---|
+| 25118786 | juglet (raw) | 0 of 8 | 112.7° | 97.9° | 2.49 ⚠️ |
+| 25192222 | juglet_deploy (raw) | 0 of 8 | 97.5° | 79.7° | 2.49 ⚠️ |
+| 25275931 | juglet_deploy_proposed | 0 of 8 | 106.3° | 91.8° | 2.49 ⚠️ |
+| 25279003 | juglet_deploy_proposed | 0 of 8 | 103.0° | 79.4° | 2.49 ⚠️ |
+| 25528198 | juglet_deploy_local02 | 0 of 8 | 80.4° | 71.3° | 0.60 |
+| 25594802 | juglet_deploy_local02 | 0 of 8 | 72.1° | 60.8° | 0.89 ⚠️ |
+
+Every one of these six is **past a right angle or close to it** on the average
+sherd, and four were scored at a stored object size four to five times the trained
+band — a handicap at source, on top of the reading error. ⚠️ marks outside
+`[0.375, 0.625]`.
+
 `part_accuracy = 1/9` **exactly**, every run, every config (raw scale,
 rescaled, anchor-free, anchor-fixed, proposed-assembly variant). Only the
 anchor piece ever registers as correctly placed (chamfer < 1 cm); all 8
@@ -163,6 +207,22 @@ deploy-analysis §7) contains all four of GARF's control objects:
 | narrow_bottle2 | 3 | **0.333 (=1/3)** | 58.9° / 57.6° / 35.9° | ≥ 0.92 |
 | narrow_bottle4 | 4 | **0.25 (=1/4)** | 49.1° / 46.5° / 61.4° | ≥ 0.92 |
 | blue_pot | 5 | **0.20 (=1/5)** | 78.7° / 71.6° / 61.0° | ≥ 0.92 |
+
+Corrected 2026-09-05; `part_acc` restated as a count of the loose fragments, turn
+corrected by each object's own fragment count:
+
+| object | loose fragments | seated | turn on the loose fragments (3 seeds) |
+|---|---|---|---|
+| pink_bowl | 2 of 3 | 0 of 2 | 113.6° / 90.3° / 96.8° (×1.500) |
+| narrow_bottle2 | 2 of 3 | 0 of 2 | 88.4° / 86.4° / 53.9° (×1.500) |
+| narrow_bottle4 | 3 of 4 | 0 of 3 | 65.5° / 62.0° / 81.9° (×1.333) |
+| blue_pot | 4 of 5 | 0 of 4 | 98.4° / 89.5° / 76.3° (×1.250) |
+
+The finding — none of these is reassembled — is unchanged, and the physical
+statement is starker: on the fresh control ceramics the loose fragments end up
+**54° to 114° from correct, i.e. from half to more than a full right angle**. The
+seating zeros here are the 2026-07-22 threshold bug and should not be read as a
+placement result.
 
 Every single sample lands at exactly `1/n_parts` — the anchor scores, nothing
 else does, on **fresh, un-worn, real ceramic** fractures. This is the same
@@ -251,7 +311,7 @@ hasn't been probed at the feature level yet.
 | Does TORA ever demonstrate real-ceramic fracture-assembly competence to lose? | **Not yet observed** — chance-level on the exact objects GARF solves | control-ceramics table above |
 | Is the Juglet-specific benchmark scalar metric trustworthy? | **No** — invalid GT (scan layout), already flagged by the team | deploy-analysis §3/§7, confirmed independently |
 | Does TORA's *proposed* assembly look like GARF's pile or PF++'s vessel? | **Neither** — anchor blob + separate satellite cluster, unstable across seeds | Procrustes PNG comparison |
-| Is 9 pieces alone enough to explain it? | **No — ruled out as primary driver.** Mean rot_err is flat (~59–70°) from 3 to 12 real ceramic pieces, no cliff. May still compound the Juglet case, but isn't why real ceramics fail at all | piece-count control section |
+| Is 9 pieces alone enough to explain it? | ~~**No — ruled out as primary driver.** Mean rot_err is flat (~59–70°) from 3 to 12 real ceramic pieces, no cliff.~~ **UNTESTED (2026-09-05).** The flat line was the free-anchor discount, which is itself a function of piece count. Corrected, the curve is 88 / 79 / 88 / 73 / 73 / 72° at 3/4/5/6/10/12 — it slopes, and the wrong way. Neither ruled in nor out | piece-count control section (corrected table) |
 
 **Working main-factor statement:** TORA's Juglet failure is best explained,
 on current evidence, by a **synthetic-to-real domain generalization gap** in
@@ -332,12 +392,45 @@ grouped by piece count:
 | 10 | galli_pot | 66.1° |
 | 12 | narrow_bottle1 | 66.4° |
 
-**Flat at ~59–70° across the entire 3-to-12-piece range — no trend with piece
-count.** This is the opposite of TORA's own synthetic Breaking Bad pattern,
+> **⚠️ CORRECTED 2026-09-05 — this table does not say what it was read as saying.**
+>
+> Every row above was discounted by a free zero for the anchor fragment, and
+> **the size of the discount is a function of the very axis being plotted**:
+> ×1.500 at three fragments, ×1.091 at twelve. Correcting each row by its own
+> fragment count, from the same 24 result files:
+>
+> | n_parts | objects | as printed | corrected | discount removed |
+> |---|---|---|---|---|
+> | 3 | pink_bowl, narrow_bottle2 | 58.8° | **88.2°** | ×1.500 |
+> | 4 | narrow_bottle3, narrow_bottle4 | 58.9° | **78.5°** | ×1.333 |
+> | 5 | blue_pot | 70.4° | **88.0°** | ×1.250 |
+> | 6 | plate | 61.0° | **73.1°** | ×1.200 |
+> | 10 | galli_pot | 66.1° | **73.4°** | ×1.111 |
+> | 12 | narrow_bottle1 | 66.4° | **72.4°** | ×1.091 |
+>
+> The flat line is gone. What is left runs **downhill** — worst at three
+> fragments, best at twelve — which is the *opposite* of the piece-count cliff
+> this section was testing for. In plain terms: on real ceramics the model turns
+> the loose sherds by **72° to 88°, close to a right angle, at every piece
+> count**, and the three-piece pots are no easier than the twelve-piece one.
+>
+> **What this licenses, and what it does not.** It does **not** establish an
+> inverse piece-count effect: six objects, one to two per row, three draws each,
+> and the ceramics were scored in raw scan units (stored size 45–61 against a bar
+> meant for 0.5), which is the separate 2026-07-22 bug and is why their seating is
+> a flat zero. Any of those could produce this slope. What it does establish is
+> that **the row below is not supported**: piece count was ruled out on a flat
+> line that was an artifact of the ruler, and it is now simply untested. See
+> `intent/O8`, candidate 2.
+
+~~**Flat at ~59–70° across the entire 3-to-12-piece range — no trend with piece
+count.**~~ (struck 2026-09-05 — see the corrected table above) This is the opposite of TORA's own synthetic Breaking Bad pattern,
 where 2-piece objects average ~0.3° and only 6+ pieces triggers the cliff.
 Here, even the easiest possible case (3 real ceramic pieces) is already at
-the same near-chance error level as 12 pieces. **This rules out piece count
-as the primary driver of the real-ceramics / Juglet failure** — the domain
+the same near-chance error level as 12 pieces. ~~**This rules out piece count
+as the primary driver of the real-ceramics / Juglet failure**~~ **— withdrawn
+2026-09-05, the flatness was the ruler.** What follows was reasoned from it and
+does not stand either. — the domain
 gap (real vs. synthetic fracture-surface statistics) is doing the work even
 before combinatorics would be expected to matter. Piece count remains a
 plausible *compounding* factor for the Juglet specifically (9 pieces, so

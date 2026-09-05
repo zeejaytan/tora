@@ -152,12 +152,37 @@ class Record:
         `Evaluator._recall_at_thresholds` (tora/eval/evaluator.py:205) thresholds
         a per-OBJECT mean of shape (B,), so each is 0 or 1 for a whole object on
         one draw. Averaged over draws it is the SHARE OF ATTEMPTS in which the
-        pot came in under the threshold -- and the mean it thresholds is the
-        anchor-diluted one, so the bar is easier to clear than it reads.
+        pot came in under the threshold.
 
         A nine-sherd pot with eight sherds perfect and one turned a right angle
         scores zero here. Compare models on `seated` and `turn_deg` instead;
         this is reported only because past notes quote it.
+
+        CORRECTED 2026-09-05. The evaluator thresholds the ANCHOR-DILUTED mean --
+        it is `rot_errors` straight out of `compute_transform_errors`, the same
+        field this module divides the free zero back out of. So the stored recall
+        passes objects it should fail, by exactly the dilution factor: a
+        two-fragment pair whose one placed piece is turned 19 degrees stores a
+        mean of 9.5 and scores 1.0 at the ten-degree bar. The bias is worst where
+        the fragment count is lowest, which is the same direction the rotation
+        column was already wrong in, so the two errors compounded rather than
+        cancelled.
+
+        It is recoverable without a rerun -- the stored mean and the fragment
+        count are both in the file -- so this thresholds the corrected turn
+        instead. The stored value is still reachable as
+        `pot_under_diluted_by_free_anchor`. Any `recall@5deg` / `recall@10deg`
+        figure quoted from a note written before this date is the diluted one.
+        """
+        if math.isnan(self.turn_deg):
+            return float("nan")
+        return 1.0 if self.turn_deg <= degrees else 0.0
+
+    def pot_under_diluted_by_free_anchor(self, degrees: int) -> float:
+        """The stored `recall_at_{degrees}deg`, free anchor and all.
+
+        Here so a note written before 2026-09-05 can be checked against what it
+        actually quoted. Do not put it in a table.
         """
         return float(self.raw.get(f"recall_at_{degrees}deg", float("nan")))
 
