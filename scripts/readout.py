@@ -570,8 +570,10 @@ def seating_from_clouds(pred, gt, slices, threshold=None, n_anchors: int = 1):
 def part_acc(pts_gt, pts_pred, points_per_part, threshold) -> tuple[float, int]:
     """Fraction of parts whose chamfer to their matched GT part is under threshold.
 
-    Hungarian matching on the chamfer cost, as compute_part_acc does: parts are
-    interchangeable, so a prediction may claim any GT part once.
+    Hungarian matching as compute_part_acc does: parts are interchangeable, so a
+    prediction may claim any GT part once, and the assignment is made on the
+    thresholded cost -- it maximises how many pairs land under the threshold, not how
+    little chamfer the assignment totals.
     """
     ppp = [int(n) for n in points_per_part if int(n) > 0]
     bounds = np.cumsum([0] + ppp)
@@ -582,7 +584,12 @@ def part_acc(pts_gt, pts_pred, points_per_part, threshold) -> tuple[float, int]:
     for i in range(p):
         for j in range(p):
             cost[i, j] = chamfer(gt[i], pr[j])
-    r, c = linear_sum_assignment(cost)
+    # Assign on the BINARISED cost, exactly as compute_part_acc does. Assigning on
+    # the raw chamfer minimises total distance, which is a different question and
+    # seats fewer parts: on juglet_gt draw 0 it reads 2 of 9 where the evaluator
+    # reads 4 of 9. seating_from_clouds() above already binarised; this did not, so
+    # the module disagreed with itself as well as with the evaluator (2026-09-05).
+    r, c = linear_sum_assignment((cost >= threshold).astype(float))
     return float((cost[r, c] < threshold).mean()), p
 
 

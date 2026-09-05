@@ -72,11 +72,17 @@ Juglet's non-anchor figure on a valid reference is worse than the number this qu
 was opened with, not better, and it sits inside the collapsed band rather than at its
 edge.
 
+**The reference has now also been confirmed by looking, not only by residual.** The
+stored `juglet_gt` cloud renders as a closed vessel with rim and handle and the missing
+sherd left open (`artifacts/juglet_spread.png`, 2026-09-05). The same render shows that
+the whole-pot *outline* survives even in the worst draw — so on this object a silhouette
+is not evidence, and any candidate below must be rendered at individual-sherd placement.
+
 ## The candidates
 
 | | candidate | cost | why it is live |
 |---|---|---|---|
-| 1 | Run-to-run spread | free | The three baseline runs have effectively identical `.hydra` settings, so they *are* repeats; the 31.4° / 58.2° pair quoted from them appears to be generation 0 rather than run means, and draws within one run span ~31–69°. Confirm the spread before reading any difference below |
+| 1 | Run-to-run spread | free | **Ruled in, 2026-09-05 — and it is the ruler, a third kind: imprecise rather than wrong.** Four baselines are byte-identical repeats. Draws within one run spread by a median 31.6°; run medians spread 12.5°; the 31.4/33.5/58.2 quoted here was draw 0 of three identical runs on the diluted ruler. **Decision rule: on the Juglet a difference below 17° between two five-draw runs is not readable.** Renders: `artifacts/juglet_spread{,_draws}.png`. Ticket `.scratch/juglet-cause/issues/01-run-to-run-spread.md` |
 | 2 | Fragment count (9) | free | Normalised, error tracks fragment count; the old "ruled out" was the units bug. **Now testable honestly** (2026-09-05): the free-anchor correction is ×2.000 at two fragments and ×1.125 at nine, so the old count-versus-error table's slope was partly the correction itself. Every row is now on the same ruler |
 | 3 | A missing sherd | cheap GPU | The Juglet is **incomplete** and none of the eight pots TORA reassembles are. Never tested. [U4](../../intent/U4-missing-fragments.md) names the failure mode |
 | 4 | Low-side out-of-band scale | cheap | `juglet_norm` runs report `scales = 0.041`, 9× below the trained floor of 0.375. The scale ladder only tested *above* 0.5 |
@@ -84,7 +90,7 @@ edge.
 
 ## Done when
 
-- [ ] Each of the five is ruled in or ruled out, each with a **render** at a view that
+- [ ] Each of the five is ruled in or ruled out (**1 of 5 done**: candidate 1 ruled in), each with a **render** at a view that
       resolves what it claims to test
 - [ ] Whichever survives is specified precisely enough to hand to `/to-spec`
 - [ ] Every reading states which of the three it is — method failed, ruler broken,

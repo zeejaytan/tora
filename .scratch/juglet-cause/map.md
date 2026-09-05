@@ -58,6 +58,14 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   measured at this scan resolution, and wear training has been run twice with no
   movement in rotation. It survives as candidate 5, last, reframed as "can wear be
   demonstrated at all".
+- **One Juglet run cannot tell two methods apart** — repeat attempts at the identical
+  job land ~30° apart, and two five-draw runs differ by up to **17°** by chance alone.
+  Decision rule for every later ticket: *below 17°, report no difference detected*. The
+  27° gap this map was opened on was draw 0 of three identical runs, not three methods.
+  Renders confirm the reference is an assembled juglet, and also that the whole-pot
+  outline cannot separate a 35° draw from an 89° one — later renders must show
+  individual sherd placement.
+  [01: How much do repeat runs of the same thing disagree on the Juglet?](issues/01-run-to-run-spread.md)
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
@@ -67,9 +75,10 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   concluded synthetic-to-real domain gap plus piece count; both halves were computed on
   the corrupted run. Once the five tickets land, that note needs rewriting — but what it
   should *say* cannot be drafted until they do.
-- **Whether the Juglet can carry any claim at all.** If run-to-run spread turns out to
-  be ~27°, most differences on a single object are unreadable and the honest move may be
-  to stop treating one pot as evidence. That decision waits on ticket 01.
+- **Whether twenty draws per condition are worth buying.** Ticket 01 settled that a
+  five-draw run resolves nothing below 17°; twenty draws would take that to ~9°.
+  `scripts/hpc/juglet_draws.slurm` exists. Whether the extra GPU time is worth it depends
+  on how large the effects in tickets 02–05 turn out to be — revisit after 03.
 - **What a fair test of wear would even look like** given that the scan cannot resolve
   it. Possibly a capture question (a finer scan) rather than an algorithm question, but
   which, and at what resolution, is not sharp enough to ticket yet.

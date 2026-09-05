@@ -385,6 +385,41 @@ def main() -> int:
               rc.pot_under(10) == 1.0 and rc.pot_under(5) == 0.0,
               f"turn {rc.turn_deg}")
 
+        print()
+        print("12. Seating is assigned the way the evaluator assigns it.")
+        # tora/eval/metrics.py:compute_part_acc runs Hungarian on (cd >= threshold), so
+        # the assignment maximises how many pairs land under the threshold. Assigning on
+        # raw chamfer minimises total distance instead, which is a different question:
+        # it will accept one pair just over the threshold to buy a large saving on
+        # another. On juglet_gt draw 0 that read 2 of 9 where the evaluator read 4 of 9,
+        # and seating_from_clouds() in this same module already binarised while
+        # part_acc() did not -- so the module disagreed with itself (2026-09-05).
+        #
+        # Two single-point fragments placed so the two rules must disagree: the crossed
+        # assignment totals marginally less chamfer but seats one, the straight
+        # assignment totals marginally more and seats both.
+        import readout
+        from scipy.optimize import linear_sum_assignment
+        from readout import part_acc
+
+        gt = np.array([[0.0, 0.0, 0.0], [0.0705, 0.0, 0.0]])
+        pred = np.array([[0.000284, 0.0705, 0.0], [0.0, 0.0, 0.0]])
+        cost = np.array([[readout.chamfer(gt[i:i + 1], pred[j:j + 1]) for j in range(2)]
+                         for i in range(2)])
+        tau = readout.TAU
+
+        raw_r, raw_c = linear_sum_assignment(cost)
+        thr_r, thr_c = linear_sum_assignment((cost >= tau).astype(float))
+        check("the two assignment rules genuinely disagree on this case",
+              int((cost[raw_r, raw_c] < tau).sum()) == 1
+              and int((cost[thr_r, thr_c] < tau).sum()) == 2,
+              f"cost {cost.tolist()}, tau {tau}")
+
+        acc, n = part_acc(gt, pred, [1, 1], tau)
+        check("part_acc seats both, as compute_part_acc does",
+              n == 2 and abs(acc - 1.0) < 1e-9,
+              f"got {acc} over {n} parts -- assigning on raw chamfer would give 0.5")
+
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
