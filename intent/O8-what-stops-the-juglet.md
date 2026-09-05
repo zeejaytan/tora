@@ -26,13 +26,18 @@ currently support.
 
 ## What the premise runs into
 
-**The Juglet's rotation error sits inside the fresh-break range.** On `juglet_gt`, at
-scale 0.511 — inside the trained band, so unaffected by either bug — baseline runs read
-**35–66°** non-anchor. Fresh, unworn, normalised pots span **2.4° to 81.8°**
-(`narrow_bottle3` has 4 fragments and reads 81.8°). There is no wear-shaped gap left
-over — the fresh pots now bracket the Juglet on *both* sides, and the worst of them is
-turned further than the Juglet is. (Corrected 2026-09-05 from 1.6°–61.3°, which was
-the free-anchor-diluted ruler; see `docs/notes/FRACTURA_WHY_IT_FAILS.md`.)
+**The Juglet performs about as badly as a fresh pot of nine fragments does.** Confirmed
+2026-09-06 by ticket 02 against eight fresh ceramics all normalised to the same stored
+size (0.500, in band), on the common ruler, with a render. On sherds seated the Juglet
+reads **5 of 9 (55%)**, sitting between `plate` (4 of 6) and `narrow_bottle1`
+(5.5 of 12) — on the fresh trend, not below it. On rotation, 20 pooled baseline draws
+give **median 60.9°, range 35.4–88.9°** at scale 0.511, which under ticket 01's 17° rule
+is not readably different from `plate` (48.7°), `narrow_bottle1` (62.3°) or
+`narrow_bottle3` (81.8°); only `galli_pot` (34.8°, ten fragments) is readably better.
+**There is no wear-shaped gap left over.** The anchor-mode confound between the two sides
+was measured, not assumed — job 28228263, six real pots run both ways, median change
+**−2.2°**, inconsistent in sign, inside the threshold. Render:
+`artifacts/fragment_count.png`.
 
 **And the wear cannot be measured in this scan.** Break faces are sampled at 0.243% of
 object size; the blunting acts at 0.3–0.5%. The dimensionless roughness ratio was tried
@@ -83,21 +88,23 @@ is not evidence, and any candidate below must be rendered at individual-sherd pl
 | | candidate | cost | why it is live |
 |---|---|---|---|
 | 1 | Run-to-run spread | free | **Ruled in, 2026-09-05 — and it is the ruler, a third kind: imprecise rather than wrong.** Four baselines are byte-identical repeats. Draws within one run spread by a median 31.6°; run medians spread 12.5°; the 31.4/33.5/58.2 quoted here was draw 0 of three identical runs on the diluted ruler. **Decision rule: on the Juglet a difference below 17° between two five-draw runs is not readable.** Renders: `artifacts/juglet_spread{,_draws}.png`. Ticket `.scratch/juglet-cause/issues/01-run-to-run-spread.md` |
-| 2 | Fragment count (9) | free | Normalised, error tracks fragment count; the old "ruled out" was the units bug. **Now testable honestly** (2026-09-05): the free-anchor correction is ×2.000 at two fragments and ×1.125 at nine, so the old count-versus-error table's slope was partly the correction itself. Every row is now on the same ruler |
+| 2 | Fragment count (9) | free | **Ruled in weakly, 2026-09-06 — and it does not single the Juglet out.** More pieces does mean more error, but loosely: r = 0.47 over eight fresh ceramics, and `narrow_bottle3` breaks it outright at 4 fragments and 81.8°. The Juglet lands where a nine-piece fresh pot lands, on seating exactly and on rotation at the high end of the spread. So piece count is part of the difficulty and none of the mystery. Ticket `.scratch/juglet-cause/issues/02-is-nine-fragments-enough.md` |
 | 3 | A missing sherd | cheap GPU | The Juglet is **incomplete** and none of the eight pots TORA reassembles are. Never tested. [U4](../../intent/U4-missing-fragments.md) names the failure mode |
-| 4 | Low-side out-of-band scale | cheap | `juglet_norm` runs report `scales = 0.041`, 9× below the trained floor of 0.375. The scale ladder only tested *above* 0.5 |
+| 4 | Low-side out-of-band scale | cheap | **Still open, but narrowed 2026-09-06.** `juglet_norm` runs report `scales = 0.041`, 9× below the trained floor of 0.375, and the scale ladder only ever tested *above* 0.5. An audit of all 141 eval runs (`scripts/audit_run_provenance.py`) shows the damage is confined: every conclusion the map rests on comes from `juglet_gt` at 0.511, in band. What sits at 0.041 is the nine-fragment wear comparison (job 29027773) — and **at that size the sherds-seated measure saturates: 9 of 9 on every draw of every arm, while the same runs report sherds turned 85° out of true.** That comparison does not need re-running: it already exists in band as job 29308186, which says wear training moves nothing (56.8 / 59.6 / 62.2°, spread 5.4° against a 17° floor). Whether a small scale *causes* damage still needs the downward ladder. `.scratch/juglet-cause/issues/03-low-side-out-of-band-scale.md` |
 | 5 | Wear | expensive | Cannot currently be shown to differ from fresh pots at the resolution available |
+| 6 | Evaluated in a mode the model was never trained in | free | **Opened and closed 2026-09-06, same day: ruled out.** `juglet_gt.yaml:6` is `anchor_free: true` while all twelve training configs are `false`, and the encoder does read absolute coordinates (`tora/modeling/encoder/point_cloud_encoder.py:101-113`), so this looked live. It is not: job **28228263** already ran six real pots in both modes, median change **−2.2°**, inconsistent in sign, every object inside the 17° threshold, seating unchanged on five of six — and not a floor effect, since `blue_pot` reads 5.6° anchor-fixed with all five seated. Recorded because the search for it produced the ruled-in reading of candidate 2, not because it explains anything. Renders: `artifacts/anchor_mode.png`, `artifacts/fragment_count.png` |
 
 ## Done when
 
-- [ ] Each of the five is ruled in or ruled out (**1 of 5 done**: candidate 1 ruled in), each with a **render** at a view that
-      resolves what it claims to test
+- [ ] Each candidate is ruled in or ruled out (**3 of 6 done**: 1 ruled in, 2 ruled in
+      weakly, 6 opened and ruled out; 3 and 4 remain, and 5 now has no residual left to
+      explain), each with a **render** at a view that resolves what it claims to test
 - [ ] Whichever survives is specified precisely enough to hand to `/to-spec`
 - [ ] Every reading states which of the three it is — method failed, ruler broken,
       reference wrong
 
 Stopping at the first candidate that looks sufficient is what produced "piece count is
-ruled out" in the first place. Rule all five.
+ruled out" in the first place. Rule all six.
 
 ## What would refute the whole framing
 

@@ -30,14 +30,12 @@ assembly looks correct and the residual is symmetry; 40–70° it has genuinely 
 "Within 10°" reads 0.000 almost everywhere and is too strict to be useful. Report
 non-anchor rotation (`× n/(n-1)`) — the raw mean is diluted by the free anchor.
 
-**The read-out is not yet trustworthy, and tickets 01-04 all depend on it.** Five of our
-own scripts read the same `results/*.json` and only `summarise_scale_ladder.py` applies
-the non-anchor correction — so the same run gives different rotation numbers depending
-which of our readers opens it, wrong by `n/(n-1)`, which is a *different* factor per
-object (×1.125 on the Juglet, ×2.00 on a two-fragment bowl). That is exactly the
-cross-object comparison ticket 02 makes. The instrument is specified at
-`.scratch/eval-readout/spec.md` (`ready-for-agent`, no GPU); build it before 02, or hand
-02 corrected numbers some other way and say how.
+**The read-out is now one instrument and every reader goes through it**
+(`scripts/readout.py`, gated by `scripts/check_readout.py`, built under
+`.scratch/eval-readout/`). It applies the non-anchor `× n/(n-1)` correction once, and it
+**refuses to pool runs made differently** — which is how ticket 02 found the anchor-mode
+split rather than quietly averaging across it. Do not hand-compute these numbers; if the
+module refuses a comparison, that refusal is the finding.
 
 **Skills each session should consult:** `grilling` and `domain-modeling` for any ticket
 that turns into a judgement call; `diagnosing-bugs` if a measurement looks wrong.
@@ -66,6 +64,21 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   outline cannot separate a 35° draw from an 89° one — later renders must show
   individual sherd placement.
   [01: How much do repeat runs of the same thing disagree on the Juglet?](issues/01-run-to-run-spread.md)
+- **The Juglet performs about as badly as a fresh, unworn pot of nine fragments does —
+  it is not an outlier, and there is no Juglet-shaped residual for wear to explain.**
+  Against eight fresh ceramics all normalised to the same stored size, it seats 5 of 9
+  (55%), landing between `plate` (4 of 6) and `narrow_bottle1` (5.5 of 12) — on the
+  trend, not below it. Its 60.9° turn is not readably different from `plate`,
+  `narrow_bottle1` or `narrow_bottle3`; only `galli_pot` (34.8°) is readably better.
+  **Candidate 2 is ruled in weakly**: fragment count predicts error loosely (r = 0.47
+  over eight pots) and `narrow_bottle3` breaks it — 4 fragments, 81.8°. A confound was
+  found and then *measured rather than argued*: `juglet_gt` runs anchor-free while every
+  ceramic runs anchor-fixed, but job 28228263 ran six real pots both ways for a median
+  change of **−2.2°**, inconsistent in sign and well inside the 17° threshold, so it
+  cannot manufacture the result. **Which of the three: none — the method is doing what it
+  does on any pot of this many pieces.** Renders: `artifacts/fragment_count.png`,
+  `artifacts/anchor_mode.png`.
+  [02: Is nine fragments on its own enough to explain the Juglet?](issues/02-is-nine-fragments-enough.md)
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
@@ -79,6 +92,14 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   five-draw run resolves nothing below 17°; twenty draws would take that to ~9°.
   `scripts/hpc/juglet_draws.slurm` exists. Whether the extra GPU time is worth it depends
   on how large the effects in tickets 02–05 turn out to be — revisit after 03.
+- **Two anchor-mode inconsistencies that currently cost nothing but are still wrong.**
+  All 141 eval runs on Spartan have `model.anchor_free: false`, so (a) in anchor-free
+  *data* mode the sampler pins the anchor to ground truth while the encoder is shown it
+  at the origin, and (b) `evaluator.py:74`'s anchor-aligning ICP has never run, on any
+  run. Job 28228263 puts the net effect below the noise floor on six pots, so nothing
+  here needs redoing — but whether the four anchor-free Juglet configs should be split
+  into "benchmark" and "deployment" is a real question, and not sharp enough to ticket
+  until something depends on the answer.
 - **What a fair test of wear would even look like** given that the scan cannot resolve
   it. Possibly a capture question (a finer scan) rather than an algorithm question, but
   which, and at what resolution, is not sharp enough to ticket yet.
