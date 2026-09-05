@@ -10,7 +10,8 @@ five, so that tickets 02–05 can resolve smaller effects.
 **Blocked by:** None. It sharpens 01's rule rather than replacing it — 02, 03 and 04 can
 proceed under the coarse 17° rule while this runs.
 
-**Status:** ready-for-agent · **needs the conservator's go-ahead before sbatch**
+**Status:** submitted 2026-09-06 with the conservator's go-ahead — **job 30130049**,
+all three arms (`adapter_on`, `adapter_off`, `baseline`) at twenty draws each
 
 ## Why it exists
 
@@ -63,7 +64,11 @@ when something depends on it.)
 
 ## Acceptance criteria
 
-- [ ] The two faults above resolved before submission, and the arms actually run stated
+- [x] The two faults above resolved before submission, and the arms actually run stated —
+      the checkpoint filter now excludes `_smoke_` and resolves to exactly one
+      (`output/lora_vessels_v3_29880370/epoch-0.ckpt`, verified on Spartan before
+      submitting); **all three arms run**, because the adapter arms are the ones stuck
+      at five draws and they cannot be pooled
 - [ ] Twenty baseline draws on `zeroshot/juglet_gt` — never `juglet_norm`, which sits
       out of band (see [03](03-low-side-out-of-band-scale.md))
 - [ ] The revised threshold stated in the same plain form as 01: *a difference below X°

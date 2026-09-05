@@ -28,9 +28,11 @@ input and their "no movement in rotation" reading is not a fair test of wear.
 - [x] Every Juglet-related eval run on Spartan audited for its recorded `scales`, and a
       table produced of which conclusions rest on out-of-band runs
       (`scripts/audit_run_provenance.py`, 141 runs — see **Audit** below)
-- [ ] The ladder extended downward — rungs giving scale roughly 0.04, 0.08, 0.15, 0.25
+- [~] The ladder extended downward — rungs giving scale roughly 0.04, 0.08, 0.15, 0.25
       alongside 0.5 as the in-band control — reusing `scripts/hpc/eval_scale_ladder.slurm`
-      with the existing gate. **Ask before submitting**
+      with the existing gate. **Submitted 2026-09-06 with the conservator's go-ahead:
+      job 30130045**, `ARMS= RUNGS="0.08 0.16 0.3 0.5 1" LADDER_DRAWS=10`. Arms A and B
+      are skipped — job 29891327 already answered the upward half.
 - [ ] The gate (`scripts/check_scale_conditioning.py`) passes, so only `scales` moves
 - [ ] Renders at the worst rung and at 0.5, same pot, same seed
 - [x] A verdict on whether job 29027773's wear comparison must be re-run in band —
@@ -175,6 +177,24 @@ floor**, and the 30-object sweeps (`lorav_sweep_*`, `wearft2_sweep_*`, `erosion_
 (15.4–243.5) and is far outside anything tested. `scaleladder_B_normalized`,
 `juglet_pairs_*`, `thinwalled_*`, `*_vessels_*`, `piececount_baseline_28198773` and
 `bestofN_24289835` are all in band.
+
+### Submitted 2026-09-06 — job 30130045
+
+```
+ARMS= RUNGS="0.08 0.16 0.3 0.5 1" LADDER_DRAWS=10 \
+    sbatch scripts/hpc/eval_scale_ladder.slurm
+```
+
+Rung m gives scale 0.5*m, so the rungs are 0.04, 0.08, 0.15, 0.25 and 0.5 as the in-band
+control. 0.04 is where the `juglet_norm` family sits.
+
+**Stated before the result arrives, so it can fail.** If a too-small stored size damages
+the reconstruction, rotation should climb steadily as the rung falls away from 0.5, with
+0.04 clearly worse than 0.5. **If the downward ladder is flat, small sizes are harmless to
+the reconstruction — only the seating measure breaks — and candidate 4 on `intent/O8` is
+ruled out.** Read the rotation column, not a seating count: the job now refuses to print
+the fragments-seated summary when arms A/B did not run, precisely because that count
+saturates below the band.
 
 ### What is still owed on this ticket
 
