@@ -57,6 +57,7 @@ class PointCloudDataset(Dataset):
         disable_augmentation: bool = False,
         normalize_object_scale: bool = False,
         scale_multiplier: float = 1.0,
+        omit_rank: int | None = None,
     ):
         super().__init__()
         self.split = split
@@ -75,6 +76,31 @@ class PointCloudDataset(Dataset):
         self.disable_augmentation = disable_augmentation
         self.normalize_object_scale = normalize_object_scale
         self.scale_multiplier = scale_multiplier
+
+        # Absence, deliberately. `omit_rank` = k drops the fragment with the k-th
+        # LARGEST surface area before any points are sampled, so the object is
+        # loaded exactly as a genuinely incomplete pot would be: the lost sherd is
+        # not in the mesh set at all.
+        #
+        # Rank 1 is refused. The anchor is `argmax(counts)` and counts rise
+        # monotonically with area, so rank 1 IS the anchor; dropping it would hand
+        # the model a different starting fragment and that is a different task, not
+        # a missing-piece test.
+        #
+        # NOTE, and it is the reason this is a knob and not a gate: removing a mesh
+        # necessarily disturbs the fragments that remain. The 5000-point budget is
+        # shared out by area over the TOTAL area (_sample_points), the pot is
+        # re-centred on its new centre of mass, and it is re-normalised by its new
+        # max|v|. The kept fragments are therefore re-sampled, not preserved. That
+        # cannot be asserted away; scripts/check_fragment_omission.py MEASURES it
+        # instead, and the experiment is designed so the effect must beat it.
+        self.omit_rank = omit_rank
+        if omit_rank is not None and omit_rank < 2:
+            raise ValueError(
+                f"omit_rank={omit_rank}: rank 1 is the largest fragment, which is the "
+                "anchor. Dropping it changes which fragment the model is given as "
+                "already-seated, so it tests something else. Use rank >= 2."
+            )
 
         self.use_folder = os.path.isdir(self.data_path)
         self._num_threads = num_threads
@@ -165,6 +191,24 @@ class PointCloudDataset(Dataset):
             self._h5_file = h5py.File(self.data_path, "r", libver='latest', swmr=True)
         return self._h5_file
 
+    def _can_omit(self, count: int) -> bool:
+        """Can this object lose its rank-`omit_rank` fragment and still be a task?
+
+        Two reasons to say no, and both must EXCLUDE the object rather than run it
+        whole: an object that silently kept all its fragments inside a "one dropped"
+        run would be a control arm hiding in the treatment arm.
+
+          * fewer fragments than the rank asked for -- there is no k-th largest;
+          * only two fragments -- dropping one leaves a single sherd and nothing
+            to assemble.
+
+        `min_parts` is deliberately NOT applied to the post-drop count. It is a
+        corpus filter for training, not a statement about what can be assembled,
+        and applying it here would quietly delete the small pots (3 fragments)
+        that this experiment most wants.
+        """
+        return count >= self.omit_rank and count - 1 >= 2
+
     def _build_fragment_list(self) -> list[str]:
         """Read and filter fragment keys from hdf5 or folder."""
         if self.use_folder:
@@ -177,6 +221,8 @@ class PointCloudDataset(Dataset):
                     os.path.join(self.data_path, frag, "*.ply")
                 )
                 n_parts = len(parts)
+                if self.omit_rank is not None and not self._can_omit(n_parts):
+                    continue
                 if self.min_parts <= n_parts <= self.max_parts:
                     self.min_part_count = min(self.min_part_count, n_parts)
                     self.max_part_count = max(self.max_part_count, n_parts)
@@ -194,6 +240,8 @@ class PointCloudDataset(Dataset):
                     if "pieces" in group:
                         group = group["pieces"]
                     count = len(group.keys())
+                    if self.omit_rank is not None and not self._can_omit(count):
+                        continue
                     if self.min_parts <= count <= self.max_parts:
                         self.min_part_count = min(self.min_part_count, count)
                         self.max_part_count = max(self.max_part_count, count)
@@ -217,12 +265,32 @@ class PointCloudDataset(Dataset):
 
         return fragments
 
+    def _omit_fragment(self, meshes: list, parts: list) -> tuple[list, list, str | None]:
+        """Drop the k-th largest fragment, or nothing when omit_rank is None.
+
+        Ranking is by surface area because that is what decides the anchor and the
+        point budget; ties break on the sorted part key so the choice is repeatable.
+        """
+        if self.omit_rank is None:
+            return meshes, parts, None
+        order = sorted(range(len(meshes)), key=lambda i: (-meshes[i].area, parts[i]))
+        if self.omit_rank > len(order):
+            raise ValueError(
+                f"omit_rank={self.omit_rank} but this object has only {len(order)} "
+                "fragments; it should have been filtered out of the fragment list."
+            )
+        drop = order[self.omit_rank - 1]
+        dropped = parts[drop]
+        keep = [i for i in range(len(meshes)) if i != drop]
+        return [meshes[i] for i in keep], [parts[i] for i in keep], dropped
+
     def _load_from_h5(self, name: str, index: int) -> dict:
         group = self._get_h5_file()[name]
         if "pieces" in group:
             group = group["pieces"]
         parts = sorted(list(group.keys()))
         meshes = list(self.pool.map(lambda p: _load_mesh_from_h5(group, p), parts))
+        meshes, parts, dropped = self._omit_fragment(meshes, parts)
         pcs, pns, thr = self._sample_points(meshes)
         return {
             "index": index,
@@ -231,12 +299,14 @@ class PointCloudDataset(Dataset):
             "pointclouds_gt": pcs,
             "pointclouds_normals_gt": pns,
             "overlap_threshold": thr,
+            "omitted_fragment": dropped,
         }
 
     def _load_from_folder(self, frag: str, index: int) -> dict:
         folder = os.path.join(self.data_path, frag)
         ply_files = sorted(glob.glob(os.path.join(folder, "*.ply")))
         meshes = [_load_mesh_from_ply(p) for p in ply_files]
+        meshes, ply_files, dropped = self._omit_fragment(meshes, ply_files)
         pcs, pns, overlap_thr = self._sample_points(meshes)
         return {
             "index": index,
@@ -245,6 +315,7 @@ class PointCloudDataset(Dataset):
             "pointclouds_normals_gt": pns,
             "overlap_threshold": overlap_thr,
             "num_parts": len(meshes),
+            "omitted_fragment": dropped,
         }
 
     def _sample_points(self, meshes: list[trimesh.Trimesh]) -> tuple[list[np.ndarray], list[np.ndarray], float]:
@@ -444,6 +515,7 @@ class PointCloudDataset(Dataset):
             results[key] = data[key]
 
         results["dataset_name"] = self.dataset_name
+        results["omitted_fragment"] = data.get("omitted_fragment") or ""
         results["num_parts"] = n_parts
         results["pointclouds"] = pts.astype(np.float32)
         results["pointclouds_gt"] = pts_gt.astype(np.float32)

@@ -46,6 +46,7 @@ class PointCloudDataModule(L.LightningDataModule):
         persistent_workers: bool = False,
         normalize_object_scale: bool = False,
         scale_multiplier: float = 1.0,
+        omit_rank: int | None = None,
     ):
         """Data module for point cloud data.
 
@@ -93,6 +94,11 @@ class PointCloudDataModule(L.LightningDataModule):
         # only that input moves. Inert by default.
         self.normalize_object_scale = normalize_object_scale
         self.scale_multiplier = scale_multiplier
+        # Missing-fragment experiment. Deliberately wired into the test/predict
+        # split ONLY: dropping fragments from the training or validation split
+        # would change what the model learns, which is a different experiment
+        # from asking what a trained model does when a sherd is absent.
+        self.omit_rank = omit_rank
         self.multi_anchor = multi_anchor
         self.persistent_workers = persistent_workers and num_workers > 0
 
@@ -215,6 +221,7 @@ class PointCloudDataModule(L.LightningDataModule):
                     limit_val_samples=self.limit_val_samples,
                     normalize_object_scale=self.normalize_object_scale,
                     scale_multiplier=self.scale_multiplier,
+                    omit_rank=self.omit_rank,
                 )
                 for dataset_name in self.dataset_names
             ]

@@ -1,0 +1,140 @@
+"""Does the pot still close when a sherd is missing?
+
+Ticket .scratch/juglet-cause/issues/04, third acceptance criterion. The columns
+in scripts/summarise_fragment_drop.py say how far each kept sherd turned. They
+cannot say whether the result is still a vessel, and that is the question a
+conservator actually asks of a reassembly.
+
+Three columns per pot, in the SAME frame with nothing re-centred between them:
+
+  reference   the pot as it really is, every sherd in its correct place
+  whole       what the model proposed with all sherds available
+  dropped     what the model proposed with one sherd removed
+
+The removed sherd is drawn in the reference column as a hollow outline, so the
+hole it leaves is visible rather than merely absent.
+
+Two rows of views per pot. The first is the silhouette -- it answers "does it
+close" and nothing else. The second colours each sherd separately, because a
+silhouette of this kind of pot still reads as a pot at 89 degrees of average
+turn (ticket 01), so the outline alone will happily pass a wrong answer.
+
+Usage:
+  python scripts/render_fragment_drop.py \
+      --whole eval_runs/drop_whole_<jobid> \
+      --dropped eval_runs/drop_rank2_<jobid> \
+      --pots blue_pot galli_pot \
+      --out artifacts/fragment_drop.png
+"""
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+VIEWS = [((0, 2), "side"), ((0, 1), "top")]
+
+
+def median_draw(run, pot):
+    """Index of the draw whose turn is the median, for one object."""
+    files = sorted((Path(run) / "results").glob("*_generation*.json"))
+    rot = []
+    for i, f in enumerate(files):
+        e = json.loads(f.read_text())
+        if pot in str(e.get("name", f.stem)):
+            rot.append((e["rotation_error"], i))
+    if not rot:
+        raise SystemExit(f"{pot} not found in {run}")
+    rot.sort()
+    return rot[len(rot) // 2][1]
+
+
+def load(run, pot):
+    hits = [p for p in sorted((Path(run) / "clouds").glob("*.npz")) if pot in p.name]
+    if not hits:
+        raise SystemExit(f"no cloud for {pot} under {run}/clouds")
+    return np.load(hits[0])
+
+
+def draw(ax, pts, ids, view, colour_by_part, lo, hi, pad):
+    i, j = view
+    if colour_by_part:
+        cmap = plt.get_cmap("tab20")
+        for k, pid in enumerate(sorted(set(ids.tolist()))):
+            m = ids == pid
+            ax.scatter(pts[m, i], pts[m, j], s=0.6, color=cmap(k % 20),
+                       linewidths=0, rasterized=True)
+    else:
+        ax.scatter(pts[:, i], pts[:, j], s=0.5, c="#444444",
+                   linewidths=0, rasterized=True)
+    ax.set_xlim(lo[i] - pad, hi[i] + pad)
+    ax.set_ylim(lo[j] - pad, hi[j] + pad)
+    ax.set_aspect("equal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--whole", required=True)
+    ap.add_argument("--dropped", required=True)
+    ap.add_argument("--pots", nargs="+", required=True)
+    ap.add_argument("--out", default="artifacts/fragment_drop.png")
+    a = ap.parse_args()
+
+    nrow = len(a.pots) * len(VIEWS)
+    fig, axes = plt.subplots(nrow, 3, figsize=(3 * 2.4, nrow * 2.4),
+                             squeeze=False)
+
+    for pi, pot in enumerate(a.pots):
+        dw = load(a.whole, pot)
+        dd = load(a.dropped, pot)
+        kw = median_draw(a.whole, pot)
+        kd = median_draw(a.dropped, pot)
+
+        gt_w, ids_w = dw["pts_gt"], dw["part_ids"]
+        gt_d, ids_d = dd["pts_gt"], dd["part_ids"]
+        pr_w = dw["generations_proposed"][kw]
+        pr_d = dd["generations_proposed"][kd]
+
+        # The two runs normalise on different totals, so the dropped arm comes
+        # back at a different size. Put it back on the reference's scale using
+        # the fragments both runs have, or the pictures compare nothing.
+        s = float(np.abs(gt_w).max() / max(np.abs(gt_d).max(), 1e-9))
+        gt_d, pr_d = gt_d * s, pr_d * s
+
+        lo, hi = gt_w.min(0), gt_w.max(0)
+        pad = 0.06 * (hi - lo).max()
+
+        for vi, (view, vname) in enumerate(VIEWS):
+            r = pi * len(VIEWS) + vi
+            colour = vi == 1
+            for c, (pts, ids, title) in enumerate([
+                (gt_w, ids_w, "as it really is"),
+                (pr_w, ids_w, "model, all %d sherds" % len(set(ids_w.tolist()))),
+                (pr_d, ids_d, "model, %d sherds (one removed)"
+                 % len(set(ids_d.tolist()))),
+            ]):
+                ax = axes[r][c]
+                draw(ax, pts, ids, view, colour, lo, hi, pad)
+                ax.set_title("%s %s\n%s" % (pot, vname, title), fontsize=7)
+
+    fig.suptitle(
+        "Whole pot against the same pot with one sherd removed\n"
+        "same frame in every panel, nothing re-centred; the dropped arm is "
+        "rescaled onto the reference so the two are comparable\n"
+        "top row of each pair: silhouette -- does it close.  bottom row: one "
+        "colour per sherd -- did the sherds it kept go to the right places",
+        fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(a.out, dpi=130)
+    print("wrote", a.out)
+
+
+if __name__ == "__main__":
+    main()
