@@ -58,7 +58,9 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   demonstrated at all".
 - **One Juglet run cannot tell two methods apart** — repeat attempts at the identical
   job land ~30° apart, and two five-draw runs differ by up to **17°** by chance alone.
-  Decision rule for every later ticket: *below 17°, report no difference detected*. The
+  Decision rule for every later ticket: *below 17°, report no difference detected* —
+  **sharpened 2026-09-06 by ticket 06 to 9.1° for twenty-draw runs**; 17° still governs
+  five-draw runs, and a mixed pair uses its own standard error. The
   27° gap this map was opened on was draw 0 of three identical runs, not three methods.
   Renders confirm the reference is an assembled juglet, and also that the whole-pot
   outline cannot separate a 35° draw from an 89° one — later renders must show
@@ -68,8 +70,12 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   it is not an outlier, and there is no Juglet-shaped residual for wear to explain.**
   Against eight fresh ceramics all normalised to the same stored size, it seats 5 of 9
   (55%), landing between `plate` (4 of 6) and `narrow_bottle1` (5.5 of 12) — on the
-  trend, not below it. Its 60.9° turn is not readably different from `plate`,
-  `narrow_bottle1` or `narrow_bottle3`; only `galli_pot` (34.8°) is readably better.
+  trend, not below it. On rotation the reading was sharpened by ticket 06 and is now
+  **inside the fresh range rather than indistinguishable from it**: at the 9° rule the
+  Juglet ties only `narrow_bottle1` (12 fragments), reads readably worse than `plate`
+  (6 fragments, 48.7°) and readably *better* than `narrow_bottle3` (4 fragments,
+  81.8°) — and fresh pots at 4–6 fragments themselves span 48.7–81.8°, so it is not an
+  outlier among them.
   **Candidate 2 is ruled in weakly**: fragment count predicts error loosely (r = 0.47
   over eight pots) and `narrow_bottle3` breaks it — 4 fragments, 81.8°. A confound was
   found and then *measured rather than argued*: `juglet_gt` runs anchor-free while every
@@ -79,6 +85,30 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   does on any pot of this many pieces.** Renders: `artifacts/fragment_count.png`,
   `artifacts/anchor_mode.png`.
   [02: Is nine fragments on its own enough to explain the Juglet?](issues/02-is-nine-fragments-enough.md)
+- **A stored size far below the trained band does not damage the reassembly — it breaks
+  the sherds-seated measure and nothing else. Candidate 4 is ruled out.** The prediction
+  written into the job header before submitting (rotation should climb as the size falls)
+  **failed**: across a twelvefold drop in stored size, seven of eight pots move by a few
+  degrees, and the one that moves — `blue_pot`, 11.4° at the smallest size against 46.1°
+  in the middle — moves the *wrong way*. The render of both ends agrees: no visible
+  difference. So the `juglet_norm` runs at 0.0408 were handicapped in their *ruler*, not
+  in their reconstruction. **Which of the three: the measurement was broken**, on the
+  seating half only. Job 30130045, 8 pots × 10 draws × 5 rungs, gate passed. Render:
+  `artifacts/ladder_down_ends.png`.
+  [03: Does a scale below the trained band damage the result too?](issues/03-low-side-out-of-band-scale.md)
+- **The ruler is now sharp to 9°, and at that sharpness the adapter still does nothing —
+  and one sherd at a time, all three arms are plainly wrong.** Twenty draws per arm takes
+  the readable threshold from 17° to **9.1°**; every pair of arms is still a tie
+  (adapter_on 61.2°, baseline 66.2°, adapter_off 69.8°, largest gap 8.6° against a 9.4°
+  bar), and the *adapter-off* arm reads worst, which is what three samples of one
+  distribution look like. The per-sherd render is what changes the reading: behind a
+  whole-pot median of 60–70° sit individual sherds turned **75–176°** and displaced
+  **3–51% of the pot's size**, several onto the opposite side of the vessel, in every
+  arm. A sherd can count as "seated" while being turned most of the way round.
+  **Which of the three: the method genuinely failed** — this ticket existed to rule out a
+  blunt instrument, and the instrument was not the problem. Job 30130049. Render:
+  `artifacts/juglet_arms_sherds.png`.
+  [06: Buy a finer decision rule — twenty draws per condition](issues/06-twenty-draws-per-condition.md)
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
@@ -88,10 +118,6 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   concluded synthetic-to-real domain gap plus piece count; both halves were computed on
   the corrupted run. Once the five tickets land, that note needs rewriting — but what it
   should *say* cannot be drafted until they do.
-- **Whether twenty draws per condition are worth buying.** Ticket 01 settled that a
-  five-draw run resolves nothing below 17°; twenty draws would take that to ~9°.
-  `scripts/hpc/juglet_draws.slurm` exists. Whether the extra GPU time is worth it depends
-  on how large the effects in tickets 02–05 turn out to be — revisit after 03.
 - **Two anchor-mode inconsistencies that currently cost nothing but are still wrong.**
   All 141 eval runs on Spartan have `model.anchor_free: false`, so (a) in anchor-free
   *data* mode the sampler pins the anchor to ground truth while the encoder is shown it

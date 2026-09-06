@@ -9,7 +9,8 @@ there.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** answered 2026-09-06 — job 30130045 (downward ladder) came back and the
+prediction written into the job header **failed**
 
 ## Why it is live
 
@@ -28,16 +29,18 @@ input and their "no movement in rotation" reading is not a fair test of wear.
 - [x] Every Juglet-related eval run on Spartan audited for its recorded `scales`, and a
       table produced of which conclusions rest on out-of-band runs
       (`scripts/audit_run_provenance.py`, 141 runs — see **Audit** below)
-- [~] The ladder extended downward — rungs giving scale roughly 0.04, 0.08, 0.15, 0.25
-      alongside 0.5 as the in-band control — reusing `scripts/hpc/eval_scale_ladder.slurm`
-      with the existing gate. **Submitted 2026-09-06 with the conservator's go-ahead:
-      job 30130045**, `ARMS= RUNGS="0.08 0.16 0.3 0.5 1" LADDER_DRAWS=10`. Arms A and B
-      are skipped — job 29891327 already answered the upward half.
-- [ ] The gate (`scripts/check_scale_conditioning.py`) passes, so only `scales` moves
-- [ ] Renders at the worst rung and at 0.5, same pot, same seed
+- [x] The ladder extended downward — rungs giving scale roughly 0.04, 0.08, 0.15, 0.25
+      alongside 0.5 as the in-band control — **job 30130045**, 12m 23s, exit 0:0,
+      `ARMS= RUNGS="0.08 0.16 0.3 0.5 1" LADDER_DRAWS=10`, 8 pots × 10 draws × 5 rungs
+- [x] The gate (`scripts/check_scale_conditioning.py`) passes, so only `scales` moves —
+      *"every compared tensor matched to 0.00e+00 (tol 1e-04)"*
+- [x] Renders at the worst rung and at 0.5, same pot, same seed —
+      `artifacts/ladder_down_ends.png`, all eight pots, two views, correct assembly
+      beside scale 0.04 and scale 0.50
 - [x] A verdict on whether job 29027773's wear comparison must be re-run in band —
       **no: it already exists in band as job 29308186, and that is the one to quote**
-- [ ] Names which of the three this is
+- [x] Names which of the three this is — **the measurement was broken**, and only the
+      seating half of it. The method is unharmed by a small stored size.
 
 ## Audit (first criterion, done 2026-09-06 — no GPU)
 
@@ -177,6 +180,64 @@ floor**, and the 30-object sweeps (`lorav_sweep_*`, `wearft2_sweep_*`, `erosion_
 (15.4–243.5) and is far outside anything tested. `scaleladder_B_normalized`,
 `juglet_pairs_*`, `thinwalled_*`, `*_vessels_*`, `piececount_baseline_28198773` and
 `bestofN_24289835` are all in band.
+
+## Answer
+
+**A stored size far below the trained band does not damage the reassembly. It breaks the
+sherds-seated measure and nothing else.** The prediction written into the job header
+before submitting — that rotation would climb steadily as the rung fell away from 0.5 —
+**failed**, and that is the result.
+
+**Which of the three this is: the measurement was broken**, for one family of runs
+(`juglet_norm`) on one of the two measures. Not the method, and not the reference.
+
+Job **30130045**, 12m 23s, exit 0:0. Eight pots, ten draws each, five rungs; only the
+`scales` number fed to the model changes between rows, asserted by
+`scripts/check_scale_conditioning.py` (*every compared tensor matched to 0.00e+00*).
+
+```
+scale  band  blue_pot galli_pot n_bottle1 n_bottle2 n_bottle3 n_bottle4 pink_bowl  plate   ALL
+0.040   no     11.4     29.7      53.6      4.4      81.6      8.1       1.9      48.8    25.2
+0.080   no     17.9     28.2      59.6      4.4      79.7      8.1       1.6      43.0    24.0
+0.150   no     33.0     30.0      65.4      4.4      82.2      8.1       2.0      46.4    30.0
+0.250   no     46.1     27.4      61.7      4.6      84.2      8.0       1.4      47.9    30.7
+0.500  yes     33.8     32.6      62.8      4.7      79.0      8.1       1.9      51.6    25.2
+```
+
+The ladder is **flat and non-monotone**. Seven of the eight pots move by only a few
+degrees across a twelvefold change in stored size — `narrow_bottle2` 4.4→4.7,
+`narrow_bottle4` 8.1→8.1, `pink_bowl` 1.9→1.9, `galli_pot` 29.7→32.6, `narrow_bottle3`
+81.6→79.0, `plate` 48.8→51.6, `narrow_bottle1` 53.6→62.8. The single pot that does move,
+`blue_pot` (11.4 → 46.1), moves the **wrong way**: it is *better* at the smallest size,
+and it is also the pot with the widest draw-to-draw scatter on the in-band ladder
+(sd 18°), so even that is likely sampler luck rather than scale.
+
+**The render agrees, and it was made before this was written.**
+`artifacts/ladder_down_ends.png` draws all eight pots at scale 0.04 beside scale 0.50
+against the correct assembly, two orthographic views each. There is no visible
+difference between the two ends: `blue_pot`, `pink_bowl`, `narrow_bottle2`,
+`narrow_bottle4`, `galli_pot` and `plate` sit close to correct at both sizes;
+`narrow_bottle1` is scattered at both; `narrow_bottle3` has the same piece flying off at
+both.
+
+### What this settles, and what it does not
+
+Settled: **candidate 4 on `intent/O8` is ruled out.** Nothing about the Juglet's failure
+is caused by its stored size, and the `juglet_norm` runs at 0.0408 were not handicapped
+in their *reconstruction*. What those runs cannot support is any statement about
+fragments seated, because at that size everything counts as seated (the audit above:
+9 of 9 on every draw of every arm while the same runs report sherds turned 85° out of
+true).
+
+Not settled by this ticket, and not its question: why `narrow_bottle1` and
+`narrow_bottle3` fail at every scale.
+
+### How much weight this can bear
+
+Eight objects, ten draws each, five rungs, one trained model — 400 draws. The flatness is
+consistent across seven of eight objects and confirmed by eye, which is as strong as a
+negative result gets here. It is one checkpoint, so it says "this model is insensitive to
+the size number", not "no model could be".
 
 ### Submitted 2026-09-06 — job 30130045
 
