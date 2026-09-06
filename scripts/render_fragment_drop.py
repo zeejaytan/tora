@@ -28,10 +28,14 @@ Usage:
 """
 
 import argparse
-import json
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import numpy as np
+
+from readout import cloud_for, median_draw
 
 import matplotlib
 matplotlib.use("Agg")
@@ -40,25 +44,15 @@ import matplotlib.pyplot as plt  # noqa: E402
 VIEWS = [((0, 2), "side"), ((0, 1), "top")]
 
 
-def median_draw(run, pot):
-    """Index of the draw whose turn is the median, for one object."""
-    files = sorted((Path(run) / "results").glob("*_generation*.json"))
-    rot = []
-    for i, f in enumerate(files):
-        e = json.loads(f.read_text())
-        if pot in str(e.get("name", f.stem)):
-            rot.append((e["rotation_error"], i))
-    if not rot:
-        raise SystemExit(f"{pot} not found in {run}")
-    rot.sort()
-    return rot[len(rot) // 2][1]
-
-
 def load(run, pot):
-    hits = [p for p in sorted((Path(run) / "clouds").glob("*.npz")) if pot in p.name]
-    if not hits:
-        raise SystemExit(f"no cloud for {pot} under {run}/clouds")
-    return np.load(hits[0])
+    """The saved clouds for one pot.
+
+    Lookup and median-draw selection both live in readout.py: the clouds are
+    named by sample index, not by pot, and the draw index has to be the run's own
+    generation_idx rather than a position in a sorted file listing. Getting
+    either wrong renders the wrong pot or the wrong attempt, convincingly.
+    """
+    return np.load(cloud_for(Path(run), pot))
 
 
 def draw(ax, pts, ids, view, colour_by_part, lo, hi, pad):
@@ -94,8 +88,8 @@ def main():
     for pi, pot in enumerate(a.pots):
         dw = load(a.whole, pot)
         dd = load(a.dropped, pot)
-        kw = median_draw(a.whole, pot)
-        kd = median_draw(a.dropped, pot)
+        kw, turn_w = median_draw(Path(a.whole), pot)
+        kd, turn_d = median_draw(Path(a.dropped), pot)
 
         gt_w, ids_w = dw["pts_gt"], dw["part_ids"]
         gt_d, ids_d = dd["pts_gt"], dd["part_ids"]
@@ -116,9 +110,10 @@ def main():
             colour = vi == 1
             for c, (pts, ids, title) in enumerate([
                 (gt_w, ids_w, "as it really is"),
-                (pr_w, ids_w, "model, all %d sherds" % len(set(ids_w.tolist()))),
-                (pr_d, ids_d, "model, %d sherds (one removed)"
-                 % len(set(ids_d.tolist()))),
+                (pr_w, ids_w, "model, all %d sherds, turned %.0f deg"
+                 % (len(set(ids_w.tolist())), turn_w)),
+                (pr_d, ids_d, "model, %d sherds (one removed), turned %.0f deg"
+                 % (len(set(ids_d.tolist())), turn_d)),
             ]):
                 ax = axes[r][c]
                 draw(ax, pts, ids, view, colour, lo, hi, pad)

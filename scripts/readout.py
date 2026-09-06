@@ -631,3 +631,65 @@ def rescore_from_clouds(npz_path: Path, which: str = "pred",
         "unit_box": unit,
         "frame": "stored units, absolute tau" if absolute else "unit box",
     }
+
+
+def clouds_by_object(run_dir: Path) -> dict[str, Path]:
+    """{object name: its clouds/*.npz}, keyed by the name INSIDE each file.
+
+    The saved clouds are named by sample index -- `ceramics_sample00007.npz` --
+    and nothing in the filename says which pot it is. Matching a pot name against
+    the filename therefore finds nothing, which is exactly how the first render
+    of job 30167044 failed ("no cloud for blue_pot"). Every file carries the
+    object's real name as an array inside it (tora/visualizer.py writes `name`),
+    so read that. `np.load` is lazy, so only the name is actually pulled off disk.
+    """
+    out: dict[str, Path] = {}
+    for p in sorted((Path(run_dir) / "clouds").glob("*.npz")):
+        with np.load(p, allow_pickle=True) as d:
+            out[str(d["name"])] = p
+    return out
+
+
+def cloud_for(run_dir: Path, pot: str | None = None) -> Path:
+    """The npz for one object. `pot` may be the bare name ("blue_pot").
+
+    `pot=None` means "the only object in this run" and fails loudly if there is
+    more than one, rather than silently rendering whichever sorted first.
+    """
+    table = clouds_by_object(run_dir)
+    if not table:
+        raise SystemExit(f"no clouds/*.npz under {run_dir}")
+    if pot is None:
+        if len(table) != 1:
+            raise SystemExit(
+                f"{run_dir} holds {len(table)} objects "
+                f"({', '.join(sorted(k.split('/')[-1] for k in table))}); name one"
+            )
+        return next(iter(table.values()))
+    hits = [v for k, v in table.items() if k.split("/")[-1] == pot]
+    if not hits:
+        hits = [v for k, v in table.items() if pot in k]
+    if len(hits) != 1:
+        raise SystemExit(
+            f"{pot!r} matched {len(hits)} clouds in {run_dir}; available: "
+            f"{', '.join(sorted(k.split('/')[-1] for k in table))}"
+        )
+    return hits[0]
+
+
+def median_draw(run_dir: Path, pot: str | None = None) -> tuple[int, float]:
+    """(draw index, its turn in degrees) for the object's median attempt.
+
+    The index is the run's own `generation_idx`, which is also the position of
+    that draw in the npz's stacked `generations_proposed` -- NOT a position in a
+    sorted listing of `results/`, which interleaves every object and would pick a
+    different pot's draw. Turn is the corrected, non-anchor figure from `Record`,
+    so the caption and the picture come from the same number.
+    """
+    rs = [r for r in read_run(Path(run_dir))
+          if pot is None or r.object_name.split("/")[-1] == pot or pot in r.object_name]
+    if not rs:
+        raise SystemExit(f"{pot or 'anything'} not found in {run_dir}/results")
+    rs.sort(key=lambda r: r.turn_deg)
+    mid = rs[len(rs) // 2]
+    return mid.draw, mid.turn_deg
