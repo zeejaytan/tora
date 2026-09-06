@@ -158,9 +158,21 @@ def bar_for(a, b, reseed_move):
     return max(stat, reseed_move)
 
 
+# A change has to clear TWO bars, not one. The statistical bar says the run
+# noise cannot explain it. The seam floor says a conservator could see it.
+# narrow_bottle2 is why: it moved +0.16% of pot size against a 0.05% bar --
+# statistically solid, and on a 100 mm pot that is a sixth of a millimetre,
+# which is inside the thickness of the glue line. Counting that as a pot
+# "readably destabilised" alongside pink_bowl's +11.71% is how a table ends up
+# saying something the pictures do not.
+SEAM_FLOOR = 1.0            # percent of the pot's longest dimension
+
+
 def reading_of(change, bar):
     if abs(change) < bar:
         return "not readable"
+    if abs(change) < SEAM_FLOOR:
+        return "below seam"
     return "FURTHER" if change > 0 else "closer"
 
 
@@ -232,12 +244,15 @@ def main():
         n_flat = len(rows) - n_far - n_near
         med = float(np.median([c for _, c, _ in rows]))
         print("\n  %d pots: %d readably further from home, %d readably closer, "
-              "%d not readable." % (len(rows), n_far, n_near, n_flat))
+              "%d with no change worth seeing." % (len(rows), n_far, n_near, n_flat))
         print("  Median change %+.2f%% of pot size." % med)
-        if n_far > n_near and n_far > n_flat:
+        # "Most" means most of the pots, not merely more than either other
+        # column. Four of eight is not most; saying so once already turned a
+        # split result into a verdict.
+        if n_far > len(rows) / 2.0:
             print("  READING: DESTABILISATION on most pots -- the kept sherds landed")
             print("  further from home even though losing a fragment made the task smaller.")
-        elif n_far == n_near or (n_far and n_near):
+        elif n_far and n_near:
             print("  READING: NO CONSISTENT DIRECTION. Some pots worse, some better, by")
             print("  amounts that do not point one way. This is pot-level noise, not an")
             print("  effect of absence -- report it as such, not as a majority verdict.")
@@ -277,7 +292,7 @@ def main():
                 cells = []
                 for k in keys:
                     c, r = verdicts[k][name]
-                    cells.append("%+8.2f%s" % (c, "*" if r != "not readable" else " "))
+                    cells.append("%+8.2f%s" % (c, "*" if r in ("FURTHER", "closer") else " "))
                 print("%-16s " % name + " ".join(cells))
             print("\n* = readable against that pot's own bar. These pots are the ones with")
             print("the most fragments, which are also the ones already reassembling worst,")
