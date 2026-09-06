@@ -142,11 +142,44 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   Kabsch angle also ignores displacement entirely. **Which of the three: the measurement
   was broken** — distance from home cannot be fooled that way, and it is the thing a
   conservator can see (1% of a 100 mm pot is a millimetre of open seam).
+- **Wear demonstrably causes reassembly failure — and that was shown by intervention,
+  not by correlation. Candidate 5 is ruled in, and the map closes.** Take pots TORA
+  reassembles cleanly, abrade **only the break surfaces**, leave the faces and the correct
+  poses untouched, and re-run: same pots, same pieces, same correct answer.
+  **Sherds seated falls from 0.843 to 0.645** — twenty points — with the pictures agreeing
+  (baseline `blue_pot` splits open at heaviest wear, baseline `plate` has collapsed by
+  heavy), and wear-augmented training repairs exactly those two cases. That repair is a
+  **cross-simulator** result: the worn test sweep is built with GARF's `erode_fracture_band`
+  while wear_v2 was trained on `wear_ops.apply_wear` (one-sided peak truncation, recession
+  removed) from different source objects. wear_v1 does **not** get this credit — it was
+  trained on the test operator and is object-held-out but operator-circular.
+  **Which of the three: the method genuinely failed** — plus **the measurement was broken**
+  inside this ticket's own first analysis. The residual it was asked to state (+14.3° of
+  turn against a ±27.7° between-pot spread) was measured in **turn**, which the intervention
+  moves by about **3°**, against a noise floor nine times larger. A null in that metric says
+  nothing about wear. Standing rule from here: **score wear on seating, not on turn.**
+  The bridge from simulated wear to the Juglet's own **real** wear remains **(c),
+  unmeasurable** — Gate A found real eroded fracture carries no fracture-like roughness at
+  any resolvable scale — and is a **capture** question: a scan finer than 0.1% of object
+  size, or fresh *and* worn scans of the same pot. The wear curriculum is specified in the
+  ticket and hands to `/to-spec`. Job 29308186; `WEAR_TEST_RESULTS.md` §4 §6.
+  [05: Can the Juglet's wear be demonstrated at all, at any resolution we have?](issues/05-can-wear-be-demonstrated.md)
+- **TORA can see the wear; the earlier "it cannot" was proved for the join gap only.** The
+  encoder is fed six numbers per point, not three — the sixth is the face normal of the
+  triangle each point landed on, a cue at roughly thirty times finer scale than the spacing
+  between the points themselves. Measured on the exact points the network receives,
+  break-face roughness falls monotonically as wear rises on the six real objects:
+  29.7° → 27.2 → 26.6 → 24.3 → **22.2°**. `LORA_VESSELS_29623885_RESULT.md`.
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
 ## Not yet specified
 
+- **Why `narrow_bottle3` collapses.** Now the largest unexplained failure in the corpus
+  and explained by none of the six candidates — fresh, unworn, four fragments, +55.3°
+  (2.0 sd) off the trend, rendered as a bottle torn into two flaps. Sharp enough to
+  ticket, and ticketed:
+  [07: Why does `narrow_bottle3` collapse? Fresh, unworn, four fragments](issues/07-narrow-bottle3-collapse.md)
 - **What replaces "domain gap" as the standing explanation.** `JUGLET_TORA_ROOTCAUSE.md`
   concluded synthetic-to-real domain gap plus piece count; both halves were computed on
   the corrupted run. Once the five tickets land, that note needs rewriting — but what it
@@ -159,9 +192,6 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   here needs redoing — but whether the four anchor-free Juglet configs should be split
   into "benchmark" and "deployment" is a real question, and not sharp enough to ticket
   until something depends on the answer.
-- **What a fair test of wear would even look like** given that the scan cannot resolve
-  it. Possibly a capture question (a finer scan) rather than an algorithm question, but
-  which, and at what resolution, is not sharp enough to ticket yet.
 - **Whether GARF should be run alongside.** Only becomes a question if something here
   turns out to be TORA-specific.
 
