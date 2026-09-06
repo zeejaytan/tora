@@ -6,52 +6,72 @@ runs that test whether that difference matters.
 
 WHAT IS NOT REPORTED, AND WHY. No whole-assembly score. A missing fragment
 deflates any score computed over the whole pot automatically, and quoting that
-would confuse absence with failure. Every column here is over the fragments
-that were present in that run, scored against their own reference poses.
+would confuse absence with failure. Every column here is over the fragments that
+were present in that run, scored against their own reference poses.
 
-EVERY POT GETS ITS OWN BAR. This is the correction that matters, and the first
-version of this script got it wrong. A single pooled threshold is useless here
-because run-to-run spread is wildly different from pot to pot: on job 30167044
-two draws of the same UNCHANGED pot moved `narrow_bottle3` by 35.6 degrees and
-`pink_bowl` by 0.2. Judging both against one median floor of 4.2 degrees called
-half the table readable when it was not. So each pot's change is judged against
-a threshold built from that pot's own draws, the same way tickets 01 and 06
-built the 17 and 9.1 degree rules:
+THE HEADLINE COLUMN IS DISPLACEMENT, NOT TURN, and that is a correction. Turn was
+the obvious column and it is the wrong one, for two reasons found by rendering
+job 30167044 and then probing what the render disagreed with:
+
+  A sherd can read 177 degrees while sitting where it belongs. On `plate` a
+  59-point sherd reads 177.4 deg at 1.0% of pot size from correct; on `blue_pot`
+  a 131-point sherd reads 169.6 deg at 0.20%. Small sherds are near-planar and
+  nearly symmetric, so a half-turn lands them back on themselves. The angle is a
+  symmetry of the sherd, not a misplacement, and it inflates every mean that
+  contains a small flat fragment.
+
+  Turn ignores translation entirely. A sherd carried right across the pot with
+  its orientation intact reads zero. On `galli_pot` at rank 2 the worst kept
+  sherd ends up further from home than the pot is wide, and the turn column calls
+  that change "not readable".
+
+So the question "did the kept sherds go to the right PLACE" is answered by the
+distance their points ended up from their own reference points, and turn is kept
+only as a secondary column with this caveat attached to it.
+
+THE ANCHOR IS THE LARGEST SHERD BY POINT COUNT, NOT part_id 0. `_transform` picks
+`anchor_idx = np.argmax(counts)`, and part ids are not ordered by size -- on
+`blue_pot` the anchor is part 1. Excluding part 0 instead of the real anchor
+scores the free fragment and drops a real one, which is a way to make almost any
+result appear.
+
+EVERY POT GETS ITS OWN BAR. A single pooled threshold is useless here because
+run-to-run spread differs wildly between pots. Each pot's change is judged
+against a threshold built from that pot's own draws, the same way tickets 01 and
+06 built the 17 and 9.1 degree rules:
 
     sd of the pot's draws in each arm -> SE of a median = sd / sqrt(n)
     difference of two medians          -> sqrt(SE_a^2 + SE_b^2)
     readable                           -> 2 x that
 
-and then, because the sampler is re-drawn between runs and that is a source of
-variation the within-run draws never see, the bar is raised to the RESEED arm's
-observed move for that pot whenever the reseed move is larger. Whichever
-instrument is blunter wins; that is the honest direction to err in.
+raised to the RESEED arm's observed move for that pot whenever that is larger,
+because the sampler is re-drawn between runs and the within-run draws never see
+that. The blunter instrument wins; that is the honest direction to err in.
 
-THE CONFOUND, NAMED. Removing a fragment does not leave the others untouched:
-the 5000-point budget is shared out by area, so every kept sherd is re-sampled,
-and the pot is re-centred and re-normalised on what remains. Two things bound
-that. `scripts/check_fragment_omission.py` measures it before any GPU time (on
-job 30167044: kept sherds came back 0.92% different in shape against a 1.08%
-re-sampling floor, so they are the same sherds; the pot's FRAME moved 8.92% of
-its size). And re-centring and re-scaling are a translation and a uniform
-scale, neither of which can change an angle -- which is why the turn column is
-the one to read, and displacement is not reported here at all.
+THE CONFOUND, NAMED. Removing a fragment does not leave the others untouched: the
+5000-point budget is shared out by area, so every kept sherd is re-sampled, and
+the pot is re-centred and re-normalised on what remains.
+`scripts/check_fragment_omission.py` bounds it before any GPU time (job 30167044:
+kept sherds came back 0.92% different in shape against a 1.08% re-sampling floor,
+so they are the same sherds; the pot's FRAME moved 8.92% of its size). The frame
+shift does not leak into the columns here: each arm is scored against its OWN
+reference, in its own frame, so both sides of every comparison moved together.
 
-AND THE DIRECTION CARRIES THE ARGUMENT. Removing a sherd also removes a sherd
-to place, and fewer pieces is an EASIER task, so the confound pushes towards a
+AND THE DIRECTION CARRIES THE ARGUMENT. Removing a sherd also removes a sherd to
+place, and fewer pieces is an EASIER task, so the confound pushes towards a
 better score:
 
-  graceful degradation -> the kept sherds score the SAME or BETTER.
-  destabilisation      -> the kept sherds score WORSE, even though the job got
+  graceful degradation -> the kept sherds land the SAME or CLOSER to home.
+  destabilisation      -> they land FURTHER from home, even though the job got
                           smaller. Absence actively misplaces what is present.
 
 Only the second is a reason to make generative completion load-bearing.
 
-RANKS ARE NOT COMPARABLE TO EACH OTHER UNLESS THE POT SET IS HELD FIXED. Rank 5
-only exists on pots with five or more fragments, so a rank-5 table is computed
-over the big pots alone -- and the big pots are the ones that were already doing
-badly. The per-rank summary therefore reports its own pot set, and the
-cross-rank summary at the end is restricted to pots present at every rank.
+RANKS ARE NOT COMPARABLE UNLESS THE POT SET IS HELD FIXED. Rank 5 exists only on
+pots with five or more fragments, and those are the high-fragment-count pots that
+were already scoring worst, so a rank-2-versus-rank-6 comparison across all
+available pots compares two different populations. The cross-rank table at the
+end is restricted to pots present at every rank.
 
 Usage:
   python scripts/summarise_fragment_drop.py \
@@ -68,26 +88,65 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import numpy as np
 
-from readout import read_run
+from readout import chamfer, clouds_by_object, read_run, unit_box_scale
 
 
-def by_object(run_dir):
-    """{object: {"turn": median, "draws": [...], "n_frags": int}}."""
+def displacement(run_dir):
+    """{pot: {"draws": per-draw mean displacement, "worst": ..., "n_frags": int}}.
+
+    Displacement is how far a sherd's points ended up from its OWN reference
+    points, as a percentage of the pot's longest dimension, averaged over the
+    sherds the model actually had to place.
+
+    `readout.chamfer` returns the sum of two MEAN SQUARED nearest-neighbour
+    distances, because that is what the evaluator thresholds. A squared quantity
+    cannot be quoted as a distance, and reporting it as one exaggerates large
+    errors and cannot be translated into millimetres. sqrt(c / 2) puts it back
+    into the same units as the object, and dividing by the bounding box makes it
+    a fraction of the pot.
+    """
+    out = {}
+    for name, path in clouds_by_object(run_dir).items():
+        d = np.load(path, allow_pickle=True)
+        if "generations_proposed" not in d:
+            continue
+        gt, ids = d["pts_gt"], d["part_ids"]
+        unit = unit_box_scale(gt)
+        parts = sorted(set(ids.tolist()))
+        # The anchor is handed over already seated, so it must not be scored.
+        # It is the sherd with the most points -- dataset.py takes argmax(counts).
+        anchor = max(parts, key=lambda p: int((ids == p).sum()))
+        placed = [p for p in parts if p != anchor]
+        if not placed:
+            continue
+        means, worsts = [], []
+        for g in d["generations_proposed"]:
+            per = []
+            for p in placed:
+                m = ids == p
+                c = chamfer(gt[m] / unit, g[m] / unit)
+                per.append(100.0 * float(np.sqrt(max(c, 0.0) / 2.0)))
+            means.append(float(np.mean(per)))
+            worsts.append(float(np.max(per)))
+        out[name.split("/")[-1]] = {
+            "draws": np.array(means),
+            "median": float(np.median(means)),
+            "worst": float(np.median(worsts)),
+            "n_frags": len(parts),
+            "n_placed": len(placed),
+        }
+    return out
+
+
+def turn(run_dir):
+    """{pot: median turn in degrees}. Secondary -- see the caveat in the header."""
     out = {}
     for r in read_run(Path(run_dir)):
-        out.setdefault(r.object_name, []).append(r)
-    return {
-        name: {
-            "turn": float(np.median([r.turn_deg for r in rs])),
-            "draws": np.array([r.turn_deg for r in rs], dtype=float),
-            "n_frags": rs[0].n_fragments,
-        }
-        for name, rs in out.items()
-    }
+        out.setdefault(r.object_name.split("/")[-1], []).append(r.turn_deg)
+    return {k: float(np.median(v)) for k, v in out.items()}
 
 
 def se_median(draws):
-    """Standard error of a median, the way tickets 01 and 06 computed it."""
     n = len(draws)
     if n < 2:
         return float("inf")
@@ -95,18 +154,14 @@ def se_median(draws):
 
 
 def bar_for(a, b, reseed_move):
-    """How far two medians must differ on this pot before it is readable.
-
-    Two independent estimates, and the blunter one wins: the spread of the draws
-    inside each run, and the move actually observed between two runs of the
-    unchanged pot (which also carries the sampler being re-drawn).
-    """
     stat = 2.0 * float(np.hypot(se_median(a), se_median(b)))
-    return max(stat, reseed_move), stat
+    return max(stat, reseed_move)
 
 
-def short(name):
-    return str(name).split("/")[-1]
+def reading_of(change, bar):
+    if abs(change) < bar:
+        return "not readable"
+    return "FURTHER" if change > 0 else "closer"
 
 
 def main():
@@ -116,118 +171,123 @@ def main():
     ap.add_argument("--dropped", nargs="+", required=True)
     a = ap.parse_args()
 
-    whole = by_object(a.whole)
-    reseed = by_object(a.reseed)
-    dropped = {Path(d).name: by_object(d) for d in a.dropped}
+    whole = displacement(Path(a.whole))
+    reseed = displacement(Path(a.reseed))
+    dropped = {Path(d).name: displacement(Path(d)) for d in a.dropped}
+    turn_w = turn(Path(a.whole))
+    turn_d = {Path(d).name: turn(Path(d)) for d in a.dropped}
+
+    print("HOW FAR THE PLACED SHERDS ENDED UP FROM WHERE THEY BELONG")
+    print("as a percentage of the pot's longest dimension. The anchor is excluded:")
+    print("it is handed over already seated. Under about 1% the seam is closed;")
+    print("30% is a sherd sitting a third of the pot away from its socket.\n")
 
     print("Control -- the same whole pot, nothing removed, run twice.")
-    print("This is what 'no change' looks like, POT BY POT. It is not one number:")
-    print("some of these pots are far noisier than others, and a pooled floor")
-    print("would call their noise a finding.\n")
-    print(f"{'pot':18s} {'frags':>5s} {'turn A':>8s} {'turn B':>8s} {'move':>7s} "
-          f"{'draw sd':>8s} {'stat bar':>9s} {'BAR USED':>9s}")
-    print("-" * 82)
-
-    reseed_move, bars = {}, {}
+    print("This is what 'no change' looks like, POT BY POT.\n")
+    print("%-16s %6s %8s %8s %7s %9s" %
+          ("pot", "placed", "run A", "run B", "move", "BAR USED"))
+    print("-" * 60)
+    moves, bars = {}, {}
     for name in sorted(whole):
         if name not in reseed:
             continue
         wa, wb = whole[name], reseed[name]
-        mv = abs(wa["turn"] - wb["turn"])
-        reseed_move[name] = mv
-        b, stat = bar_for(wa["draws"], wb["draws"], mv)
-        bars[name] = b
-        print(f"{short(name):18s} {wa['n_frags']:5d} {wa['turn']:8.1f} "
-              f"{wb['turn']:8.1f} {mv:7.1f} {np.std(wa['draws'], ddof=1):8.1f} "
-              f"{stat:9.1f} {b:9.1f}")
-
+        mv = abs(wa["median"] - wb["median"])
+        moves[name] = mv
+        bars[name] = bar_for(wa["draws"], wb["draws"], mv)
+        print("%-16s %6d %8.2f %8.2f %7.2f %9.2f"
+              % (name, wa["n_placed"], wa["median"], wb["median"], mv, bars[name]))
     if not bars:
         raise SystemExit("no pot appears in both the whole and reseed runs")
-    print(f"\nThe bar runs from {min(bars.values()):.1f} to "
-          f"{max(bars.values()):.1f} degrees depending on the pot. Anything")
-    print("smaller than a pot's own bar has not been shown to move that pot.\n")
+    print("\nThe bar runs from %.2f to %.2f percent of pot size depending on the pot."
+          % (min(bars.values()), max(bars.values())))
+    print("A change smaller than a pot's own bar has not been shown to move that pot.\n")
 
     verdicts = {}
-    for label, tab in dropped.items():
-        print("=" * 88)
-        print(f"{label}: one sherd removed. Scored on the sherds that REMAIN.")
-        print("=" * 88)
-        print(f"{'pot':18s} {'frags':>5s} {'->':>3s} {'whole':>7s} {'kept':>7s} "
-              f"{'change':>8s} {'its bar':>8s} {'reading':>12s}")
-        print("-" * 88)
+    for label, tab in sorted(dropped.items()):
+        print("=" * 78)
+        print("%s: one sherd removed. Scored on the sherds that REMAIN." % label)
+        print("=" * 78)
+        print("%-16s %9s %8s %8s %8s %8s %13s" %
+              ("pot", "placed", "whole", "kept", "change", "its bar", "reading"))
+        print("-" * 78)
         rows = []
         for name in sorted(tab):
             if name not in whole or name not in bars:
                 continue
             tw, td = whole[name], tab[name]
-            d = td["turn"] - tw["turn"]
-            b, _ = bar_for(tw["draws"], td["draws"], reseed_move[name])
-            if abs(d) < b:
-                reading = "not readable"
-            elif d > 0:
-                reading = "WORSE"
-            else:
-                reading = "better"
-            rows.append((name, d, b, reading))
-            print(f"{short(name):18s} {tw['n_frags']:5d} {td['n_frags']:3d} "
-                  f"{tw['turn']:7.1f} {td['turn']:7.1f} {d:+8.1f} {b:8.1f} "
-                  f"{reading:>12s}")
+            ch = td["median"] - tw["median"]
+            b = bar_for(tw["draws"], td["draws"], moves[name])
+            r = reading_of(ch, b)
+            rows.append((name, ch, r))
+            print("%-16s %4d->%-4d %8.2f %8.2f %+8.2f %8.2f %13s"
+                  % (name, tw["n_placed"], td["n_placed"],
+                     tw["median"], td["median"], ch, b, r))
         if not rows:
             print("  no pot in common with the whole run")
             continue
-        verdicts[label] = {n: (d, b, r) for n, d, b, r in rows}
-        n_worse = sum(1 for *_, r in rows if r == "WORSE")
-        n_better = sum(1 for *_, r in rows if r == "better")
-        n_flat = len(rows) - n_worse - n_better
-        med = float(np.median([d for _, d, _, _ in rows]))
-        print(f"\n  {len(rows)} pots: {n_worse} readably worse, {n_better} "
-              f"readably better, {n_flat} not readable. Median change "
-              f"{med:+.1f} deg.")
-        if n_worse > n_better and n_worse > n_flat:
-            print("  READING: DESTABILISATION on most pots -- kept sherds went to")
-            print("  worse places even though losing a fragment made the task smaller.")
-        elif n_flat >= n_worse + n_better:
-            print("  READING: GRACEFUL DEGRADATION. On most pots losing a sherd did")
-            print("  not readably move the ones that remain.")
-        elif n_better >= n_worse:
-            print("  READING: GRACEFUL DEGRADATION, and the task got easier -- the")
-            print("  kept sherds improved, which is what one fewer piece buys.")
+        verdicts[label] = {n: (c, r) for n, c, r in rows}
+        n_far = sum(1 for _, _, r in rows if r == "FURTHER")
+        n_near = sum(1 for _, _, r in rows if r == "closer")
+        n_flat = len(rows) - n_far - n_near
+        med = float(np.median([c for _, c, _ in rows]))
+        print("\n  %d pots: %d readably further from home, %d readably closer, "
+              "%d not readable." % (len(rows), n_far, n_near, n_flat))
+        print("  Median change %+.2f%% of pot size." % med)
+        if n_far > n_near and n_far > n_flat:
+            print("  READING: DESTABILISATION on most pots -- the kept sherds landed")
+            print("  further from home even though losing a fragment made the task smaller.")
+        elif n_far == n_near or (n_far and n_near):
+            print("  READING: NO CONSISTENT DIRECTION. Some pots worse, some better, by")
+            print("  amounts that do not point one way. This is pot-level noise, not an")
+            print("  effect of absence -- report it as such, not as a majority verdict.")
+        elif n_flat >= n_far + n_near:
+            print("  READING: GRACEFUL DEGRADATION. On most pots losing a sherd did not")
+            print("  readably move the ones that remain.")
         else:
-            print("  READING: MIXED. Report pot by pot; there is no majority.")
+            print("  READING: GRACEFUL DEGRADATION, and the task got easier -- the kept")
+            print("  sherds improved, which is what one fewer piece buys.")
+
+        print("\n  Secondary, and NOT to be quoted on its own -- median TURN, degrees.")
+        print("  A near-planar sherd sitting where it belongs can read 177 degrees, and")
+        print("  a sherd carried across the pot with its orientation intact reads zero.")
+        print("  %-16s %8s %8s %8s" % ("pot", "whole", "kept", "change"))
+        for name, _, _ in rows:
+            tv, dv = turn_w.get(name), turn_d[label].get(name)
+            if tv is None or dv is None:
+                continue
+            print("  %-16s %8.1f %8.1f %+8.1f" % (name, tv, dv, dv - tv))
         print()
 
-    # Cross-rank, on a fixed pot set only. Ranks differ in which pots can supply
-    # them, and the pots that survive to high ranks are the ones with the most
-    # fragments -- which are also the ones already doing worst.
     if len(verdicts) > 1:
         common = set.intersection(*(set(v) for v in verdicts.values()))
-        print("=" * 88)
+        print("=" * 78)
         print("Across ranks, on the pots that appear at EVERY rank")
-        print("=" * 88)
+        print("=" * 78)
         if not common:
             print("no pot survives every rank; the ranks cannot be compared.")
         else:
-            print("Ranks remove progressively smaller sherds. If absence")
-            print("destabilises, removing a BIGGER sherd should hurt more.\n")
-            print(f"{'pot':18s} " + " ".join(f"{k.split('_')[1]:>9s}"
-                                             for k in sorted(verdicts)))
-            print("-" * (19 + 10 * len(verdicts)))
+            print("Rank 2 removes the largest droppable sherd, higher ranks smaller ones.")
+            print("The prediction was that removing a BIGGER sherd hurts more, so these")
+            print("should FALL from left to right. Change in % of pot size.\n")
+            keys = sorted(verdicts)
+            print("%-16s " % "pot" + " ".join("%9s" % k.split("_")[1] for k in keys))
+            print("-" * (17 + 10 * len(keys)))
             for name in sorted(common):
                 cells = []
-                for k in sorted(verdicts):
-                    d, b, r = verdicts[k][name]
-                    mark = "*" if r != "not readable" else " "
-                    cells.append(f"{d:+8.1f}{mark}")
-                print(f"{short(name):18s} " + " ".join(cells))
-            print("\n* = readable against that pot's own bar. Rank 2 is the "
-                  "largest droppable sherd,")
-            print("higher ranks are smaller ones. A rising trend left to right "
-                  "would mean the")
-            print("opposite of the prediction: small sherds hurting more than big ones.")
+                for k in keys:
+                    c, r = verdicts[k][name]
+                    cells.append("%+8.2f%s" % (c, "*" if r != "not readable" else " "))
+                print("%-16s " % name + " ".join(cells))
+            print("\n* = readable against that pot's own bar. These pots are the ones with")
+            print("the most fragments, which are also the ones already reassembling worst,")
+            print("so this table says nothing about the small pots that TORA gets right.")
 
     print()
-    print("Before quoting any of this, LOOK at the renders: whether the vessel")
-    print("still closes is not in any of these columns.")
+    print("Before quoting any of this, LOOK at the renders. Whether the vessel still")
+    print("closes is in none of these columns, and the render must be read against the")
+    print("dropped arm's OWN reference -- with a sherd gone, a correct answer has a")
+    print("hole in it too.")
     return 0
 
 
