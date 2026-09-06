@@ -48,9 +48,14 @@ re-numbers what is left: `pink_bowl` part 1 in the rank-2 run is part 1 of three
 in the whole run, but `plate` part 1 is not. It goes through AREA RANK, which
 both arms agree on because `_sample_points` allots points by area share. The
 mapping is then GATED, not assumed: each paired sherd's covariance eigenvalue
-ratios must agree to SHAPE_TOL, a signature that survives the re-centring and
-re-normalising but not a swap for a different sherd. A pot that fails the gate is
-refused a row rather than given a caveat.
+ratios must agree -- a signature that survives the re-centring and re-normalising
+but not a swap for a different sherd. The tolerance is that pot's OWN control gap,
+because re-sampling disturbs the signature by an amount that depends on the pot:
+0.008 on `pink_bowl`, 0.112 on `galli_pot`. A flat tolerance picked by eye refused
+`blue_pot` and `galli_pot` at gaps SMALLER than their own controls produce. A pot
+that fails the gate is refused a row rather than given a caveat -- `plate` does,
+at 0.119 against its own 0.032, on its smallest sherd, which is what two
+near-equal-area sherds swapping rank between the two arms looks like.
 
 EVERY POT GETS ITS OWN BAR. A single pooled threshold is useless here because
 run-to-run spread differs wildly between pots. Each pot's change is judged
@@ -222,7 +227,14 @@ SEAM_FLOOR = 1.0            # percent of the pot's longest dimension
 # Two re-samplings of the same mesh agree on shape_of to ~1e-3; two
 # different sherds of the same pot differ by tenths. Anything in between
 # means the rank mapping is not doing what this script claims it does.
-SHAPE_TOL = 0.05
+# The gate is per pot, for the same reason the displacement bar is: re-sampling
+# disturbs a pot's shape signature by an amount that depends on the pot. The
+# control arm measures exactly that -- nothing is dropped there, so its mapping
+# is certainly right -- and it ranges from 0.008 on pink_bowl to 0.112 on
+# galli_pot. A flat tolerance either refuses pots whose mapping is fine or waves
+# through one that is genuinely mis-paired. SHAPE_FLOOR only keeps the gate from
+# collapsing onto a pot whose control gap is near zero.
+SHAPE_FLOOR = 0.02
 
 
 def reading_of(change, bar):
@@ -260,7 +272,7 @@ def main():
     print("%-16s %6s %8s %8s %7s %9s %10s" %
           ("pot", "placed", "run A", "run B", "move", "BAR USED", "shape gap"))
     print("-" * 72)
-    moves, bars = {}, {}
+    moves, bars, shape_bars = {}, {}, {}
     for name in sorted(whole):
         if name not in reseed:
             continue
@@ -273,6 +285,7 @@ def main():
         mv = abs(ma - mb)
         moves[name] = mv
         bars[name] = bar_for(wa, wb, mv)
+        shape_bars[name] = max(max(gaps), SHAPE_FLOOR)
         print("%-16s %6d %8.2f %8.2f %7.2f %9.2f %10.4f"
               % (name, len(whole[name]["disp"]), ma, mb, mv, bars[name],
                  max(gaps)))
@@ -303,12 +316,13 @@ def main():
                 print("%-16s   REFUSED: sherd counts do not line up" % name)
                 continue
             bad = max(gaps)
-            if bad > SHAPE_TOL:
+            if bad > shape_bars[name]:
                 # The gate, not a caveat. If the sherds do not pair up by shape
                 # the rank mapping is wrong, and every number in the row would be
                 # one sherd compared against a different sherd.
-                print("%-16s   REFUSED: shape gaps %s -- mapping unsafe"
-                      % (name, " ".join("%.3f" % g for g in gaps)))
+                print("%-16s   REFUSED: shape gap %.3f against this pot's own "
+                      "%.3f -- sherds do not pair up"
+                      % (name, bad, shape_bars[name]))
                 continue
             mw, md = float(np.median(wm)), float(np.median(dm))
             ch = md - mw
