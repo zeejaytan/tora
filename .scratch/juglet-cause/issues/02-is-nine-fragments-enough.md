@@ -39,7 +39,19 @@ fragment count is not a clean predictor even among fresh pots.
       **not possible from disk: no `*_fresh_*` or ladder run saved clouds, only
       `results/`. The two figures that were producible without GPU are
       `artifacts/fragment_count.png` (the comparison) and `artifacts/anchor_mode.png`
-      (the confound). Drawing the two assemblies side by side is owed and needs GPU.**
+      (the confound). Drawing the two assemblies side by side was owed and needed GPU.**
+      **Paid 2026-09-06 by ticket 04's job 30167044**, whose `whole` arm saves clouds for
+      all eight fresh pots — no GPU time bought for this. `artifacts/fragdrop/juglet_vs_fresh.png`
+      (`scripts/render_juglet_vs_fresh.py`): the Juglet's worst-placed sherd ends **32.2% of
+      pot size** from home, against `galli_pot` 29.9%, `plate` 32.4% and `narrow_bottle1`
+      47.2% — **inside the fresh spread**. The proposed juglet still reads as a juglet in
+      outline, handle and neck included, with its sherds shuffled: the same *kind* of
+      failure a fresh pot has, not a different one. So the shared score means what this
+      ticket says it means. The caption metric had to be fixed to get there — quoting the
+      worst sherd's **turn** made `plate` read 177° for a sherd sitting 1% of pot size from
+      correct (near-planar sherds are near-symmetric, and the Kabsch angle ignores
+      displacement outright), so the caption now quotes distance from home, which a
+      conservator can read as open seam.
 - [x] If it falls inside the band: say so, and record that the wear hypothesis has no
       residual to explain
 - [x] Names which of the three this is

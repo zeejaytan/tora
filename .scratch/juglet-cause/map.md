@@ -109,6 +109,39 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   blunt instrument, and the instrument was not the problem. Job 30130049. Render:
   `artifacts/juglet_arms_sherds.png`.
   [06: Buy a finer decision rule — twenty draws per condition](issues/06-twenty-draws-per-condition.md)
+- **A missing sherd degrades gracefully; it does not destabilise the sherds that
+  remain. Candidate 3 is ruled out.** Take a pot TORA reassembles cleanly, remove one
+  fragment, re-run, and score only the survivors against their unchanged correct poses:
+  across ranks 2–6 on eight fresh pots (job 30167044, ten draws per arm, with a reseed
+  control arm giving each pot its own noise floor) there is **no consistent direction** —
+  rank 2 is two pots further, two closer, three unchanged, median +0.15% of pot size, and
+  ranks 3–6 read graceful degradation. The direction is what carries it: fewer pieces is
+  an easier task, so the confound pushes *towards* better scores and destabilisation would
+  have had to beat it. **One exception survives every correction** — `pink_bowl` at rank 2,
+  1.48% → 13.06% of pot size (1.5 mm → 13 mm on a 100 mm bowl) with the render showing its
+  two remaining pieces coming apart — but it has exactly one free sherd, so n = 1.
+  **Which of the three: the measurement was broken**, four times; two of the faults were
+  found inside this ticket (the two arms averaged over *different* sherd sets; the shape
+  gate's tolerance was eyeballed and refusing correct mappings) and both pointed the wrong
+  way — fixing them turned the rank-2 headline from “destabilisation on most pots” into
+  “no consistent direction”. On the corrected measurement the method mostly does not fail
+  on absence, so **generative completion of the missing piece is not load-bearing for the
+  Juglet**. Repeated drops (50% / 25% present) remain untested — that is `U4`'s deeper
+  rung. Renders: `artifacts/fragdrop/fragment_drop_rank{2,3}.png`.
+  [04: Does a missing sherd destabilise a pot that TORA otherwise reassembles?](issues/04-missing-sherd-destabilises.md)
+- **The Juglet's failure looks like a fresh pot's failure, not a different kind of
+  failure** — the render ticket 02 owed and could not produce from disk.
+  `artifacts/fragdrop/juglet_vs_fresh.png` draws the Juglet's proposed assembly beside
+  three fresh pots, one colour per sherd, nothing re-centred. Its worst-placed sherd ends
+  **32.2% of pot size** from home, against `galli_pot` 29.9%, `plate` 32.4% and
+  `narrow_bottle1` 47.2% — inside the fresh spread, not an outlier. The proposed juglet
+  still reads as a juglet in outline with its sherds shuffled. The caption metric had to
+  be changed to get there: it used to quote the worst sherd's **turn**, and `plate`
+  reported 177° for a sherd sitting 1% of pot size from correct — small sherds are
+  near-planar and near-symmetric, so a half-turn puts them back on themselves, and the
+  Kabsch angle also ignores displacement entirely. **Which of the three: the measurement
+  was broken** — distance from home cannot be fooled that way, and it is the thing a
+  conservator can see (1% of a 100 mm pot is a millimetre of open seam).
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
