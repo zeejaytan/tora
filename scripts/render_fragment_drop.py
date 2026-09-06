@@ -5,14 +5,25 @@ in scripts/summarise_fragment_drop.py say how far each kept sherd turned. They
 cannot say whether the result is still a vessel, and that is the question a
 conservator actually asks of a reassembly.
 
-Three columns per pot, in the SAME frame with nothing re-centred between them:
+Four columns per pot, in the SAME frame with nothing re-centred between them:
 
-  reference   the pot as it really is, every sherd in its correct place
-  whole       what the model proposed with all sherds available
-  dropped     what the model proposed with one sherd removed
+  reference (whole)    the pot as it really is, every sherd in its correct place
+  model (whole)        what the model proposed with all sherds available
+  reference (dropped)  the same pot MINUS the removed sherd, every remaining
+                       sherd still in its correct place
+  model (dropped)      what the model proposed with that sherd removed
 
-The removed sherd is drawn in the reference column as a hollow outline, so the
-hole it leaves is visible rather than merely absent.
+THE THIRD COLUMN IS NOT DECORATION, and leaving it out made the first version of
+this figure unreadable. With a sherd genuinely gone, a CORRECT answer also has a
+hole in it. Without the third column there is no way to tell the hole the
+missing sherd leaves from a hole the model opened by misplacing the sherds it
+kept -- which is the entire question. Read column 4 against column 3, never
+against column 1.
+
+Colours are per column, not matched across the pair of arms: removing a fragment
+renumbers the ones that remain, so sherd 2 in the dropped arm is not sherd 2 in
+the whole arm. Within each arm the reference and the proposal do share colours,
+which is the comparison that matters.
 
 Two rows of views per pot. The first is the silhouette -- it answers "does it
 close" and nothing else. The second colours each sherd separately, because a
@@ -82,7 +93,7 @@ def main():
     a = ap.parse_args()
 
     nrow = len(a.pots) * len(VIEWS)
-    fig, axes = plt.subplots(nrow, 3, figsize=(3 * 2.4, nrow * 2.4),
+    fig, axes = plt.subplots(nrow, 4, figsize=(4 * 2.4, nrow * 2.4),
                              squeeze=False)
 
     for pi, pot in enumerate(a.pots):
@@ -108,12 +119,16 @@ def main():
         for vi, (view, vname) in enumerate(VIEWS):
             r = pi * len(VIEWS) + vi
             colour = vi == 1
+            n_w = len(set(ids_w.tolist()))
+            n_d = len(set(ids_d.tolist()))
             for c, (pts, ids, title) in enumerate([
-                (gt_w, ids_w, "as it really is"),
+                (gt_w, ids_w, "as it really is, %d sherds" % n_w),
                 (pr_w, ids_w, "model, all %d sherds, turned %.0f deg"
-                 % (len(set(ids_w.tolist())), turn_w)),
-                (pr_d, ids_d, "model, %d sherds (one removed), turned %.0f deg"
-                 % (len(set(ids_d.tolist())), turn_d)),
+                 % (n_w, turn_w)),
+                (gt_d, ids_d, "as it really is, %d sherds\n(one removed) -- "
+                 "CORRECT answer with a hole" % n_d),
+                (pr_d, ids_d, "model, %d sherds, turned %.0f deg\n"
+                 "compare with the panel to its LEFT" % (n_d, turn_d)),
             ]):
                 ax = axes[r][c]
                 draw(ax, pts, ids, view, colour, lo, hi, pad)
@@ -124,7 +139,9 @@ def main():
         "same frame in every panel, nothing re-centred; the dropped arm is "
         "rescaled onto the reference so the two are comparable\n"
         "top row of each pair: silhouette -- does it close.  bottom row: one "
-        "colour per sherd -- did the sherds it kept go to the right places",
+        "colour per sherd -- did the sherds it kept go to the right places\n"
+        "COLUMN 4 IS READ AGAINST COLUMN 3, not column 1: with a sherd gone, "
+        "the correct answer has a hole in it too",
         fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     fig.savefig(a.out, dpi=130)
