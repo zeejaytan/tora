@@ -183,12 +183,11 @@ def match(whole, drop, k):
     d_ranks = sorted(drop["disp"])
     if len(w_ranks) != len(d_ranks):
         return None, None, float("inf")
-    bad = 0.0
-    for wr, dr in zip([1] + w_ranks, [1] + d_ranks):
-        bad = max(bad, float(np.max(np.abs(whole["shape"][wr] - drop["shape"][dr]))))
+    gaps = [float(np.max(np.abs(whole["shape"][wr] - drop["shape"][dr])))
+            for wr, dr in zip([1] + w_ranks, [1] + d_ranks)]
     wm = np.mean([whole["disp"][r] for r in w_ranks], axis=0)
     dm = np.mean([drop["disp"][r] for r in d_ranks], axis=0)
-    return wm, dm, bad
+    return wm, dm, gaps
 
 
 def turn(run_dir):
@@ -254,24 +253,29 @@ def main():
 
     print("Control -- the same whole pot, nothing removed, run twice.")
     print("This is what 'no change' looks like, POT BY POT.\n")
-    print("%-16s %6s %8s %8s %7s %9s" %
-          ("pot", "placed", "run A", "run B", "move", "BAR USED"))
-    print("-" * 60)
+    # The shape-gap column CALIBRATES the gate. Nothing is dropped here, so the
+    # sherd-to-sherd mapping is known to be right, and whatever gap it produces
+    # is the gap re-sampling alone can manufacture. A dropped arm has to be
+    # judged against this number, not against zero.
+    print("%-16s %6s %8s %8s %7s %9s %10s" %
+          ("pot", "placed", "run A", "run B", "move", "BAR USED", "shape gap"))
+    print("-" * 72)
     moves, bars = {}, {}
     for name in sorted(whole):
         if name not in reseed:
             continue
         # Nothing is dropped in either control arm, so k=None matches every
         # sherd to itself -- the same code path the real comparison uses.
-        wa, wb, bad = match(whole[name], reseed[name], None)
+        wa, wb, gaps = match(whole[name], reseed[name], None)
         if wa is None:
             continue
         ma, mb = float(np.median(wa)), float(np.median(wb))
         mv = abs(ma - mb)
         moves[name] = mv
         bars[name] = bar_for(wa, wb, mv)
-        print("%-16s %6d %8.2f %8.2f %7.2f %9.2f"
-              % (name, len(whole[name]["disp"]), ma, mb, mv, bars[name]))
+        print("%-16s %6d %8.2f %8.2f %7.2f %9.2f %10.4f"
+              % (name, len(whole[name]["disp"]), ma, mb, mv, bars[name],
+                 max(gaps)))
     if not bars:
         raise SystemExit("no pot appears in both the whole and reseed runs")
     print("\nThe bar runs from %.2f to %.2f percent of pot size depending on the pot."
@@ -294,16 +298,17 @@ def main():
         for name in sorted(tab):
             if name not in whole or name not in bars:
                 continue
-            wm, dm, bad = match(whole[name], tab[name], k)
+            wm, dm, gaps = match(whole[name], tab[name], k)
             if wm is None:
                 print("%-16s   REFUSED: sherd counts do not line up" % name)
                 continue
+            bad = max(gaps)
             if bad > SHAPE_TOL:
                 # The gate, not a caveat. If the sherds do not pair up by shape
                 # the rank mapping is wrong, and every number in the row would be
                 # one sherd compared against a different sherd.
-                print("%-16s   REFUSED: shapes disagree by %.3f, mapping unsafe"
-                      % (name, bad))
+                print("%-16s   REFUSED: shape gaps %s -- mapping unsafe"
+                      % (name, " ".join("%.3f" % g for g in gaps)))
                 continue
             mw, md = float(np.median(wm)), float(np.median(dm))
             ch = md - mw
