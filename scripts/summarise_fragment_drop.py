@@ -35,6 +35,23 @@ THE ANCHOR IS THE LARGEST SHERD BY POINT COUNT, NOT part_id 0. `_transform` pick
 scores the free fragment and drops a real one, which is a way to make almost any
 result appear.
 
+THE TWO ARMS ARE MATCHED SHERD FOR SHERD, and that is the second correction. The
+first version averaged the whole arm over every placed sherd and the dropped arm
+over the survivors -- a mean over n sherds against a mean over n-1 DIFFERENT
+ones. That alone moves the answer: drop a well-placed sherd and the survivors'
+average rises with nothing having happened to them, drop a badly-placed one and
+it falls. `narrow_bottle3` read 14.4% CLOSER under that arithmetic. The dropped
+sherd is now left out of both sides.
+
+Matching cannot go through part ids, because `_omit_fragment` deletes a mesh and
+re-numbers what is left: `pink_bowl` part 1 in the rank-2 run is part 1 of three
+in the whole run, but `plate` part 1 is not. It goes through AREA RANK, which
+both arms agree on because `_sample_points` allots points by area share. The
+mapping is then GATED, not assumed: each paired sherd's covariance eigenvalue
+ratios must agree to SHAPE_TOL, a signature that survives the re-centring and
+re-normalising but not a swap for a different sherd. A pot that fails the gate is
+refused a row rather than given a caveat.
+
 EVERY POT GETS ITS OWN BAR. A single pooled threshold is useless here because
 run-to-run spread differs wildly between pots. Each pot's change is judged
 against a threshold built from that pot's own draws, the same way tickets 01 and
@@ -81,6 +98,7 @@ Usage:
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -91,12 +109,26 @@ import numpy as np
 from readout import chamfer, clouds_by_object, read_run, unit_box_scale
 
 
-def displacement(run_dir):
-    """{pot: {"draws": per-draw mean displacement, "worst": ..., "n_frags": int}}.
+def shape_of(pts):
+    """A frame-free signature of one sherd: its covariance eigenvalue ratios.
+
+    The two arms centre and normalise the pot differently, so nothing absolute
+    survives the crossing. Removing the sherd's own centroid kills the shift, and
+    dividing the eigenvalues by the largest kills the uniform rescale, so what is
+    left describes the sherd's shape alone. Two re-samplings of the same mesh
+    agree on it; two different sherds do not.
+    """
+    q = pts - pts.mean(0)
+    e = np.linalg.eigvalsh(np.cov(q.T))
+    e = np.sort(e)[::-1]
+    return e[1:] / max(e[0], 1e-12)
+
+
+def per_part(run_dir):
+    """{pot: {"disp": {area rank: per-draw displacement}, "shape": {...}, ...}}.
 
     Displacement is how far a sherd's points ended up from its OWN reference
-    points, as a percentage of the pot's longest dimension, averaged over the
-    sherds the model actually had to place.
+    points, as a percentage of the pot's longest dimension.
 
     `readout.chamfer` returns the sum of two MEAN SQUARED nearest-neighbour
     distances, because that is what the evaluator thresholds. A squared quantity
@@ -104,6 +136,13 @@ def displacement(run_dir):
     errors and cannot be translated into millimetres. sqrt(c / 2) puts it back
     into the same units as the object, and dividing by the bounding box makes it
     a fraction of the pot.
+
+    KEYED BY AREA RANK, NOT BY PART ID, and that is the point of this function.
+    `dataset._omit_fragment` deletes a mesh and the survivors are re-numbered, so
+    part 1 in a dropped run is NOT part 1 in the whole run. Ranking by point
+    count recovers the correspondence, because `_sample_points` hands out the
+    5000-point budget as area over total area -- monotone in area, which is the
+    same order `_omit_fragment` ranks by. Rank 1 is the anchor.
     """
     out = {}
     for name, path in clouds_by_object(run_dir).items():
@@ -113,29 +152,43 @@ def displacement(run_dir):
         gt, ids = d["pts_gt"], d["part_ids"]
         unit = unit_box_scale(gt)
         parts = sorted(set(ids.tolist()))
-        # The anchor is handed over already seated, so it must not be scored.
-        # It is the sherd with the most points -- dataset.py takes argmax(counts).
-        anchor = max(parts, key=lambda p: int((ids == p).sum()))
-        placed = [p for p in parts if p != anchor]
-        if not placed:
+        order = sorted(parts, key=lambda p: -int((ids == p).sum()))
+        disp, shape = {}, {}
+        for rank, p in enumerate(order, start=1):
+            m = ids == p
+            shape[rank] = shape_of(gt[m])
+            if rank == 1:
+                continue                  # the anchor is handed over seated
+            disp[rank] = np.array([
+                100.0 * float(np.sqrt(max(chamfer(gt[m] / unit, g[m] / unit), 0.0) / 2.0))
+                for g in d["generations_proposed"]])
+        if not disp:
             continue
-        means, worsts = [], []
-        for g in d["generations_proposed"]:
-            per = []
-            for p in placed:
-                m = ids == p
-                c = chamfer(gt[m] / unit, g[m] / unit)
-                per.append(100.0 * float(np.sqrt(max(c, 0.0) / 2.0)))
-            means.append(float(np.mean(per)))
-            worsts.append(float(np.max(per)))
-        out[name.split("/")[-1]] = {
-            "draws": np.array(means),
-            "median": float(np.median(means)),
-            "worst": float(np.median(worsts)),
-            "n_frags": len(parts),
-            "n_placed": len(placed),
-        }
+        out[name.split("/")[-1]] = {"disp": disp, "shape": shape,
+                                    "n_frags": len(parts)}
     return out
+
+
+def match(whole, drop, k):
+    """Line the two arms up sherd for sherd, or refuse.
+
+    The dropped arm lost the sherd at area rank `k`, so its ranks 2..n-1 are the
+    whole arm's ranks 2..n with `k` taken out, in the same order. Returns
+    (whole draws, dropped draws, worst shape disagreement) with the means taken
+    over THE SAME SHERDS on both sides -- without which the comparison is
+    between a mean over n sherds and a mean over n-1 different ones, and
+    dropping a well-placed sherd raises the survivors' average by itself.
+    """
+    w_ranks = [r for r in sorted(whole["disp"]) if r != k]
+    d_ranks = sorted(drop["disp"])
+    if len(w_ranks) != len(d_ranks):
+        return None, None, float("inf")
+    bad = 0.0
+    for wr, dr in zip([1] + w_ranks, [1] + d_ranks):
+        bad = max(bad, float(np.max(np.abs(whole["shape"][wr] - drop["shape"][dr]))))
+    wm = np.mean([whole["disp"][r] for r in w_ranks], axis=0)
+    dm = np.mean([drop["disp"][r] for r in d_ranks], axis=0)
+    return wm, dm, bad
 
 
 def turn(run_dir):
@@ -167,6 +220,11 @@ def bar_for(a, b, reseed_move):
 # saying something the pictures do not.
 SEAM_FLOOR = 1.0            # percent of the pot's longest dimension
 
+# Two re-samplings of the same mesh agree on shape_of to ~1e-3; two
+# different sherds of the same pot differ by tenths. Anything in between
+# means the rank mapping is not doing what this script claims it does.
+SHAPE_TOL = 0.05
+
 
 def reading_of(change, bar):
     if abs(change) < bar:
@@ -183,9 +241,9 @@ def main():
     ap.add_argument("--dropped", nargs="+", required=True)
     a = ap.parse_args()
 
-    whole = displacement(Path(a.whole))
-    reseed = displacement(Path(a.reseed))
-    dropped = {Path(d).name: displacement(Path(d)) for d in a.dropped}
+    whole = per_part(Path(a.whole))
+    reseed = per_part(Path(a.reseed))
+    dropped = {Path(d).name: per_part(Path(d)) for d in a.dropped}
     turn_w = turn(Path(a.whole))
     turn_d = {Path(d).name: turn(Path(d)) for d in a.dropped}
 
@@ -203,12 +261,17 @@ def main():
     for name in sorted(whole):
         if name not in reseed:
             continue
-        wa, wb = whole[name], reseed[name]
-        mv = abs(wa["median"] - wb["median"])
+        # Nothing is dropped in either control arm, so k=None matches every
+        # sherd to itself -- the same code path the real comparison uses.
+        wa, wb, bad = match(whole[name], reseed[name], None)
+        if wa is None:
+            continue
+        ma, mb = float(np.median(wa)), float(np.median(wb))
+        mv = abs(ma - mb)
         moves[name] = mv
-        bars[name] = bar_for(wa["draws"], wb["draws"], mv)
+        bars[name] = bar_for(wa, wb, mv)
         print("%-16s %6d %8.2f %8.2f %7.2f %9.2f"
-              % (name, wa["n_placed"], wa["median"], wb["median"], mv, bars[name]))
+              % (name, len(whole[name]["disp"]), ma, mb, mv, bars[name]))
     if not bars:
         raise SystemExit("no pot appears in both the whole and reseed runs")
     print("\nThe bar runs from %.2f to %.2f percent of pot size depending on the pot."
@@ -217,24 +280,39 @@ def main():
 
     verdicts = {}
     for label, tab in sorted(dropped.items()):
+        k = int(re.search(r"rank(\d+)", label).group(1))
         print("=" * 78)
-        print("%s: one sherd removed. Scored on the sherds that REMAIN." % label)
+        print("%s: the rank-%d sherd by area removed. The whole column is the SAME"
+              % (label, k))
+        print("sherds in the whole run -- the dropped one is left out of both sides."
+              )
         print("=" * 78)
         print("%-16s %9s %8s %8s %8s %8s %13s" %
-              ("pot", "placed", "whole", "kept", "change", "its bar", "reading"))
+              ("pot", "scored", "whole", "kept", "change", "its bar", "reading"))
         print("-" * 78)
         rows = []
         for name in sorted(tab):
             if name not in whole or name not in bars:
                 continue
-            tw, td = whole[name], tab[name]
-            ch = td["median"] - tw["median"]
-            b = bar_for(tw["draws"], td["draws"], moves[name])
+            wm, dm, bad = match(whole[name], tab[name], k)
+            if wm is None:
+                print("%-16s   REFUSED: sherd counts do not line up" % name)
+                continue
+            if bad > SHAPE_TOL:
+                # The gate, not a caveat. If the sherds do not pair up by shape
+                # the rank mapping is wrong, and every number in the row would be
+                # one sherd compared against a different sherd.
+                print("%-16s   REFUSED: shapes disagree by %.3f, mapping unsafe"
+                      % (name, bad))
+                continue
+            mw, md = float(np.median(wm)), float(np.median(dm))
+            ch = md - mw
+            b = bar_for(wm, dm, moves[name])
             r = reading_of(ch, b)
             rows.append((name, ch, r))
-            print("%-16s %4d->%-4d %8.2f %8.2f %+8.2f %8.2f %13s"
-                  % (name, tw["n_placed"], td["n_placed"],
-                     tw["median"], td["median"], ch, b, r))
+            print("%-16s %9d %8.2f %8.2f %+8.2f %8.2f %13s"
+                  % (name, len(tab[name]["disp"]),
+                     mw, md, ch, b, r))
         if not rows:
             print("  no pot in common with the whole run")
             continue
