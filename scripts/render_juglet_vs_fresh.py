@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import numpy as np
 
-from readout import cloud_for, median_draw
+from readout import chamfer, cloud_for, median_draw, unit_box_scale
 
 import matplotlib
 matplotlib.use("Agg")
@@ -43,13 +43,28 @@ import matplotlib.pyplot as plt  # noqa: E402
 VIEWS = [((0, 2), "side"), ((0, 1), "top")]
 
 
-def kabsch_deg(a, b):
-    """Turn, in degrees, between two copies of the same sherd."""
-    ac, bc = a - a.mean(0), b - b.mean(0)
-    u, _, vt = np.linalg.svd(ac.T @ bc)
-    d = np.sign(np.linalg.det(u @ vt))
-    r = u @ np.diag([1.0, 1.0, d]) @ vt
-    return float(np.degrees(np.arccos(np.clip((np.trace(r) - 1.0) / 2.0, -1.0, 1.0))))
+def worst_sherd(gt, prop, ids):
+    """How far the worst-placed sherd ended up from home, as % of pot size.
+
+    This caption used to quote the worst sherd's TURN, and that was misleading in
+    a way the picture exposed: `plate` renders as a closed disc and reported a
+    worst sherd of 177 degrees. Small sherds are near-planar and nearly
+    symmetric, so a half-turn puts them back on themselves -- that one sits 1.0%
+    of pot size from correct, which is to say it is where it belongs. Distance
+    from home cannot be fooled that way, and it is also the thing a conservator
+    can see: 1% of a 100 mm pot is a millimetre of open seam.
+    """
+    unit = unit_box_scale(gt)
+    parts = sorted(set(ids.tolist()))
+    anchor = max(parts, key=lambda p: int((ids == p).sum()))
+    out = []
+    for p in parts:
+        if p == anchor:
+            continue                      # handed over already seated
+        m = ids == p
+        c = chamfer(gt[m] / unit, prop[m] / unit)
+        out.append(100.0 * float(np.sqrt(max(c, 0.0) / 2.0)))
+    return max(out) if out else 0.0
 
 
 def load(run, pot=None):
@@ -102,9 +117,11 @@ def main():
         pad = 0.06 * (hi - lo).max()
         parts = sorted(set(ids.tolist()))
 
-        # Per-sherd turn, recomputed from the geometry so the caption and the
-        # picture cannot disagree. Sherd 0 is the given anchor and is excluded.
-        turns = [kabsch_deg(gt[ids == p], prop[ids == p]) for p in parts[1:]]
+        # Recomputed from the geometry so the caption and the picture cannot
+        # disagree. The anchor is the largest sherd by point count -- NOT part
+        # id 0, which is not ordered by size -- and it is excluded because it is
+        # handed to the model already seated.
+        worst = worst_sherd(gt, prop, ids)
 
         for vi, (view, vname) in enumerate(VIEWS):
             for ri, ref in enumerate([True, False]):
@@ -115,9 +132,8 @@ def main():
                                  % (label, vname, len(parts)), fontsize=7)
                 else:
                     ax.set_title("model's answer, median draw\nturn %.0f deg; "
-                                 "worst sherd %.0f deg"
-                                 % (med, max(turns) if turns else 0.0),
-                                 fontsize=7)
+                                 "worst sherd %.1f%% of pot size from home"
+                                 % (med, worst), fontsize=7)
 
     fig.suptitle(
         "Does a shared score mean a shared KIND of failure?\n"
