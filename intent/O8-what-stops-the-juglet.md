@@ -129,10 +129,34 @@ Answered, but not everything it touched is closed:
   **capture** problem, not a training one. It moves to [O7](O7-wear-grounding.md).
 - **The largest unexplained failure in the corpus is not the Juglet.** It is
   `narrow_bottle3` — fresh, unworn, four fragments, +55.3° (2.0 sd) off the trend, rendered
-  as a bottle torn into two flaps. None of the six candidates explains it. Ticket
-  `.scratch/juglet-cause/issues/07-narrow-bottle3-collapse.md`.
+  as a bottle torn into two flaps. None of the six candidates explains it.
+  **Explained 2026-09-07, ticket 07, no GPU: the model does not scatter this bottle, it
+  exchanges its two halves** — sherd 0 placed where sherd 3 belongs and the reverse, the
+  same exchange in **all ten** attempts, while on the four pots this model assembles
+  correctly the same test picks the identity naming outright. The two flaps are the
+  closest-matching pair of shapes in the bottle (3.1% of pot size apart) **and 53% of the
+  whole vessel**; everywhere else in the corpus the near-duplicate pairs are slivers the
+  rest of the pot can pin down. **Which of the three: the method genuinely failed** — not
+  the reference, because putting the names the right way round still leaves the worst
+  sherd **8.1% of pot size** from home against 2.4–3.3% for a correct assembly, with the
+  seam down the middle still open. **The form is not the cause**: `narrow_bottle2` and
+  `narrow_bottle4` share it and are among the best-assembled objects here (2.8%, 2.4%);
+  `narrow_bottle1` fails by scattering instead, a different renaming every attempt.
+  Recorded and closed as **one object** — n = 1, the explanation is fitted to eight pots
+  and predicts rather than generalises. The transferable part is the instrument:
+  **sherds seated, turn and distance-from-home all score a scattering and an exchange
+  identically, and those call for opposite responses** (more training helps the first and
+  cannot help the second). `scripts/check_identity_swap.py` separates them for free from
+  clouds already on disk. Renders:
+  `artifacts/nb3/narrow_bottle3_identity_swap.png`, `artifacts/nb3/narrow_bottle_family.png`.
+  Ticket `.scratch/juglet-cause/issues/07-narrow-bottle3-collapse.md`.
 - **`plate` is refused by the shape gate at every fragment-drop rank** (shape gap 0.119
   against its own 0.031: two near-equal-area sherds swapping rank). Reported, not fixed.
+  Ticket 07's independent test agrees there is something to it — `plate` is the one other
+  pot whose best renaming repeats across attempts (5/10, then 4/10) — but renaming does
+  **not** rescue `plate` (38.0% → 21.9%, against 2–3% for a correct assembly), so it is a
+  scattering with a repeated flavour, not an exchange. Two instruments built for
+  different purposes pointing at the same pair of sherds; suggestive, not established.
 
 ## Source
 

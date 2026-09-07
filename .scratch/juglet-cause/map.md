@@ -178,16 +178,29 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   between the points themselves. Measured on the exact points the network receives,
   break-face roughness falls monotonically as wear rises on the six real objects:
   29.7° → 27.2 → 26.6 → 24.3 → **22.2°**. `LORA_VESSELS_29623885_RESULT.md`.
+- **`narrow_bottle3` does not get scattered — its two halves get exchanged.** The worst
+  unexplained failure in the corpus, resolved 2026-09-07 from clouds already on disk, no
+  GPU. Sherd 0 is placed where sherd 3 belongs and sherd 3 where sherd 0 belongs, the same
+  exchange in **all ten** attempts; on the four pots this model assembles correctly the
+  same test picks the identity naming outright, so a non-identity match is not something
+  it hands out for free. The two flaps are the bottle's closest-matching pair of shapes
+  (3.1% of pot size apart) **and 53% of the whole vessel** — elsewhere the near-duplicate
+  pairs are slivers the rest of the pot pins down. **The method genuinely failed**, not
+  the reference: with the names put right the worst sherd still sits **8.1% of pot size**
+  from home (about 8 mm on a 100 mm bottle) against 2.4–3.3% for a correct assembly, and
+  the seam stays open. The narrow-bottle form is not the cause — `narrow_bottle2` and
+  `narrow_bottle4` share it and are among the best-assembled objects here, and
+  `narrow_bottle1` fails by scattering instead. **Closed as one object** (n = 1); the
+  transferable part is that **sherds seated, turn and distance-from-home score a
+  scattering and an exchange identically while the two call for opposite responses** —
+  more training is the lever for the first and cannot be for the second.
+  `scripts/check_identity_swap.py`, `scripts/render_identity_swap.py`.
+  [07: Why does `narrow_bottle3` collapse? Fresh, unworn, four fragments](issues/07-narrow-bottle3-collapse.md)
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
 ## Not yet specified
 
-- **Why `narrow_bottle3` collapses.** Now the largest unexplained failure in the corpus
-  and explained by none of the six candidates — fresh, unworn, four fragments, +55.3°
-  (2.0 sd) off the trend, rendered as a bottle torn into two flaps. Sharp enough to
-  ticket, and ticketed:
-  [07: Why does `narrow_bottle3` collapse? Fresh, unworn, four fragments](issues/07-narrow-bottle3-collapse.md)
 - **What replaces "domain gap" as the standing explanation.** `JUGLET_TORA_ROOTCAUSE.md`
   concluded synthetic-to-real domain gap plus piece count; both halves were computed on
   the corrupted run. Once the five tickets land, that note needs rewriting — but what it
