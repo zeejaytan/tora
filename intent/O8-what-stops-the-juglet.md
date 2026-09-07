@@ -1,6 +1,6 @@
 # O8 — What actually stops TORA reassembling the Juglet?
 
-**Status:** answered 2026-09-07 — all six candidates ruled in or out; the map closes · **Blocked by:** none · **Supersedes the diagnosis half of** [O6](O6-juglet-under-valid-reference.md)
+**Status:** open — **reopened 2026-09-07.** Six candidates are ruled in or out, but none of them attributes *this object's* failure. Wear is ruled in as a cause of reassembly failure **on other pots, with simulated wear**; the bridge to the Juglet's own real wear is unmeasured, so "it is probably the wear" is a reasonable belief and not a result. · **Blocked by:** none · **Supersedes the diagnosis half of** [O6](O6-juglet-under-valid-reference.md)
 
 ## Why it matters
 
@@ -112,6 +112,11 @@ is not evidence, and any candidate below must be rendered at individual-sherd pl
       curriculum, in `.scratch/juglet-cause/issues/05-can-wear-be-demonstrated.md`
 - [x] Every reading states which of the three it is — method failed, ruler broken,
       reference wrong
+- [ ] **The Juglet's own failure is attributed to something, or the failure to attribute
+      it is stated as the result.** Ruling six candidates in or out is not the same as
+      naming the cause: candidate 5 was demonstrated on *other* pots with *simulated*
+      wear, and the two things that would carry it to this object — a scan that resolves
+      the real wear, or the same pot scanned fresh and worn — do not exist yet
 
 Stopping at the first candidate that looks sufficient is what produced "piece count is
 ruled out" in the first place. Rule all six.
@@ -121,12 +126,34 @@ ruled out" in the first place. Rule all six.
 The five together leaving the gap unexplained — then the cause is something not on this
 list, and saying so is the result.
 
-## What this question leaves behind (2026-09-07)
+## What is still open (reopened 2026-09-07)
 
-Answered, but not everything it touched is closed:
+The six candidates are settled. **The object is not.** What the map established is that
+five of the six do not explain the Juglet and one — wear — demonstrably breaks
+reassembly *on pots we abraded ourselves*. Nothing measured carries that from simulated
+wear to this vessel's own, because the wear on it cannot be seen at the resolution we
+scanned it (Gate A, job 29404479). So the honest statement is **the cause is unattributed
+and wear is the leading suspect**, and the question stays open until that gap is closed or
+declared unclosable.
 
 - **The Juglet is still not reassembled by anything**, and closing that last step is a
-  **capture** problem, not a training one. It moves to [O7](O7-wear-grounding.md).
+  **capture** problem, not a training one. It is shared with [O7](O7-wear-grounding.md);
+  it does not leave here.
+- **What the failure is *not*: a mix-up.** Ticket 07's instrument, pointed at the Juglet
+  for the first time (ticket 08, 2026-09-07, no GPU), says the pieces are genuinely
+  mis-placed rather than in the right places wearing the wrong names. Across twelve runs
+  and four model arms the best renaming of the sherds still leaves the worst loose sherd
+  **19–25% of the pot's size from home** — roughly 12–16 mm on a 65 mm juglet, against
+  2–3% for a pot this model assembles correctly — and the renaming that wins is a
+  different one in 16 or 17 of every 20 attempts. Contrast `narrow_bottle3`, where the
+  *same* renaming wins 10 times in 10 and takes 26.2% down to 8.1%. This matters because
+  “plain body sherds look alike, so it swaps them” is the first failure a conservator
+  would predict on excavated pottery, and it is the one failure more training could not
+  fix. It is not what is happening here. Render:
+  `artifacts/juglet_scatter_vs_swap.png`. Ticket
+  `.scratch/juglet-cause/issues/08-scattered-or-exchanged.md`. It also gives the
+  umbrella's [U2](../../intent/U2-perception-or-placement.md) a second, independent probe
+  pointing the same way as its first.
 - **The largest unexplained failure in the corpus is not the Juglet.** It is
   `narrow_bottle3` — fresh, unworn, four fragments, +55.3° (2.0 sd) off the trend, rendered
   as a bottle torn into two flaps. None of the six candidates explains it.

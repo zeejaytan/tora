@@ -60,9 +60,15 @@ def load(clouds_dir: Path, pot: str):
     raise SystemExit(f"{pot} not found under {clouds_dir}")
 
 
-def colours(ids, mapping):
-    """mapping: predicted-sherd-id -> the sherd id whose colour it should take."""
-    return np.array([HILITE.get(mapping.get(int(p), int(p)), GREY) for p in ids])
+def colours(ids, mapping, palette=None):
+    """mapping: predicted-sherd-id -> the sherd id whose colour it should take.
+
+    `palette` overrides the two-flap highlight. A pot that is SCATTERED has no
+    pair to point at, so every sherd needs its own colour or the eye cannot
+    follow where any of them went; `--hilite all` builds that palette.
+    """
+    pal = HILITE if palette is None else palette
+    return np.array([pal.get(mapping.get(int(p), int(p)), GREY) for p in ids])
 
 
 def draw(ax, pts, cols, view, lo, hi, pad):
@@ -167,6 +173,11 @@ def main() -> int:
                     help="which of the 10 attempts; default = the median one")
     ap.add_argument("--family", nargs="+", default=None,
                     help="instead: draw these pots side by side, true vs answer")
+    ap.add_argument("--hilite", default="0,3",
+                    help="sherds to colour, rest grey; 'all' gives every sherd "
+                         "its own colour (use when the pot is scattered, not swapped)")
+    ap.add_argument("--caption", default=None,
+                    help="override the first caption line")
     ap.add_argument("--out", default="artifacts/nb3/narrow_bottle3_identity_swap.png")
     a = ap.parse_args()
 
@@ -197,6 +208,14 @@ def main() -> int:
     lo, hi = gt.min(0), gt.max(0)
     pad = 0.06 * (hi - lo).max()
 
+    if a.hilite == "all":
+        cmap = plt.get_cmap("tab20")
+        palette = {int(p): matplotlib.colors.to_hex(cmap(i % 20))
+                   for i, p in enumerate(parts)}
+    else:
+        want = {int(x) for x in a.hilite.split(",") if x.strip() != ""}
+        palette = {k: v for k, v in HILITE.items() if k in want}
+
     ident = {p: p for p in parts}
     rows = [
         (gt, ident, "The bottle\nas it really is"),
@@ -210,18 +229,20 @@ def main() -> int:
     for r, (pts, mapping, label) in enumerate(rows):
         for c, (view, vname) in enumerate(VIEWS):
             ax = axes[r][c]
-            draw(ax, pts, colours(ids, mapping), view, lo, hi, pad)
+            draw(ax, pts, colours(ids, mapping, palette), view, lo, hi, pad)
             if r == 0:
                 ax.set_title(vname, fontsize=9)
             if c == 0:
                 ax.set_ylabel(label, fontsize=8)
 
     cap = "\n".join(textwrap.fill(line, 84) for line in [
-        f"{a.pot}: the two flaps change places -- and the bottle still does not close.",
-        f"Red is sherd 0, blue is sherd 3, grey is the rest. Attempt {k} of "
-        f"{len(props)}, the median one.",
-        "Row 2 has red and blue on the wrong sides. Row 3 puts the names right, and "
-        "the seam down the middle is still open.",
+        a.caption or f"{a.pot}: the two flaps change places -- and the bottle "
+                     "still does not close.",
+        ("One colour per sherd." if a.hilite == "all" else
+         "Red is sherd 0, blue is sherd 3, grey is the rest.") +
+        f" Attempt {k} of {len(props)}, the median one.",
+        "Row 3 is row 2 recoloured, not re-placed: if the pieces were merely "
+        "mis-named it would look like row 1.",
         f"Worst loose sherd as scored: {w_id:.1f}% of the pot's size from home. With "
         f"the names exchanged: {w_best:.1f}%. A correctly assembled pot here is 2-3%.",
     ])

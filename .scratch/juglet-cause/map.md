@@ -1,6 +1,9 @@
 # Map — what actually stops TORA reassembling the Juglet
 
-**Label:** `wayfinder:map` · **Charted:** 2026-09-05
+**Label:** `wayfinder:map` · **Charted:** 2026-09-05 · **Status:** open — **reopened 2026-09-07**
+**Why it is open:** six candidates are ruled in or out and the object's own failure is still
+unattributed. Wear was demonstrated on *other* pots with *simulated* wear; nothing carries
+that to this vessel. Wear is the leading suspect, not the answer.
 **Answers:** [O8](../../intent/O8-what-stops-the-juglet.md)
 
 ## Destination
@@ -143,7 +146,8 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   was broken** — distance from home cannot be fooled that way, and it is the thing a
   conservator can see (1% of a 100 mm pot is a millimetre of open seam).
 - **Wear demonstrably causes reassembly failure — and that was shown by intervention,
-  not by correlation. Candidate 5 is ruled in, and the map closes.** Take pots TORA
+  not by correlation. Candidate 5 is ruled in — for pots we abraded ourselves, not yet
+  for the Juglet.** Take pots TORA
   reassembles cleanly, abrade **only the break surfaces**, leave the faces and the correct
   poses untouched, and re-run: same pots, same pieces, same correct answer.
   **Sherds seated falls from 0.843 to 0.645** — twenty points — with the pictures agreeing
@@ -196,10 +200,36 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   more training is the lever for the first and cannot be for the second.
   `scripts/check_identity_swap.py`, `scripts/render_identity_swap.py`.
   [07: Why does `narrow_bottle3` collapse? Fresh, unworn, four fragments](issues/07-narrow-bottle3-collapse.md)
+- **The Juglet is scattered, not mixed up — and that rules out the failure a
+  conservator would predict first.** Ticket 07 built an instrument that tells two failure
+  kinds apart and had never been pointed at the Juglet. Pointed at it (2026-09-07, no GPU,
+  twelve runs across four model arms), it says the pieces are genuinely mis-placed: the
+  best renaming still leaves the worst loose sherd **19–25% of pot size from home**
+  (12–16 mm on a 65 mm juglet, against 2–3% for a correct assembly) and the winning
+  renaming is a **different** one in 16–17 of every 20 attempts. `narrow_bottle3`, the
+  one real exchange in the corpus, repeats the *same* renaming 10 times in 10 and drops
+  26.2% → 8.1%. **Which of the three: the method genuinely failed** — and now more
+  narrowly, by mis-placing rather than by confusing look-alike sherds, which is the one
+  failure mode more training could not have fixed. Render:
+  `artifacts/juglet_scatter_vs_swap.png`. Also the second, independent probe the
+  umbrella's `U2` (perception or placement?) was short of.
+  [08: Is the Juglet scattered, or are its sherds merely mixed up?](issues/08-scattered-or-exchanged.md)
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
 ## Not yet specified
+
+- **What would attribute the Juglet's failure to wear — or take wear off the list.** This
+  is the reopened destination and it is not yet sharp enough to ticket. Wear breaks
+  reassembly on pots we abrade ourselves; the Juglet's own wear is invisible at the
+  resolution it was scanned. Three routes are visible and none is specified: **(a)** a
+  capture that resolves it — finer than 0.1% of object size, or the same pot scanned
+  fresh *and* worn (`O7`, conservation-lab work, not compute); **(b)** a *behavioural*
+  test that needs no scan — does the Juglet's failure have the shape wear produces on
+  pots where we control it, and does it differ from the shape a fresh nine-piece pot
+  produces? Ticket 08 is the first instalment and came back "scattered, like a fresh pot
+  that fails"; **(c)** accept it cannot be attributed with what exists and say so as the
+  result. Which of these to ticket is the next decision on this map.
 
 - **What replaces "domain gap" as the standing explanation.** `JUGLET_TORA_ROOTCAUSE.md`
   concluded synthetic-to-real domain gap plus piece count; both halves were computed on
