@@ -67,10 +67,26 @@ seats **0.597** fresh and **0.560** on the worn sweep, not 0.843 and 0.645, and 
 between them is **3.7 points, not 20**. Wear still costs seating when read as the erosion
 ladder (0.610 → 0.423 at stored size, 0.632 → 0.318 corrected).
 
-**This question is therefore not closed.** The *model* comparison in §4 — wear_v1 and
-wear_v2 against baseline — has never been scored on the corrected ruler, because 30187601
-re-ran the baseline only. Until it is, no ranking in that table is established, and wear
-v3's success criterion cannot be written against 0.843 / 0.645.
+**The model comparison, rescored 2026-09-07, job 30190268.** All three models, all three
+sets, 10 draws, both gates passed. On the pot-level average **no model is distinguishable
+from the untouched baseline**: wear_v2 − baseline is +4.7 fresh (CI [−8.0, +18.5]) and +2.8
+worn (CI [−13.3, +14.6]). The prediction that the ranking would survive **failed**.
+
+**The average is a cancellation, and this is the thing O2 exists to catch.** wear_v2 gains
++60 points on `blue_pot` at full wear (the render shows the baseline breaking into two
+offset shells and wear_v2 closing the pot) and +2 to +36 on `plate` at every rung, while
+losing 21 to 40 points on `galli_pot` at **every rung including zero wear**. The render
+shows sherds flying off the *unworn* pot, so that is not a wear effect — it is capability
+lost in finetuning, on the 10-fragment pot. On the erosion ladder wear_v2 flattens the drop
+from 0.217 to 0.077. A single pooled mean reports all of that as nothing.
+
+**So the evaluation route this question is about must be per-pot, or on the ladder slope.**
+A pooled seating mean over six pots is not a valid evaluation of wear training: it scored a
+model that cut the wear penalty by two thirds as indistinguishable from one that did not.
+That is now a measured statement, not a worry.
+
+Wear v3's success criterion cannot be written against 0.843 / 0.645, and cannot be written
+as a pooled mean either.
 
 ## Done when
 
@@ -79,6 +95,8 @@ v3's success criterion cannot be written against 0.843 / 0.645.
 - [ ] and validated on a **known-answer case** before any conclusion is drawn from it.
 - [ ] and reported with the model's size input (`scales`) beside every score, against
       the measured band 0.375–0.811
+- [ ] and read **per object**, not as a pooled mean: job 30190268 showed a pooled mean
+      reporting a real two-thirds reduction in the wear penalty as no effect at all
 
 That last line is not optional. A metric that cannot distinguish a good model from a
 bad one will happily report a stable, publishable-looking constant.

@@ -253,10 +253,66 @@ by **+7.5 points** (95% CI [+0.8, +17.1], draw scatter ±19.6) and worn seating 
 (CI [−18.1, +9.5]). Full read-out, renders and limitations:
 `.scratch/eval-readout/issues/05-does-the-out-of-band-size-cost-anything.md`.
 
-**Still open: the model comparison above has never been scored on the corrected ruler.**
-Job 30187601 re-ran the **baseline only**. Whether wear_v1 and wear_v2 still beat baseline
-is unmeasured on the fixed ruler, and **wear v3's success criterion cannot be written
-against 0.843 / 0.645.**
+### The model comparison, rescored — job 30190268, 2026-09-07
+
+Job 30187601 rescored the baseline only, so the *rankings* in this section stayed on the
+retired ruler. Job **30190268** re-ran all three models on all three sets at 10 draws.
+Both gates passed (`0d6a85f` an ancestor of `95936dd`; `part_accuracy_absolute` present in
+the job's own output). COMPLETED, ExitCode 0:0, 15m59s.
+
+**Seating on the loose sherds, corrected ruler, 10 draws:**
+
+| set | baseline | wear_v1 | wear_v2 |
+|---|---|---|---|
+| fresh held-out (6 pots) | 0.612 | 0.633 | 0.659 |
+| worn sweep (30 variants) | 0.556 | 0.571 | 0.584 |
+| Juglet vs hand assembly (1 pot) | 5.1 / 9 seated | 5.6 / 9 | 5.4 / 9 |
+
+**Nothing here is distinguishable from zero on the pot-level average.** wear_v2 − baseline
+is **+4.7** points on fresh (95% CI [−8.0, +18.5]) and **+2.8** on the worn sweep
+(CI [−13.3, +14.6]); draw scatter is ±18 and ±16. **The prediction that the ranking would
+survive as a readable effect FAILED.**
+
+**But the average is a cancellation, not a null, and this one is not subtle:**
+
+| pot | wear_v2 − baseline, worn sweep | what the render shows |
+|---|---|---|
+| `blue_pot` | +7.5, +17.5, **+60.0** at e050/e075/e100 | at full wear the baseline breaks: one large sherd detached outside the wall, the vessel split into two offset shells seen from above. wear_v2 closes the pot. |
+| `plate` | +2 to +36, every rung | consistent |
+| `vert9` | +15 to +25 on four of five rungs | small pot, 2 loose sherds — one flip is 50 points |
+| `galli_pot` | **−21 to −40, every rung including e000** | sherds fly off the unworn pot. Baseline reproduces `galli_pot` e000–e075 nearly perfectly; wear_v2 scatters the rim. |
+| `limb3` | 0.0, every rung | both at 1.000 throughout |
+| `coxae` | noise, both near zero | 3 fragments, neither model seats them |
+
+`galli_pot` is the 10-fragment pot and the loss is present **at zero wear**, so it is not a
+wear effect — it is capability lost in finetuning. That regression is what cancels the
+`blue_pot` and `plate` gains.
+
+**The ladder is the honest read, and on the ladder wear training did the thing it was for:**
+
+| model | seating at wear 0.00 | at wear 1.00 | drop |
+|---|---|---|---|
+| baseline | 0.624 | 0.407 | **0.217** |
+| wear_v1 | 0.665 | 0.490 | 0.175 |
+| wear_v2 | 0.577 | 0.500 | **0.077** |
+
+wear_v2 starts lower and ends higher: it **flattened the response to wear** — the drop falls
+from 22 points to 8 — while giving up ground on unworn pots. That is a real effect with a
+real cost, and it is invisible in any single-number comparison.
+
+**Second prediction HELD:** the Juglet ranking did not move. All three models seat about
+half its loose sherds (baseline 4.1 of 8, wear_v1 4.6, wear_v2 4.4) turned 55–64°. One
+object, 30 draws, and no valid archaeological ground truth — these are against the
+conservator's hand assembly.
+
+**Caption warning.** The paired sections of the 30190268 log are produced by
+`summarise_scale_cost.py`, reused for a model comparison. Its arithmetic is a paired
+difference between two runs and is correct here, but its headers and verdict lines are
+hardcoded for the *size-input* question ("the size input costs nothing readable here").
+Read those lines as being about the **models**, not the size input.
+
+**Wear v3's success criterion cannot be written against 0.843 / 0.645**, and should not be
+written against a single pooled mean at all — the effect it needs to beat is per-pot.
 
 The Juglet rows at 0.5114 (`juglet_gt`) are inside the band and always were. Note that
 `juglet_norm`, used by the *earlier* Juglet evaluations, hands the model **0.041** —

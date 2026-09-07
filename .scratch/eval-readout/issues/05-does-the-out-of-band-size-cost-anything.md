@@ -13,7 +13,7 @@ middle of the trained band and reads the difference.
 
 **Blocked by:** None. 04 is resolved and supplies the measured band.
 
-**Status:** phase 1 done; phase 2 ready-for-agent
+**Status:** done (phase 1 and phase 2)
 
 ## Why it exists
 
@@ -369,3 +369,121 @@ still lead baseline on the worn sweep by more than the draw-to-draw scatter.
   conservator's hand assembly and must be quoted that way.
 - `wear_v2` is one finetuning run, not a method. A ranking between three checkpoints is
   evidence about these checkpoints.
+
+
+---
+
+# Phase 2 answer — job 30190268, 2026-09-07
+
+**COMPLETED, ExitCode 0:0, 15m59s.** Gate 1 PASS (`0d6a85f` an ancestor of `95936dd`).
+Gate 2 PASS (`part_accuracy_absolute` present in this job's own first result file). The 54
+`error` hits in the log are all the field names `rotation_error` / `translation_error`;
+no failures.
+
+## The prediction FAILED
+
+I predicted the levels would fall but the ranking would survive — wear_v2 ahead of
+baseline on the worn sweep by more than the draw scatter. It does not.
+
+| set | baseline | wear_v1 | wear_v2 | wear_v2 − baseline | 95% CI | draw scatter |
+|---|---|---|---|---|---|---|
+| fresh (6 pots) | 0.612 | 0.633 | 0.659 | **+4.7** | [−8.0, +18.5] | ±18.1 |
+| worn sweep (30) | 0.556 | 0.571 | 0.584 | **+2.8** | [−13.3, +14.6] | ±15.6 |
+
+Both intervals cover zero. On the pot-level average, **wear training is not measurably
+better than the untouched baseline on the corrected ruler.** Every ranking previously
+quoted from §4 was on the retired one.
+
+## But it is a cancellation, not a null — and the render says so too
+
+wear_v2 − baseline on the worn sweep, per pot:
+
+- `blue_pot` +7.5 / +17.5 / **+60.0** at e050 / e075 / e100
+- `plate` +2 to +36, all five rungs
+- `vert9` +15 to +25 on four of five rungs
+- `galli_pot` **−21 to −40 on all five rungs, e000 included**
+- `limb3` exactly 0.0 — both models at 1.000 throughout
+- `coxae` noise, both near zero
+
+**Rendered before this was written** (artifacts/wear_table_corrected/):
+
+- `wt_bluepot_base_v2.png` — the metric is honest. At e100 the baseline visibly fails: one
+  large sherd detached outside the vessel wall, and from above the pot is two offset shells
+  that do not close. wear_v2 produces a closed pot indistinguishable from the correct
+  answer. This is a genuine, large, visible win for wear training on one pot.
+- `wt_galli_base_v2.png` — the regression is honest too, and worse than the number
+  suggests. Baseline reproduces `galli_pot` at e000 through e075 nearly perfectly. wear_v2
+  scatters the rim at **e000**, with sherds hanging in free space, and is broken at e050
+  and e075. At zero wear.
+
+That last point is the finding. `galli_pot` has 10 fragments — more than any other pot
+here — and wear_v2 damages it **on the unworn pot**, so this cannot be a wear effect. It is
+general capability lost during finetuning, and it is what cancels the `blue_pot` and
+`plate` gains in the mean.
+
+## The ladder: wear training did do the thing it was for
+
+| model | wear 0.00 | wear 1.00 | drop |
+|---|---|---|---|
+| baseline | 0.624 | 0.407 | **0.217** |
+| wear_v1 | 0.665 | 0.490 | 0.175 |
+| wear_v2 | 0.577 | 0.500 | **0.077** |
+
+wear_v2 starts 4.7 points below the baseline and finishes 9.3 above it. The **slope**
+flattens from 22 points to 8. Wear training bought robustness to wear and paid for it in
+baseline capability — a trade, not a failure and not a success. A single pooled mean cannot
+express that, which is why §4's one-number framing was always going to mislead, ruler
+aside.
+
+## Second prediction HELD
+
+The Juglet ranking did not move: baseline 4.1 of 8 loose sherds, wear_v1 4.6, wear_v2 4.4,
+turned 55–64°. One object, 30 draws, and **no valid archaeological ground truth** — scored
+against the conservator's hand assembly.
+
+## Which of the three
+
+**The measurement was broken** — for §4's old numbers, confirmed and now replaced.
+
+For wear training itself, none of the three: it is a genuine mixed result. The method
+helps on some vessels, hurts on others, and averages to nothing. Both directions are
+confirmed by looking.
+
+## A tooling caveat that must travel with the log
+
+The paired sections were produced by `summarise_scale_cost.py`, reused for a model
+comparison. The arithmetic (paired difference between two runs, CI over pots) is correct
+for this use, but its headers and verdict strings are hardcoded for the size-input question
+and say "the size input costs nothing readable here". Those lines are about the **models**
+here. The script should take a caption argument before it is reused again.
+
+## Acceptance criteria
+
+- [x] Both gates passed before the table was read
+- [x] Nine runs, one job, one settings set, job 30190268
+- [x] Seating with draw scatter beside every mean; turn as context only
+- [x] Paired model comparisons with intervals, fresh and worn
+- [x] Erosion ladder per model on the corrected ruler
+- [x] Render of baseline against wear_v2 made **before** any claim was written
+- [x] Both predictions marked — first FAILED, second HELD
+- [x] Names which of the three
+- [x] §4 rewritten; `intent/O2` updated; wear v3's criterion blocked
+
+## Limitations
+
+- Six pots; the whole disagreement between models rests on `blue_pot` and `plate` improving
+  and `galli_pot` regressing. Three pots decide the sign.
+- `vert9` and `coxae` have two loose sherds each, so their columns move in 50-point steps.
+- One finetuning run per arm. This is evidence about these three checkpoints, not about
+  wear training as a method.
+- The size input is still out of band on 100 of 300 worn draws (0.319–0.334 against a
+  trained band of 0.375–0.811). Phase 1 measured that cost as small, but it applies to all
+  three models equally, so it cannot manufacture a difference between them.
+
+## What this blocks
+
+**Wear v3 cannot be specified yet.** Its criterion was written against 0.843 / 0.645 and
+those numbers no longer exist. Worse, a pooled-mean criterion would score wear_v2 as a null
+when it in fact flattened the wear response by two thirds. The criterion has to be per-pot,
+or on the ladder slope, and the `galli_pot` regression has to be understood first — that is
+a new question about whether finetuning costs capability on many-fragment vessels.
