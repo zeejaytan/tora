@@ -13,7 +13,7 @@ middle of the trained band and reads the difference.
 
 **Blocked by:** None. 04 is resolved and supplies the measured band.
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Why it exists
 
@@ -169,3 +169,107 @@ Beyond that: the prior from job 30130045 is strong enough that a flat result is 
 outcome. That is not a reason to skip it. The job is short, it is the last thing standing
 between the wear numbers and the wear v3 curriculum, and the outcome that would change the
 project's mind is on the table.
+
+
+---
+
+# Answer — job 30187601, COMPLETED 0:0, 2026-09-07T13:10:19
+
+**Prediction: PARTLY FAILED.** Seating did *not* stay flat on the fresh pots. The
+refuting outcome — the wear gap closing once the size is corrected — **did not happen**;
+the gap widened instead.
+
+**The controls passed, but only after a correction to how they were read.** Arm A first
+appeared to miss §4 by 25 points (0.597 against 0.843). That was my error, not the job's:
+**job 29308186 ran 2026-08-17 and the unit-box scoring fix `0d6a85f` landed 2026-09-02**,
+so §4's `part_accuracy` is the retired size-dependent score and this job's is the corrected
+one — the same field name carrying two different rulers. Scored on §4's own ruler the
+controls reproduce: **arm A 0.774 vs §4's 0.843, arm C 0.679 vs §4's 0.645**, both inside
+the draw scatter for pots with only two loose sherds.
+
+## What the size input costs, on the corrected ruler
+
+| arm | pots | size told | seated (loose) | draw scatter |
+|---|---|---|---|---|
+| A fresh, as stored | 6 | 0.321–0.412 | **0.597** | ±15.0 |
+| B fresh, at 0.550 | 6 | 0.550 | **0.671** | ±23.3 |
+| C worn, as stored | 30 | 0.320–0.413 | **0.560** | ±14.2 |
+| D worn, at 0.550 | 30 | 0.550 | **0.544** | ±18.4 |
+
+- **B − A = +7.5 points**, 95% CI over 6 pots **[+0.8, +17.1]**, draw scatter ±19.6
+- **D − C = −1.6 points**, 95% CI **[−18.1, +9.5]** — covers zero
+- wear gap **A−C = +3.7**, **B−D = +12.7**
+- erosion ladder e000→e100: arm C **0.610 → 0.423**, arm D **0.632 → 0.318**
+
+So on fresh pots the correction helps by about seven points, on an interval that barely
+clears zero and is a third the width of the draw-to-draw scatter. On worn pots it does
+nothing on average. Six pots, one checkpoint: a lead, not a finding.
+
+## The average hides a mixture, and the render is why we know
+
+`D − C` is not a null. It is one genuine collapse, one case where the metric and the eye
+disagree, and four pots where nothing visible changed. `artifacts/scale_cost/e100_all_CvD.png`
+and `limb3_e100_CvD.png`, drawn before any of this was written:
+
+- **`limb3` is a real collapse.** 1.000 at every wear level in arm C, and 0.600 / 1.000 /
+  0.900 / 0.500 / **0.000** in arm D. The picture agrees with the number: arm C rebuilds
+  the bone correctly at heaviest wear, arm D drives the condyle into the middle of the
+  shaft. This single pot is what cancels the gains elsewhere.
+- **`plate` is the disagreement.** The metric says arm D is *worse* (0.560 → 0.460); the
+  first-attempt render shows arm D visibly *closer* to a whole plate while arm C has
+  fragments flung clear. The render shows one attempt and the metric averages ten, so the
+  two can honestly disagree — but it means the plate row should not be quoted on its own.
+- **`blue_pot`, `galli_pot`** gained on the metric (+25, +22 at e100) with **no visible
+  difference** in the first attempt. **`coxae`, `vert9`** are near-total failures in both
+  arms and the pictures show it.
+
+## Which of the three
+
+**The measurement was broken** — twice, and neither time is it the model.
+
+1. §4's headline numbers are on a **retired ruler**. That is not a new error introduced
+   here; it is the size-dependent chamfer threshold `0d6a85f` was made to remove, and §4
+   was never re-scored afterwards, only re-pooled for the free anchor on 09-05.
+2. The size input itself costs the model little that can be separated from draw scatter.
+   There is no evidence here of *the method genuinely failing* because of out-of-band
+   conditioning.
+
+## What this changes
+
+The `⚠️` on §4 is **replaced, not downgraded**. The out-of-band size is no longer the main
+caveat on those numbers — the ruler is. Corrected-ruler baseline levels, measured here at
+10 draws: **fresh 0.597, worn sweep 0.560**, against §4's 0.843 and 0.645. The 20-point
+fresh-versus-worn gap in §4 becomes **3.7 points** on the corrected ruler.
+
+**The wear effect itself survives**, but it must be read as the ladder, not as that gap:
+seating falls **0.610 → 0.423** across the erosion ladder in arm C and **0.632 → 0.318**
+in arm D. Both fall; wear still costs seating.
+
+**What is now open, and was not before:** §4's *model comparison* — wear_v1 and wear_v2
+against baseline — has never been scored on the corrected ruler. This job re-ran the
+baseline only. Wear v3's success criterion is written against 0.843 / 0.645 and cannot
+stand as written.
+
+## Acceptance criteria
+
+- [x] CPU gate passed on both datasets before GPU time (`PASS: every compared tensor
+      matched to 0.00e+00 (tol 1e-04)`, twice)
+- [x] Four arms, one job, one settings set, one job id (30187601); A and C reproduce §4
+      once the ruler difference is accounted for, and that discrepancy is explained above
+      before the other two arms are read
+- [x] Result stated in seating with per-draw spread beside every mean; turn as context only
+- [x] Render of arm C against arm D at individual-sherd placement, made before any claim
+- [x] Prediction explicitly marked — partly failed
+- [x] Names which of the three — the measurement was broken
+- [x] `WEAR_TEST_RESULTS.md` §4 and `intent/O2-valid-evaluation.md` updated
+
+## Limitations
+
+- Six pots, one checkpoint, 10 draws. Draw scatter (±15–23 points) is larger than every
+  effect measured here except `limb3`'s collapse.
+- Renormalising sets every object to exactly 0.550 and erases real size differences
+  between pots, as anticipated. Arms B and D do not describe a model that knows how big
+  these pots really are.
+- The renders show the first attempt only; the metrics average ten.
+- The corrected-ruler levels (0.597 / 0.560) come from a 10-draw run and are **not** a
+  like-for-like restatement of §4's 3-draw rows; they are a fresh measurement.

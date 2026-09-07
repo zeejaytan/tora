@@ -221,6 +221,43 @@ which wear moves by only 3°, and both used *fresh* pots — so the cost has nev
 in seating, and never on worn material. Until it is, treat 0.843 and 0.645 as a sound
 **difference** and a lower bound on the **level**.
 
+### ⚠️ SUPERSEDED 2026-09-07 — the ruler, not the size, is the problem with this table
+
+**Job 30187601 ran that experiment, and found something bigger on the way.** Every run in
+the table above is from job **29308186, which ran 2026-08-17**. The unit-box scoring fix
+**`0d6a85f` landed 2026-09-02**. So the `part_accuracy` field in those result files is the
+**retired, size-dependent** score, and the 2026-09-05 correction re-pooled it for the free
+anchor without re-scoring it. Every number in both tables above is on the old ruler.
+
+The two rulers are far apart, and worst on the smallest pots — which is exactly what
+`0d6a85f` was made to fix. On `coxae` (`scales` 0.3316, one of the two smallest objects)
+the same ten draws score **0.950 on the old ruler and 0.050 on the corrected one**.
+
+**Corrected-ruler baseline levels, measured directly at 10 draws (job 30187601):**
+
+| set | model | seated, old ruler | seated, corrected ruler |
+|---|---|---|---|
+| fresh held-out | baseline | 0.774 *(§4 quotes 0.843 at 3 draws)* | **0.597** |
+| worn sweep | baseline | 0.679 *(§4 quotes 0.645 at 3 draws)* | **0.560** |
+
+The old-ruler columns reproduce §4 within draw scatter, which is what proves the settings
+match; the corrected columns are the numbers to use. **The 20-point fresh-versus-worn gap
+becomes 3.7 points on the corrected ruler.**
+
+**The wear effect survives, read as the ladder rather than as that gap.** Across the
+erosion sweep, seating falls **0.610 → 0.423** at stored size and **0.632 → 0.318** with
+the size input corrected to 0.550 (`scripts/analyze_erosion_sweep.py`, job 30187601).
+
+**Out-of-band size is no longer the main caveat here.** Correcting it moves fresh seating
+by **+7.5 points** (95% CI [+0.8, +17.1], draw scatter ±19.6) and worn seating by **−1.6**
+(CI [−18.1, +9.5]). Full read-out, renders and limitations:
+`.scratch/eval-readout/issues/05-does-the-out-of-band-size-cost-anything.md`.
+
+**Still open: the model comparison above has never been scored on the corrected ruler.**
+Job 30187601 re-ran the **baseline only**. Whether wear_v1 and wear_v2 still beat baseline
+is unmeasured on the fixed ruler, and **wear v3's success criterion cannot be written
+against 0.843 / 0.645.**
+
 The Juglet rows at 0.5114 (`juglet_gt`) are inside the band and always were. Note that
 `juglet_norm`, used by the *earlier* Juglet evaluations, hands the model **0.041** —
 eleven times below the floor, because that file was normalised about an origin the pot

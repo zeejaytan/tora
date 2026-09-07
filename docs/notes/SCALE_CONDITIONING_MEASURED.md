@@ -213,3 +213,13 @@ One worry can be dropped: **the seating measure cannot be distorted by `scales` 
 (`tora/eval/evaluator.py:87`), independent of the conditioning value. The 9-of-9 saturation
 seen at 0.041 in `.scratch/juglet-cause/issues/03-low-side-out-of-band-scale.md` was
 `part_accuracy_absolute`, the pre-`0d6a85f` scoring.
+
+**Measured 2026-09-07, job 30187601.** Correcting the size input to 0.550 lifts fresh
+seating by **+7.5 points** (95% CI [+0.8, +17.1]) and moves worn seating by **−1.6**
+(CI [−18.1, +9.5]), against draw scatter of ±16–20. The prior was right that the model is
+close to insensitive to this number; the fresh gain barely clears zero and rests on six
+pots. **The handicap is not what is wrong with §4** — the ruler is. Job 29308186 predates
+`0d6a85f` by two weeks, so §4 is scored on the retired size-dependent metric, which is
+most generous exactly where these pots sit: `coxae` at `scales` 0.3316 scores 0.950 old
+and 0.050 corrected on the same ten draws. Full read-out in
+`.scratch/eval-readout/issues/05-does-the-out-of-band-size-cost-anything.md`.

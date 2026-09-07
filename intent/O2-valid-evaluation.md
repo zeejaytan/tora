@@ -54,6 +54,24 @@ Two earlier ladders (jobs 29891327, 30130045) found the model flat against this 
 0.04 to 5 — but in *turn*, on *fresh* pots only, so neither touched the metric or the
 material the wear claim rests on.
 
+**Measured 2026-09-07, job 30187601 — and the answer moved the question.** The size input
+costs little: correcting it lifts fresh seating by 7.5 points (CI [+0.8, +17.1]) and moves
+worn seating not at all (−1.6, CI [−18.1, +9.5]), against draw scatter of ±16–20 points.
+The refuting outcome did not occur — the wear gap widened rather than closed.
+
+**What the job found instead is a ruler problem, and it is larger.** Job 29308186, the
+source of every number in `WEAR_TEST_RESULTS.md` §4, ran 2026-08-17; the unit-box scoring
+fix `0d6a85f` landed 2026-09-02. §4 is entirely on the **retired size-dependent** score,
+re-pooled for the anchor on 09-05 but never re-scored. On the corrected ruler the baseline
+seats **0.597** fresh and **0.560** on the worn sweep, not 0.843 and 0.645, and the gap
+between them is **3.7 points, not 20**. Wear still costs seating when read as the erosion
+ladder (0.610 → 0.423 at stored size, 0.632 → 0.318 corrected).
+
+**This question is therefore not closed.** The *model* comparison in §4 — wear_v1 and
+wear_v2 against baseline — has never been scored on the corrected ruler, because 30187601
+re-ran the baseline only. Until it is, no ranking in that table is established, and wear
+v3's success criterion cannot be written against 0.843 / 0.645.
+
 ## Done when
 
 - [ ] At least one evaluation route that is **not the Juglet** is agreed and written down,
