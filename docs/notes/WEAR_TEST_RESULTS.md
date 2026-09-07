@@ -212,7 +212,14 @@ is a **paired** comparison carrying the same handicap on both sides; an offset t
 constant cannot open a twenty-point gap. What it does mean is that **both numbers are
 depressed**: the wear result is a lower bound measured on a handicapped model, and
 re-running the sweep with `scales` near 0.55 should lift both. That is the next
-experiment, and it is now a well-posed one.
+experiment, and it is now a well-posed one — ticketed 2026-09-07 as
+`.scratch/eval-readout/issues/05-does-the-out-of-band-size-cost-anything.md`, to run
+before the wear v3 curriculum. **The prior is that it will change nothing:** two scale
+ladders (jobs 29891327 and 30130045) already found the model flat against this input from
+0.04 to 5, on eight pots at ten draws, confirmed by render. But both were read in *turn*,
+which wear moves by only 3°, and both used *fresh* pots — so the cost has never been read
+in seating, and never on worn material. Until it is, treat 0.843 and 0.645 as a sound
+**difference** and a lower bound on the **level**.
 
 The Juglet rows at 0.5114 (`juglet_gt`) are inside the band and always were. Note that
 `juglet_norm`, used by the *earlier* Juglet evaluations, hands the model **0.041** —

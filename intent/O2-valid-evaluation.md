@@ -47,6 +47,13 @@ rescaled about an origin the pot sits 0.48 away from, handing the model **0.041*
 eleven times below the floor. `juglet_gt` fixed it. `docs/notes/SCALE_CONDITIONING_MEASURED.md`,
 ticket `.scratch/eval-readout/issues/04-what-does-the-scales-input-actually-mean.md`.
 
+**What is not yet known is what the handicap costs**, and that is now ticket
+`.scratch/eval-readout/issues/05-does-the-out-of-band-size-cost-anything.md`: re-run the
+fresh and worn sets with the size input moved to 0.550 and read the difference in seating.
+Two earlier ladders (jobs 29891327, 30130045) found the model flat against this input from
+0.04 to 5 — but in *turn*, on *fresh* pots only, so neither touched the metric or the
+material the wear claim rests on.
+
 ## Done when
 
 - [ ] At least one evaluation route that is **not the Juglet** is agreed and written down,

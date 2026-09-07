@@ -190,3 +190,26 @@ re-run the sweep with the objects rescaled so `scales` lands near 0.55, and see 
 both the fresh and worn seating figures rise. If they rise together, the wear finding is
 confirmed at full strength. If the gap closes, the wear finding was partly an artefact of
 scoring a handicapped model — and that would be worth knowing.
+
+**Ticketed 2026-09-07:** `.scratch/eval-readout/issues/05-does-the-out-of-band-size-cost-anything.md`.
+Writing it turned up prior art that narrows the question and lowers the expected payoff,
+which is worth recording here rather than in the ticket alone. Two scale ladders have
+already varied this exact input on real pots — job **29891327** upward (flat from 0.5 to 5,
+collapse only between 15 and 50) and job **30130045** downward (rungs 0.04 to 0.5: **flat
+and non-monotone**, eight pots, ten draws each, with renders at the two ends
+indistinguishable). Three of the six sweep pots were in the second. On that evidence the
+model is close to insensitive to the size it is told, and the handicap probably costs
+nothing.
+
+**Two things keep the job worth running.** Both ladders were read in **rotation** — the
+metric wear moves by about 3°, against a ±27.7° between-pot floor — which is the same
+mistake the wear analysis made before the conservator caught it; the wear finding lives in
+**seating**, and seating has never been read across a scale ladder. And both ladders used
+**fresh** pots, so whether out-of-band conditioning interacts with *wear* is untested. That
+interaction is the only thing that could bend the §4 gap, and it is what ticket 05 measures.
+
+One worry can be dropped: **the seating measure cannot be distorted by `scales` at all.**
+`part_accuracy`, the field `readout.py` reads, is computed in the unit-box frame
+(`tora/eval/evaluator.py:87`), independent of the conditioning value. The 9-of-9 saturation
+seen at 0.041 in `.scratch/juglet-cause/issues/03-low-side-out-of-band-scale.md` was
+`part_accuracy_absolute`, the pre-`0d6a85f` scoring.

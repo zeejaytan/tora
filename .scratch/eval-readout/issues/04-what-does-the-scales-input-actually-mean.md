@@ -203,3 +203,14 @@ seating figures rise together, the wear finding is confirmed at full strength; i
 closes, part of it was an artefact of scoring a handicapped model. This should happen
 **before** the wear v3 curriculum, whose evaluation protocol already requires "stored
 object size inside the trained band" and now knows what that means.
+
+**Ticketed 2026-09-07** as
+[05: Does the out-of-band size input actually cost the wear result anything?](05-does-the-out-of-band-size-cost-anything.md),
+and specifying it changed it. Two ladder jobs had already varied this same input on real
+pots — **29891327** upward (flat 0.5 to 5) and **30130045** downward (flat and non-monotone
+across a twelvefold drop, eight pots, 400 draws, renders indistinguishable at the two
+ends). So the prior says the handicap costs nothing. What those ladders did **not** do is
+read the result in **seating** — they read turn, the metric wear moves by only ~3° — and
+they used **fresh pots only**, so the interaction between out-of-band conditioning and wear
+is still untested. Ticket 05 targets that narrower gap, and predicts a flat result in
+advance so it can fail.
