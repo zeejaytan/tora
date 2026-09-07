@@ -17,7 +17,7 @@ measured are a soft spot in any claim built on top of them.
 
 `O8` closed with wear **ruled in as a cause** — demonstrated by intervention, not
 correlation: abrade only the break surfaces of pots TORA already reassembles, hold the
-faces and correct poses fixed, and sherds seated falls **0.843 → 0.645**, with the
+faces and correct poses fixed, and sherds seated falls **0.843 → 0.645** (retired ruler; **0.597 → 0.560** corrected, jobs 30187601 / 30190268 — the intervention still shows on the erosion ladder and per pot, not in a pooled mean), with the
 baseline `blue_pot` splitting open and the baseline `plate` collapsing in the renders.
 
 **What O8 could not close, and hands here, is the bridge**: whether *our simulated wear*
