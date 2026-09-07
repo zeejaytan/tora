@@ -41,9 +41,11 @@ import numpy as np
 
 from tora.data.dataset import PointCloudDataset
 
-# The band the model was actually trained on: Breaking Bad stores max|v| = 0.5
-# and PointCloudDataModule's random_scale_range default is (0.75, 1.25).
-TRAIN_SCALE_LO, TRAIN_SCALE_HI = 0.5 * 0.75, 0.5 * 1.25
+# The band the model was actually trained on. MEASURED, job 30185814, by
+# scripts/measure_scale_conditioning.py -- not derived from the mesh convention.
+# The old value here was 0.5 * (0.75, 1.25); the floor survives the measurement
+# almost exactly, the ceiling does not. docs/notes/SCALE_CONDITIONING_MEASURED.md.
+TRAIN_SCALE_LO, TRAIN_SCALE_HI = 0.375, 0.811
 
 COMPARED = [
     "pointclouds",

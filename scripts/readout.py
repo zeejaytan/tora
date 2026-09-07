@@ -27,8 +27,11 @@ Three further things were re-derived by hand, differently, in each of those scri
     the absolute one.
   - The model's size input is not checked at read time. `scales` is fed into the flow
     model at every denoising step, and the model has only ever seen it in
-    [0.375, 0.625]. `juglet_norm` runs sit at 0.041 and the millimetre Fractura
-    subsets at 24-120. Such a run was handicapped before it started.
+    [0.375, 0.811] -- MEASURED, job 30185814, not derived. `juglet_norm` runs sit at
+    0.041 (reproduced by the measurement) and the millimetre Fractura subsets at
+    24-120. Such a run was handicapped before it started. The real evaluation sets
+    are not out of band but they are in its floor: 0.319-0.412, with `plate` and
+    `coxae` below everything training showed.
 
 WHAT THIS DOES NOT DO. It does not change `tora/eval/metrics.py`. Correcting the
 stored field at source would silently change the meaning of every historical
@@ -56,9 +59,24 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import cKDTree
 
-# The band the flow model was trained on. Breaking Bad objects arrive at max|v| = 0.5
-# and training adds random_scale_range (0.75, 1.25).
-TRAINED_SCALE_BAND = (0.375, 0.625)
+# The band the flow model was trained on. MEASURED, job 30185814, not derived:
+# scripts/measure_scale_conditioning.py read `scales` off 400 objects of the
+# Breaking Bad `everyday` train split with augmentation off, then applied the
+# 0.75-1.25 jitter the train dataset alone receives (datamodule.py:152 -- val,
+# validate and test/predict all omit it, so evaluation reads a fixed value).
+#
+# Base `scales` came out at 0.4929-0.7116, median 0.5446 -- ABOVE the mesh
+# convention of max|v| = 0.5, because dataset.py:427 measures the sampled cloud
+# after re-centring on its centroid, which pushes the extreme coordinate outward.
+# The old floor of 0.375 was derived as 0.5 x 0.75 and happens to be right to
+# 0.0001 (measured minimum 0.3751). The old ceiling of 0.625 was wrong: the real
+# ceiling is 0.811. See docs/notes/SCALE_CONDITIONING_MEASURED.md.
+TRAINED_SCALE_BAND = (0.375, 0.811)
+
+# Inside the band but in its lowest 5%: the model saw sizes here, rarely. Worth
+# saying out loud, because the real evaluation sets cluster in exactly this tail
+# (0.319-0.412) and two of the six sit below the band entirely.
+TRAINED_SCALE_P5 = 0.413
 
 # Breaking Bad's tau, in the frame Breaking Bad states it in: a unit-length box.
 # compute_part_acc thresholds pytorch3d's chamfer_distance with point_reduction="mean",
@@ -73,6 +91,7 @@ UNRECOVERABLE = "unrecoverable"
 POST_FIX_MARKER = "part_accuracy_absolute"
 
 FLAG_SCALE_OUT_OF_BAND = "model size input outside the trained band"
+FLAG_SCALE_RARE = "model size input in the lowest 5% of the trained band"
 FLAG_PRE_UNIT_BOX = "scored before the unit-box threshold fix"
 
 
@@ -334,6 +353,8 @@ def read_run(
         lo, hi = TRAINED_SCALE_BAND
         if not (lo <= scale <= hi):
             flags.append(f"{FLAG_SCALE_OUT_OF_BAND}: {scale:.4g} not in [{lo}, {hi}]")
+        elif scale < TRAINED_SCALE_P5:
+            flags.append(f"{FLAG_SCALE_RARE}: {scale:.4g} < {TRAINED_SCALE_P5}")
         if POST_FIX_MARKER not in entry:
             flags.append(FLAG_PRE_UNIT_BOX)
 

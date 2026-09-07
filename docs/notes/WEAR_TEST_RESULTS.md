@@ -193,8 +193,31 @@ threshold argument in §5, that matters: several of these sit at or above the li
 where the assembly has genuinely collapsed rather than below it.
 
 ⚠️ **The fresh and sweep sets were scored at a stored object size of 0.319–0.383,
-at or below the trained floor of 0.375** — a handicap at source, separate from the
-reading error, and untested. The Juglet rows at 0.5114 are inside the band.
+at the very bottom of what the model was trained on.** **Tested 2026-09-07, job
+30185814** — the flag was previously untested and is now measured, not derived:
+`docs/notes/SCALE_CONDITIONING_MEASURED.md`.
+
+**The flag is real.** The trained band was read off 400 objects of the corpus the
+baseline was trained on: base `scales` 0.4929–0.7116 (median 0.5446), and with the
+0.75–1.25 jitter the train split alone receives, **0.375–0.811**. `plate` (0.321)
+and `coxae` (0.332) sit **below everything training showed**; `vert9`, `galli_pot`,
+`limb3` and `blue_pot` (0.380–0.410) sit in its lowest 0.2–4.3%. The assumed floor
+of 0.375 turns out correct to 0.0001; the assumed **ceiling of 0.625 was wrong**
+(true ceiling 0.811), now corrected in all three scripts that hard-coded it.
+
+**It does not threaten the wear comparison.** `scales` is held fixed across the
+erosion ladder — largest within-pot drift 2.0% from e000 to e100 — and the fresh
+set matches the sweep's own unworn variants to within 0.9%. The 0.843 → 0.645 fall
+is a **paired** comparison carrying the same handicap on both sides; an offset that
+constant cannot open a twenty-point gap. What it does mean is that **both numbers are
+depressed**: the wear result is a lower bound measured on a handicapped model, and
+re-running the sweep with `scales` near 0.55 should lift both. That is the next
+experiment, and it is now a well-posed one.
+
+The Juglet rows at 0.5114 (`juglet_gt`) are inside the band and always were. Note that
+`juglet_norm`, used by the *earlier* Juglet evaluations, hands the model **0.041** —
+eleven times below the floor, because that file was normalised about an origin the pot
+sits 0.48 away from. Those runs are not in this table.
 
 ---
 

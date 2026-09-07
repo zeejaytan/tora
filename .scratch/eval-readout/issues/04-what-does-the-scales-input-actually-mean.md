@@ -13,7 +13,8 @@ measurements of "size" and is spurious, and the table stands.
 
 **Blocked by:** None. 01–03 are done; this uses `readout.py` as it stands.
 
-**Status:** ready-for-agent
+**Status:** resolved 2026-09-07, job 30185814 — **the warning is real, the hypothesis
+in this ticket was wrong, and the wear comparison survives it.** See Answer.
 
 ## Why it exists
 
@@ -94,16 +95,16 @@ HPC-side, so it runs on Spartan; every submit gets a laptop-side
 
 ## Acceptance criteria
 
-- [ ] The trained band is **measured** from the training corpus, not derived from the
+- [x] The trained band is **measured** from the training corpus, not derived from the
       mesh convention, and the distribution (not just a point value) is written down
-- [ ] The fresh, worn-sweep and Juglet rows are placed on that measured axis, and each is
+- [x] The fresh, worn-sweep and Juglet rows are placed on that measured axis, and each is
       stated as inside or outside it
-- [ ] The ⚠️ on `WEAR_TEST_RESULTS.md` §4 is either removed with a reason, or upheld with
+- [x] The ⚠️ on `WEAR_TEST_RESULTS.md` §4 is either removed with a reason, or upheld with
       the correct numbers and a statement of what must be re-scored
-- [ ] Whichever way it lands, all three hard-coded copies of the band agree with the
+- [x] Whichever way it lands, all three hard-coded copies of the band agree with the
       measurement (`readout.py`, `check_scale_conditioning.py`, `audit_run_provenance.py`)
-- [ ] States which of the three: method failed, ruler broken, reference wrong
-- [ ] `check_intent_links.py` clean
+- [x] States which of the three: method failed, ruler broken, reference wrong
+- [x] `check_intent_links.py` clean
 
 ## What would make this not worth pursuing
 
@@ -111,3 +112,94 @@ Nothing yet — it costs a CPU job and it can refute a published conclusion. Tha
 cheapest test on the board. It stops being worth pursuing only if the measurement shows
 the sweep rows comfortably inside the band, in which case the answer is one line in the
 note and the constant fixed.
+
+
+---
+
+## Answer (2026-09-07, job 30185814 — CPU only, 3.5 minutes, COMPLETED 0:0)
+
+Full write-up: `docs/notes/SCALE_CONDITIONING_MEASURED.md`. Pictures:
+`artifacts/scale_band/scale_band.png`, `juglet_layouts_zoom.png`.
+
+### The hypothesis in this ticket was wrong
+
+I expected the pipeline value to come out **below** the mesh convention of 0.5, because
+sampled points do not reach the mesh's furthest vertex — which would have made the
+band too high and the warning spurious. **It comes out above 0.5.** Re-centring on the
+point centroid moves the object off the origin it was normalised about, and that pushes
+the extreme coordinate outward by more than the sampling loses.
+
+Measured on 400 of the 35,114 objects in the Breaking Bad `everyday` train split, the
+corpus `bbad_everyday_cka.ckpt` was trained on:
+
+| | base `scales`, no jitter |
+|---|---|
+| min | 0.4929 |
+| p5 | 0.5022 |
+| median | **0.5446** |
+| p95 | 0.6313 |
+| max | 0.7116 |
+
+With the 0.75–1.25 jitter the **train split alone** receives, what the model was told
+in training spans **0.375 → 0.811**.
+
+**The assumed floor of 0.375 is correct to 0.0001** (measured minimum 0.3751) — and
+correct by luck, two errors cancelling. **The assumed ceiling of 0.625 was wrong**; the
+real ceiling is 0.811. Nothing load-bearing was flagged high, so no published number
+moves, but all three hard-coded copies are corrected.
+
+### So the warning is real
+
+| object | `scales` | where it sits in training |
+|---|---|---|
+| `plate` | 0.3210 | **below everything training showed** |
+| `coxae` | 0.3324 | **below everything training showed** |
+| `vert9` | 0.3804 | lowest 0.2% |
+| `galli_pot` | 0.3848 | lowest 0.5% |
+| `limb3` | 0.4094 | lowest 4.3% |
+| `blue_pot` | 0.4096 | lowest 4.3% |
+
+Every real pot we score is presented to the model as an unusually small object, and two
+of them as smaller than anything it has ever seen.
+
+### And the wear comparison survives it
+
+`scales` is held fixed across the erosion ladder — largest within-pot drift **2.0%**
+from e000 to e100 (`vert9`), most under 1.3% — and the fresh held-out set matches the
+sweep's own unworn variants to within 0.9% per object. So 0.843 fresh against 0.645 worn
+is a **paired** comparison carrying an identical handicap on both sides. A constant
+offset cannot open a twenty-point gap.
+
+What it does mean: **both numbers are depressed**, and the wear result is a lower bound
+measured on a handicapped model.
+
+### The harness was validated against the runs it audits
+
+It reproduces the `scales` that job 29308186 saved itself, object by object, to within
+0.05–0.8% (`blue_pot` 0.4096 vs 0.4101; `plate` 0.3210 vs 0.3194; the Juglet 0.5114 vs
+0.5114 exactly), and independently reproduces `readout.py`'s already-recorded 0.041 for
+`juglet_norm`.
+
+### Side finding, rendered before being reported
+
+`juglet_norm.hdf5` hands the model **0.0408**, eleven times below the floor, while
+`juglet_gt.hdf5` — which §4 uses — hands it 0.5114. Both store max|v| = 0.5 and both
+hold the same nine sherds in the same arrangement. `juglet_norm` was normalised about an
+origin the pot sits **0.48** away from, so the 0.5 is almost entirely the offset and the
+division shrank the pot to a tenth of its intended size. §4's Juglet rows are sound;
+the *earlier* normalised-Juglet evaluations were not.
+
+### Which of the three
+
+**The measurement was broken** — one of our own constants, in the ceiling rather than
+the floor, and the flag it produced on the floor was right. Not the model, not the
+reference.
+
+### What this hands forward
+
+One well-posed GPU experiment: re-run the erosion sweep with the objects rescaled so
+`scales` lands near 0.55, the middle of the measured band. If both the fresh and worn
+seating figures rise together, the wear finding is confirmed at full strength; if the gap
+closes, part of it was an artefact of scoring a handicapped model. This should happen
+**before** the wear v3 curriculum, whose evaluation protocol already requires "stored
+object size inside the trained band" and now knows what that means.

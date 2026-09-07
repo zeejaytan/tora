@@ -19,7 +19,10 @@ import json
 import os
 
 ROOT = "/data/gpfs/projects/punim2657/TORA/eval_runs"
-LO, HI = 0.375, 0.625
+# MEASURED, job 30185814 (scripts/measure_scale_conditioning.py), not derived from
+# the mesh convention. Floor confirmed to 0.0001; the old ceiling of 0.625 was wrong.
+# docs/notes/SCALE_CONDITIONING_MEASURED.md
+LO, HI = 0.375, 0.811
 
 
 def yaml_block_value(path, block, key):
