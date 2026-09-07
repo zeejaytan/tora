@@ -148,7 +148,15 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   poses untouched, and re-run: same pots, same pieces, same correct answer.
   **Sherds seated falls from 0.843 to 0.645** — twenty points — with the pictures agreeing
   (baseline `blue_pot` splits open at heaviest wear, baseline `plate` has collapsed by
-  heavy), and wear-augmented training repairs exactly those two cases. That repair is a
+  heavy), and wear-augmented training repairs exactly those two cases.
+  **Both of those numbers are on the retired ruler and are superseded (2026-09-07, jobs
+  30187601 / 30190268).** On the corrected unit-box scoring the baseline seats **0.597**
+  fresh and **0.560** worn — a gap of **3.7 points, not 20**. The intervention finding
+  survives, but only when read as the erosion ladder (baseline 0.624 → 0.407) or per pot,
+  never as a pooled six-pot mean: a pooled mean scored wear_v2, which cuts the ladder drop
+  from 0.217 to 0.077, as indistinguishable from the untouched baseline. Wear v3's success
+  criterion cannot be written against 0.843 / 0.645. `WEAR_TEST_RESULTS.md` §4,
+  `intent/O2`, `.scratch/eval-readout/issues/05`. That repair is a
   **cross-simulator** result: the worn test sweep is built with GARF's `erode_fracture_band`
   while wear_v2 was trained on `wear_ops.apply_wear` (one-sided peak truncation, recession
   removed) from different source objects. wear_v1 does **not** get this credit — it was
@@ -192,8 +200,18 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   here needs redoing — but whether the four anchor-free Juglet configs should be split
   into "benchmark" and "deployment" is a real question, and not sharp enough to ticket
   until something depends on the answer.
-- **Whether GARF should be run alongside.** Only becomes a question if something here
-  turns out to be TORA-specific.
+- **Whether GARF should be run alongside — this fired on 2026-09-07, and what fired it is
+  out of this map's scope.** Something did turn out to be TORA-specific, but it is not
+  about the Juglet: TORA normalises a fragment set by the half-span of the **whole
+  assembled object** and feeds that one number to every point
+  (`tora/data/dataset.py:427-430`, `flow_model/embedding.py:151-152`), so a partial
+  assemblage is inflated to whole-pot size and the model cannot be told pieces are
+  missing. GARF normalises and labels **per fragment** and ships a removal / foreign-piece
+  test harness. That decides how `U4` (most fragments never recovered) must be run, and
+  it is ruled **out of scope here** — see Out of scope. What remains fog on *this* map is
+  narrower: whether GARF should be run on the **Juglet itself**, which only becomes a
+  question if the Juglet diagnosis needs a second architecture to stand up.
+  Full argument: `docs/notes/PARTIAL_ASSEMBLAGE_TORA_VS_GARF.md`.
 
 ## Out of scope
 
@@ -203,3 +221,11 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   (61°, 64°) and `coxae` (86°). Real, open, and not about the Juglet.
 - **Re-running the millimetre-stored Fractura subsets** (real bones, egg) normalised.
   Owed from the units fix, but it is bookkeeping on a different question.
+- **Partial assemblages — how much of a pot do you need before reassembly works.** The
+  proposed `piececount_sweep` on `galli_pot` was **not run**, and should not be: its
+  subsets are drawn without any adjacency test (only 19 of 45 fragment pairs on that pot
+  share a break surface, and connectedness climbs with k, so the confound runs along the
+  tested axis), and TORA inflates every subset to whole-pot size regardless. This is
+  `U4`'s question, on a different model, and it does not bear on what stops the Juglet —
+  ticket 04 already showed a single missing sherd degrades gracefully.
+  `docs/notes/PARTIAL_ASSEMBLAGE_TORA_VS_GARF.md`, `intent/U4`.
