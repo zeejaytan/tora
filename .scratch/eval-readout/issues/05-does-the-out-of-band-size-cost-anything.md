@@ -13,7 +13,7 @@ middle of the trained band and reads the difference.
 
 **Blocked by:** None. 04 is resolved and supplies the measured band.
 
-**Status:** done
+**Status:** phase 1 done; phase 2 ready-for-agent
 
 ## Why it exists
 
@@ -273,3 +273,99 @@ stand as written.
 - The renders show the first attempt only; the metrics average ten.
 - The corrected-ruler levels (0.597 / 0.560) come from a 10-draw run and are **not** a
   like-for-like restatement of §4's 3-draw rows; they are a fresh measurement.
+
+
+---
+
+# Phase 2 — rescore the wear table on the corrected ruler
+
+**Amended 2026-09-07**, because phase 1 answered its own question and opened a larger one
+it is not honest to leave in a closing paragraph.
+
+## What phase 1 left broken
+
+Phase 1 rescored the **baseline only** — its arms A and C. So §4 now has corrected
+*levels* for one of its three models and none of its *comparisons*. Every ranking in that
+table — wear_v1 and wear_v2 against baseline, on all three sets — still rests entirely on
+the retired ruler, and those rankings are the whole argument that wear training helps.
+
+This is not a caveat to note. **Nothing currently establishes that wear training does
+anything at all**, and wear v3's success criterion is written against 0.843 / 0.645.
+
+## What is being varied
+
+**Nothing.** This is job 29308186 re-run on today's code: the same three checkpoints, the
+same three test sets, the same data configs, resolved from **29308186's own saved
+`.hydra/overrides.yaml`** rather than from the finetune script (which selects `$BEST` by
+mtime and would not necessarily resolve to the same file today).
+
+| model | checkpoint |
+|---|---|
+| baseline | `checkpoints/bbad_everyday_cka.ckpt` |
+| wear_v1 | `output/wear_finetune_28231335/last.ckpt` |
+| wear_v2 | `output/wear_finetune_v2_29308186/last.ckpt` |
+
+Three deliberate differences, all stated in the job header:
+
+1. **Today's evaluator.** That is the point of the job.
+2. **10 draws, not 3 and 5.** §4's fresh rows rest on three draws and its Juglet rows on
+   five. Two of the six pots have only **two loose sherds**, so one flip moves the six-pot
+   mean by 17 points — which is how 0.843 came to be quoted to three digits off three
+   draws. Ten draws also makes the new rows directly comparable with phase 1's arms A and C.
+3. **Clouds saved, images not.** `save_assembly_npz` gives `render_assembly_grid.py`
+   everything it needs. Mitsuba was most of phase 1's 16 minutes and can be run afterwards
+   on whichever rows turn out to be decision-relevant.
+
+## Two gates, both on the exact failure being repaired
+
+A prose rule did not stop this happening once, so it becomes a check that exits non-zero.
+
+- **Gate 1, before any GPU time:** `git merge-base --is-ancestor 0d6a85f HEAD`. Scoring
+  nine runs on a pre-fix checkout would silently reproduce the retired table and read as a
+  confirmation.
+- **Gate 2, on this job's own first output:** `scripts/check_post_fix_marker.py` asserts
+  `part_accuracy_absolute` is present in the result files the job is writing. Gate 1
+  checks the source; gate 2 checks the artefact, which is what `readout.py` keys on.
+
+`check_post_fix_marker.py` is new and is the reusable half — it is the gate form of
+`readout.py`'s existing `FLAG_PRE_UNIT_BOX`, which worked correctly and was bypassed
+because the comparison was made against **a number quoted in a document**. A figure in
+prose carries no provenance.
+
+## Stated in advance, so it can fail
+
+**Prediction: the levels all fall, the ranking survives.** The corrected ruler is stricter
+and the baseline already fell 0.843 → 0.597, so every row should drop. But wear_v2 should
+still lead baseline on the worn sweep by more than the draw-to-draw scatter.
+
+- **If the ranking survives**, the wear programme is intact at corrected levels and wear v3
+  can be built, with its criterion rewritten against the new numbers.
+- **If the ranking collapses or reverses**, wear training was never shown to help, and the
+  entire wear line of work rests on a retired metric. That is the refuting outcome and it
+  must be reported.
+- **Second, cheaper prediction:** the Juglet ranking will not move either — §4 already says
+  wear training does not fix it. If the corrected ruler makes wear_v1/v2 look *better* than
+  baseline on the Juglet, that is new information about the one object this project is about.
+
+## Acceptance criteria
+
+- [ ] Both gates pass before the table is read
+- [ ] Nine runs, one job, one settings set, one job id
+- [ ] Result stated in seating with draw scatter beside every mean; turn as context only
+- [ ] Paired model comparisons with intervals, on the fresh set and on the worn sweep
+- [ ] The erosion ladder printed per model on the corrected ruler
+- [ ] A render of baseline against wear_v2 at individual-sherd placement, made **before**
+      any claim is written — clouds are saved for exactly this
+- [ ] Both predictions explicitly marked held or failed
+- [ ] Names which of the three
+- [ ] §4 rewritten with the corrected table; `intent/O2` updated; wear v3's criterion
+      restated or explicitly blocked
+
+## Limitations to state in the answer
+
+- Six fresh pots, thirty worn variants of the same six, one Juglet. Draw scatter on these
+  objects ran ±15–23 points in phase 1, larger than most effects it measured.
+- The Juglet has **no valid archaeological ground truth**. Its rows are scored against the
+  conservator's hand assembly and must be quoted that way.
+- `wear_v2` is one finetuning run, not a method. A ranking between three checkpoints is
+  evidence about these checkpoints.
