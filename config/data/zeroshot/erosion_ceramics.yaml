@@ -1,0 +1,32 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# Ticket .scratch/juglet-cause/issues/11 -- the erosion ladder with the object
+# selection step the original sweep never ran.
+#
+# `erosion_sweep` sourced real_heldout_norm.hdf5: six objects, three of them
+# BONES, so only three ceramics were ever worn and only one of those assembles
+# unworn (ticket 09's n = 1). This sources the Fractura `ceramics` group
+# instead -- EIGHT real pots, five of which have never been on the ladder,
+# including narrow_bottle2 and narrow_bottle4, the two TORA reassembles almost
+# perfectly when fresh.
+#
+# The source is normalised ONCE before erosion (ceramics arrive at max|v|
+# 54.9-187.3 raw scan units; `scales` is a conditioning input to the flow
+# model, not bookkeeping). --normalize is NOT used when building, because it
+# recomputes per variant AFTER erosion and would let the scale drift from rung
+# to rung -- a second changing thing in an experiment whose logic is that only
+# the wear changes.
+#
+# min_parts 2 / max_parts 20 spans the corpus (3 to 12 fragments).
+dataset_names: ["erosion_ceramics"]
+
+batch_size: 4
+num_workers: 4
+limit_val_samples: 0
