@@ -290,11 +290,19 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   reopened destination. Wear breaks reassembly on pots we abrade ourselves; the Juglet's own
   wear is invisible at the resolution it was scanned. Of the three routes originally
   visible:
-  - **(a) a capture that resolves the wear** — finer than about 0.1 mm on this vessel, or
-    the same pot scanned fresh *and* worn. Still open, still the only route that can
+  - **(a) a capture that resolves the wear** — points about **0.1 mm** apart on this
+    vessel, three to five times finer than the 0.29–0.48 mm we have, which is reachable
+    with close-range structured-light kit rather than anything exotic; **or** an excavated
+    sherd that carries both an ancient buried break face and a fresh modern one, giving a
+    real paired control inside a single object. Still open, still the only route that can
     positively attribute. It is `O7`'s question and it is **conservation-lab work, not
     compute** — a decision about lab time, which is the conservator's to make, not the
-    analysis's.
+    analysis's. **Two corrections, 2026-09-09:** the "break a replica, abrade it, scan it
+    again" version of the paired capture is **struck** — burial cannot be simulated, and a
+    lab abrasion calibrates one simulator against another (`O7`); and a finer scan alone
+    does not reach *this* map's question, because `num_points_to_sample: 5000` puts ~1.2 mm
+    between the points the model is shown, so the pipeline already discards the detail the
+    current scan holds.
   - **(b) a behavioural test that needs no scan** — does the Juglet's failure have the shape
     wear produces on pots where we control it? **Run, and it did not carry wear across.**
     Ticket 08 found the Juglet scattered; ticket 09 found that the one object wear breaks on

@@ -161,6 +161,18 @@ requirement on `O7`:
 Until one of those exists, "the Juglet fails *because* its fractures are worn" stays an
 inference from a simulator, not a measurement of the object.
 
+> **Superseded 2026-09-09 — read `intent/O7` for the current wording of both captures.**
+> Two things above are now known wrong. The **modern replica** half of (2) is **struck**:
+> burial cannot be simulated, so abrading a fresh replica calibrates one simulator against
+> another and moves the guess rather than removing it — and after two millennia the fabric
+> is not the same material a replica offers. The *excavated* half survives and is the strong
+> version: one sherd bearing both an ancient buried break face and a fresh modern one is a
+> real paired control with nothing simulated. And (1) is incomplete: a finer scan grounds
+> the wear model but does not by itself reach the reassembly question, because
+> `num_points_to_sample: 5000` leaves ~1.2 mm between the points the network is shown. The
+> "100 mm juglet" is also a different size convention — ticket 10 measures this vessel at
+> 65 mm; the requirement is the ratio.
+
 ### Which of the three
 
 **The method genuinely failed** — wear degrades reassembly on real pots under a
