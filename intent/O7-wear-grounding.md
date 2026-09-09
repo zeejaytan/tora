@@ -72,22 +72,19 @@ condition, the second because half of it was wrong.
      directly for bone, where abrasion outcome depends heavily on the material's initial
      state — fresh, weathered or fossil — so a fresh substrate cannot stand in for a buried
      one even if the process were right.
-   - **Survives, and is the strong version: one excavated sherd carrying both an ancient
-     break and a modern one.** Sherds break again during excavation, lifting, washing and
-     storage. A fragment with a buried, weathered break face **and** a fresh break face
-     gives the same fabric, the same temper, the same firing, the same vessel and the same
-     scan session, with two thousand years of burial on one face and none on the other.
-     Nothing is simulated; the control is internal to the object. This is the design bone
-     taphonomy uses when it compares ancient with modern material to establish a baseline,
-     and it is tighter here because both faces sit on one piece.
+   - **Also struck, 2026-09-09, same day it was written: one excavated sherd carrying both
+     an ancient break face and a modern one.** This was offered as the surviving strong
+     version — same fabric, temper, firing and vessel, burial on one face and none on the
+     other — and it does not survive. **Two break faces are two fracture events.** How rough
+     a break surface is depends on how it broke: impact against bending, energy, direction
+     through the wall, whether it ran along a coil join or through temper. Holding the
+     material fixed does not hold the fracture fixed, and the fracture is the thing being
+     measured. The comparison confounds two thousand years of burial with "these two breaks
+     were made differently".
 
-     **What it costs:** no equipment and no experiment — a shelf search, and conservator's
-     work rather than compute. **What to watch:** the two faces differ in more than age
-     (orientation in the ground, exposure, whether the fresh break followed an existing
-     weakness), so it wants several sherds rather than one, and the fresh face should be a
-     clean break rather than a crumbled one. **What it would settle:** whether real burial
-     blunts a break edge at all at the scale the wear model claims, and by how much —
-     measured, on real material, against a real fresh control.
+   **So the paired control is struck in every form** — two pots, one pot two faces, replica
+   abrasion. No fourth variant is proposed; the problem is not that the right pairing has
+   not been found. See the restatement below.
 
 Until one exists, "the Juglet fails *because* its fractures are worn" is an inference from
 a simulator, not a measurement of the object — and the wear model's parameters cannot be
@@ -125,6 +122,66 @@ roughness at any resolvable scale; ticket 05 found the wear unmeasurable at 0.1%
 size; this finds the joins unmeasurable at 0.3–0.5 mm. **A capture finer than roughly
 0.1 mm on this vessel is now the binding constraint on the whole wear-grounding claim**,
 and no amount of compute substitutes for it.
+
+## Proposed restatement — NOT YET TAKEN, 2026-09-09. The conservator's decision.
+
+Three capture routes have now been written into this question and all three are struck or
+conditional. That is a pattern, and the honest reading of it is that **the problem is the
+question, not the routes.**
+
+**The diagnosis.** `O7` asks a *metrology* question — is the wear model grounded in real
+material, is it "archaeologically accurate" — about something that is not a measuring
+instrument. The wear model is a **training augmentation**. Its job is to produce training
+data that makes the network robust on worn pottery, not to reproduce burial. Augmentations
+are validated by whether they help, not by whether they are physically faithful; nobody
+validates image-blur augmentation against real lens optics. The phrase "archaeologically
+accurate" is what generates the impossible requirement, and every capture route here has
+been an attempt to satisfy it.
+
+**Conservator's objection, 2026-09-09, which is what forced this.** You cannot simulate two
+thousand years underground; you cannot break a second pot the same way; and no two pots are
+the same. Each strikes a different route, and together they close the paired-control idea
+entirely rather than sending it back for a better design.
+
+**What survives, ranked by cost:**
+
+- **Dead — the paired control, in every form.** Struck above. Not to be re-proposed in a
+  fourth variant.
+- **Free, and already partly done — behavioural validation.** Does wear augmentation
+  improve reassembly of *real* worn material, and does it beat cruder augmentation? The
+  strongest evidence we hold is already of this kind and needed no capture: **the repair
+  transfers across simulators** — wear_v2 trained on `wear_ops.apply_wear`, tested against
+  GARF's `erode_fracture_band` on different source objects (wear_v1 does not earn this, being
+  trained on the test operator). Lean on it carefully: on the corrected unit-box ruler that
+  effect survives on the erosion ladder and per pot, **not** as a pooled six-pot mean. What
+  is missing is a comparison against simpler augmentation, which is GPU we already use.
+- **Cheap, no capture — parameter ranges from published archaeometry.** The second "Done
+  when" box below already asks for this. It bounds the parameters without measuring this
+  material. It is grounding-by-literature, not grounding-by-measurement, and is honest only
+  if labelled as such.
+- **Conditional on capture 1 — endpoint comparison.** Not "does our process match burial"
+  but "does our *output* resemble real worn fracture, statistically". Needs no control and
+  no pairing: compare simulated-worn against real-worn directly. One attempt has already
+  failed on resolution (fine-over-coarse ratio: worn Juglet 0.169 against fresh `blue_pot`
+  0.167, indistinguishable). **This is the only thing a finer capture would still buy.**
+
+**What it does to the thesis claim.** It gets stronger, not weaker. "Our wear model is
+archaeologically accurate" is indefensible and is exactly where an examiner would press.
+What is defensible:
+
+> The wear model is a training augmentation with parameters bounded by published
+> archaeometric ranges. It is validated behaviourally — its benefit transfers to an erosion
+> operator it was not trained on. We do not claim it reproduces burial processes, and we
+> state why that cannot be measured with available capture: three independent instruments
+> show the wear on real material lies below the resolution of the scans that exist.
+
+A stated and argued limitation is a better position than a claim that can be knocked over.
+
+**If this restatement is accepted**, the two "Done when" boxes below that demand parameters
+*driven from measured ranges* and a *mapping from measured property to wear parameter* are
+the impossible pair and would be replaced by a behavioural criterion plus a bounded-range
+one. They are left standing until that decision is taken, so the file does not quietly
+lower its own bar.
 
 ## Done when
 
