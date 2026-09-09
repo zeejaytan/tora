@@ -1,9 +1,13 @@
 # Map — what actually stops TORA reassembling the Juglet
 
-**Label:** `wayfinder:map` · **Charted:** 2026-09-05 · **Status:** open — **reopened 2026-09-07**
+**Label:** `wayfinder:map` · **Charted:** 2026-09-05 · **Status:** open — **reopened
+2026-09-07; one decision left, and it is the conservator's (2026-09-09)**
 **Why it is open:** six candidates are ruled in or out and the object's own failure is still
 unattributed. Wear was demonstrated on *other* pots with *simulated* wear; nothing carries
-that to this vessel. Wear is the leading suspect, not the answer.
+that to this vessel. Wear is the leading suspect, not the answer. **The behavioural route
+(b) has now been run and did not carry it across** — and on the one object where wear does
+break a pot, it breaks it the *opposite* way to the Juglet. Route (a), a finer capture, is
+conservation-lab work; route (c) is to state the failure to attribute as the result.
 **Answers:** [O8](../../intent/O8-what-stops-the-juglet.md)
 
 ## Destination
@@ -214,22 +218,98 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   `artifacts/juglet_scatter_vs_swap.png`. Also the second, independent probe the
   umbrella's `U2` (perception or placement?) was short of.
   [08: Is the Juglet scattered, or are its sherds merely mixed up?](issues/08-scattered-or-exchanged.md)
+- **`narrow_bottle3`'s exchange is a real exchange, and the break edges prove it —
+  recorded here 2026-09-09 because this map's instruments now lean on it.** The seam test
+  (`.scratch/perception-or-placement/issues/01`, resolved 2026-09-07, no GPU) took the two
+  swapped flaps down to the source **meshes** and measured, per vertex of the break surface,
+  how far it sits from the fragment it should be touching. In the true bottle the joins
+  close to **0.11–0.23%** of the bottle's own size; with the two flaps swapped and then let
+  settle into their best possible fit, they sit **0.58–0.61%** apart typically and
+  **3.2–5.7%** apart at the worst tenth — the fit can only press one stretch of seam shut by
+  levering the rest of it open, which is what a mismatched edge does. The control matters:
+  the same settling run on the *true* arrangement leaves it where it already was (0.23 →
+  0.18%), so the optimiser is not simply dragging whatever it is handed into contact.
+  **Resolution gate, reported first:** vertices sit 0.22–0.26% apart, against an effect of
+  1% and up. On the 5000-point clouds those two numbers were both about 1.8% — the ruler and
+  its own noise floor the same size, which is why this needed meshes. Two instruments were
+  built and the first was wrong in a way every number it produced concealed; its control
+  caught it. This is the result the Juglet's own seam check (ticket 10) is calibrated
+  against. `scripts/check_seam_swap.py`, `artifacts/nb3seam/narrow_bottle3_seam_swap.png`.
+- **Wear breaks a pot the *other* way round: route (b) is spent.** Ticket 09 (2026-09-09, no
+  GPU, laptop analysis of clouds already fetched) asked the bridge question that needs no
+  finer scan — does wear produce the *kind* of failure the Juglet is having? On the erosion
+  ladder (job 30190268 baseline arm, six objects × five abrasion levels × ten attempts), the
+  **one object that goes from correctly assembled to broken as its break surfaces are worn
+  is `blue_pot`, and it fails by exchange, not scattering**: at light abrasion the pot is
+  still built and two small shoulder chips wear each other's names, the same swap in **9 of
+  10** attempts and identical across five random seeds. Putting that one swap right takes
+  the worst loose piece from **14.2% of pot size back to 4.0%**, where the unworn pot sits.
+  The Juglet scatters (ticket 08). So the behavioural bridge does not carry wear across —
+  weak evidence *against* wear as the Juglet's cause. **The prediction recorded before the
+  run was the opposite and it was wrong**; it is left standing in the ticket. **Weight:
+  n = 1.** Five of the six objects are already broken at zero abrasion and can show no
+  wear-induced transition; `limb3` is immune at every rung; `vert9`, briefly counted as a
+  second control, reads 11.9% at e000 and is not one. A confound was measured rather than
+  argued: agreement between attempts tracks piece count at **r = −0.81** (three pieces = six
+  possible renamings, ten pieces = 3.6 million), so cross-pot "it repeated, therefore
+  exchange" readings partly just count pieces — the script now prints this itself and states
+  its reading per pot, up its own ladder. **Which of the three: on `blue_pot` the method
+  genuinely failed; on the ticket's own question nothing failed — the sweep is
+  underpowered.** What would change it: an erosion ladder built on objects TORA assembles
+  correctly when unworn (one GPU evaluation pass). `scripts/check_wear_failure_shape.py`,
+  `artifacts/wearsig/blue_pot_e{000,025,075}.png`.
+  [09: Does wear fail like the Juglet?](issues/09-does-wear-fail-like-the-juglet.md)
+- **The Juglet's own joins close — to about the width of the scan's resolution, which
+  settles nothing.** Ticket 10 (2026-09-09, no GPU, no fetch) pointed the `narrow_bottle3`
+  seam instrument at this vessel before any decision to spend lab time on route (a). In the
+  conservator's hand-built reassembly the break surfaces sit **0.21–0.28 mm** from their
+  neighbours typically and **0.44–0.52 mm** at the worst tenth, while neighbouring scan
+  points are **0.29–0.48 mm** apart: the gap and the measurement's own noise floor are the
+  same size. **The test is one-sided by construction and it failed on the informative side.**
+  A join standing open would have been direct evidence of material loss — a hand fitter
+  cannot close a join where material is gone — but a join that closes is equally consistent
+  with no loss, with loss too fine for this scan, and with loss taken evenly off both faces,
+  which simply lets the fitter seat the pieces deeper. **Which of the three: none of them.**
+  Nothing failed and nothing was mis-measured; the question is smaller than the scan. Kept
+  for the record: the same "closest 2% of vertices" statistic reads 0.14–0.19% of object size
+  on the **scan-table jumble** too, which looks like a closed seam and is nothing of the kind
+  — the pieces are overlapping. That is this workspace's recurring failure mode and the
+  reason the measured quantity itself was rendered per vertex, where the break network draws
+  itself. **This is the third independent instrument to hit the same wall**: Gate A (job
+  29404479) found no fracture-like roughness at any resolvable scale, ticket 05 found the wear
+  unmeasurable at 0.1% of object size, and this finds the joins unmeasurable at 0.3–0.5 mm.
+  `artifacts/jugseam/juglet_gt_seam_gap.png`, `artifacts/jugseam/juglet_gt_vs_scan.png`.
+  [10: Do the Juglet's own joins still close?](issues/10-does-the-juglet-seam-close.md)
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
 ## Not yet specified
 
-- **What would attribute the Juglet's failure to wear — or take wear off the list.** This
-  is the reopened destination and it is not yet sharp enough to ticket. Wear breaks
-  reassembly on pots we abrade ourselves; the Juglet's own wear is invisible at the
-  resolution it was scanned. Three routes are visible and none is specified: **(a)** a
-  capture that resolves it — finer than 0.1% of object size, or the same pot scanned
-  fresh *and* worn (`O7`, conservation-lab work, not compute); **(b)** a *behavioural*
-  test that needs no scan — does the Juglet's failure have the shape wear produces on
-  pots where we control it, and does it differ from the shape a fresh nine-piece pot
-  produces? Ticket 08 is the first instalment and came back "scattered, like a fresh pot
-  that fails"; **(c)** accept it cannot be attributed with what exists and say so as the
-  result. Which of these to ticket is the next decision on this map.
+- **What would attribute the Juglet's failure to wear — or take wear off the list.
+  Narrowed 2026-09-09: route (b) is spent, and the choice is now (a) or (c).** This is the
+  reopened destination. Wear breaks reassembly on pots we abrade ourselves; the Juglet's own
+  wear is invisible at the resolution it was scanned. Of the three routes originally
+  visible:
+  - **(a) a capture that resolves the wear** — finer than about 0.1 mm on this vessel, or
+    the same pot scanned fresh *and* worn. Still open, still the only route that can
+    positively attribute. It is `O7`'s question and it is **conservation-lab work, not
+    compute** — a decision about lab time, which is the conservator's to make, not the
+    analysis's.
+  - **(b) a behavioural test that needs no scan** — does the Juglet's failure have the shape
+    wear produces on pots where we control it? **Run, and it did not carry wear across.**
+    Ticket 08 found the Juglet scattered; ticket 09 found that the one object wear breaks on
+    the erosion ladder fails by *exchange* instead. Weak evidence against wear, on n = 1.
+    The one thing that would revive this route is a ladder built on objects TORA assembles
+    correctly when unworn — one GPU evaluation pass, and it does not need this map to stay
+    open to be worth doing.
+  - **(c) accept it cannot be attributed with what exists and say so as the result.**
+    **This is what the evidence now supports.** Three independent instruments — Gate A,
+    ticket 05, ticket 10 — agree the data runs out before the question does. The failure to
+    attribute has been written into `O8` as the result.
+
+  So this is no longer fog: it is one decision, and it is not a technical one. **Close on
+  (c) unless the conservator judges (a) worth the lab time.** Nothing further on this map
+  can be squeezed from the scans that exist.
 
 - **What replaces "domain gap" as the standing explanation.** `JUGLET_TORA_ROOTCAUSE.md`
   concluded synthetic-to-real domain gap plus piece count; both halves were computed on

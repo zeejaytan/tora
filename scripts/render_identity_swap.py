@@ -218,7 +218,7 @@ def main() -> int:
 
     ident = {p: p for p in parts}
     rows = [
-        (gt, ident, "The bottle\nas it really is"),
+        (gt, ident, "The object\nas it really is"),
         (prop, ident, "The model's answer,\ncoloured by the name\nthe MODEL gave each piece"),
         (prop, landed, "The same answer, recoloured\nby the place each piece\nactually landed in"),
     ]
