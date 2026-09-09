@@ -11,7 +11,25 @@ written into the design and never executed.
 **Needs the conservator's go-ahead to submit** — no `sbatch` without it, and the
 submit gets a laptop-side `scripts/slurm_poll.sh`, per `AGENTS.md`.
 
-**Status:** open
+**Status:** DONE 2026-09-09 — job **30293058**, `sacct: COMPLETED|0:0|2026-09-09T16:34:44`.
+Result: `docs/notes/EROSION_LADDER_CERAMICS.md`.
+
+**Outcome in one line:** the selection step worked — **four** pots carry a
+valid unworn control against ticket 09's one — but only **two** of those were
+actually worn to the Juglet's own roughness, and on those two the failure is
+**scattering**, not exchange. Ticket 09's reading is reversed on n = 2.
+The recorded prediction (exchange at light and moderate wear) was right for
+light wear on `blue_pot` and wrong at the wear level that matters.
+
+Two things found along the way that outlive this ticket:
+1. **The `relief_p90` calibration inverts on a smooth-faced piece.** The
+   mollifier's feathered band boundary leaves a raised rim, which a 90th
+   percentile picks up; on `narrow_bottle2` achieved wear reads as *rising*
+   under abrasion. Rendered and confirmed — the meshes are undamaged
+   (inverted triangles < 0.1%, displacement monotone everywhere).
+2. **`erode_fracture_band` saturates.** It mollifies onto at most `knn=48`
+   of 20000 surface samples, so past e075 the effective kernel stops growing
+   with strength — on every pot in this corpus.
 
 ## Why it exists
 
@@ -157,24 +175,24 @@ one, not buried.
 
 ## Acceptance criteria
 
-- [ ] Every ceramic's `e000` control reported, and the exclusion list stated
+- [x] Every ceramic's `e000` control reported, and the exclusion list stated
       **before** the ladder is read
-- [ ] `max|v|` reported at every rung, confirming the scale did not move
-- [ ] Every pot × rung reported, including the ones with no signal
-- [ ] Distinct-renaming counts reported, not just the median draw — that is the
+- [x] `max|v|` reported at every rung, confirming the scale did not move
+- [x] Every pot × rung reported, including the ones with no signal
+- [x] Distinct-renaming counts reported, not just the median draw — that is the
       number that separates an exchange from a scattering
-- [ ] Read per object up its own ladder; **no pooled mean anywhere in the read-out**
-- [ ] Renders at individual-sherd placement, both ends of each informative ladder
-- [ ] Achieved wear compared against the Juglet's measured roughness
-- [ ] States which of the three: the method genuinely failed / the measurement was
+- [x] Read per object up its own ladder; **no pooled mean anywhere in the read-out**
+- [x] Renders at individual-sherd placement, both ends of each informative ladder
+- [x] Achieved wear compared against the Juglet's measured roughness
+- [x] States which of the three: the method genuinely failed / the measurement was
       broken / the reference answer was wrong
-- [ ] States how much weight it bears — how many pots survived the `e000` bar, how
+- [x] States how much weight it bears — how many pots survived the `e000` bar, how
       many draws, and whether a Fractura ceramic sweep can carry a claim about one
       excavated juglet
-- [ ] Written back to **`O8`** (does this attribute the Juglet's failure to wear?)
+- [x] Written back to **`O8`** (does this attribute the Juglet's failure to wear?)
       and to **`O7`** (does the wear augmentation earn its place behaviourally?),
       either way — including "the signature does not separate", which is a real answer
-- [ ] `python scripts/check_intent_links.py` exits 0 from `C:\PR`
+- [x] `python scripts/check_intent_links.py` exits 0 from `C:\PR`
 
 ## What would make this not worth pursuing
 

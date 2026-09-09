@@ -1,6 +1,6 @@
 # O8 — What actually stops TORA reassembling the Juglet?
 
-**Status:** open — **reopened 2026-09-07; routes (a) and (c) are all that remain as of 2026-09-09.** Six candidates are ruled in or out, but none of them attributes *this object's* failure. Wear is ruled in as a cause of reassembly failure **on other pots, with simulated wear**; the bridge to the Juglet's own real wear is unmeasured, so "it is probably the wear" is a reasonable belief and not a result. · **Blocked by:** none · **Supersedes the diagnosis half of** [O6](O6-juglet-under-valid-reference.md)
+**Status:** open — **reopened 2026-09-07; route (b) is BACK IN PLAY as of 2026-09-09 (ticket 11), alongside (a) and (c).** Six candidates are ruled in or out, but none of them attributes *this object's* failure. Wear is ruled in as a cause of reassembly failure **on other pots, with simulated wear**; the bridge to the Juglet's own real wear is unmeasured, so "it is probably the wear" is a reasonable belief and not a result. · **Blocked by:** none · **Supersedes the diagnosis half of** [O6](O6-juglet-under-valid-reference.md)
 
 ## Why it matters
 
@@ -157,7 +157,7 @@ declared unclosable.
   **capture** problem, not a training one. It is shared with [O7](O7-wear-grounding.md);
   it does not leave here.
 
-- **Wear breaks pots the *other* way round (2026-09-09, ticket 09, no GPU).** The
+- **[SUPERSEDED by ticket 11, below — the reading reversed when the ladder got more than one pot. The `blue_pot` observation itself reproduced exactly and stands.]** **Wear breaks pots the *other* way round (2026-09-09, ticket 09, no GPU).** The
   behavioural route — route (b), does the Juglet's failure have the shape wear produces
   where we control it — has now been run, and it does not carry wear across. On the
   erosion ladder (job 30190268, six objects, five abrasion levels, ten attempts each) the
@@ -180,6 +180,56 @@ declared unclosable.
   underpowered. Renders: `artifacts/wearsig/blue_pot_e{000,025,075}.png`,
   `artifacts/wearsig/vert9_e075.png`. `scripts/check_wear_failure_shape.py`. Ticket
   `.scratch/juglet-cause/issues/09-does-wear-fail-like-the-juglet.md`.
+
+- **The ladder had never run its own selection step, and with it run the reading
+  reverses (2026-09-09, ticket 11, job 30293058, `COMPLETED|0:0`).** Ticket 09's
+  n = 1 was not a limit of the method or the instrument. `build_erosion_sweep.py`
+  specifies in its own docstring that it wears "pots TORA CAN currently rebuild",
+  but the job passed **no `--objects` filter** and sourced `real_heldout_norm.hdf5`
+  — six objects, **three of them bones**. The Fractura `ceramics` group holds
+  **eight** real pots. There is no leakage bar to using them: the baseline is
+  trained on synthetic data only, so no real pot was ever in it — "held out" was
+  never the constraint, the six-object file was.
+
+  Rerun on all eight, **four** pots now carry a valid unworn control (2.4–4.0% of
+  pot size) against ticket 09's one: `narrow_bottle4`, `narrow_bottle2`,
+  `pink_bowl`, `blue_pot`. The other four are already broken at zero abrasion and
+  were excluded before the ladder was read.
+
+  **`blue_pot` reproduced exactly, from a different source file** — 13.8% → 4.0%
+  on relabelling, the same swap in 9 of 10 attempts, against ticket 09's 14.2% →
+  4.0%, 9 of 10. The instrument is sound and that observation stands.
+
+  **What ticket 09 could not see with one pot is that exchange is the light-wear
+  mode.** `pink_bowl` fails the other way and fails at the wear level that
+  matters: at e050 and e075 its worst sherd sits **11.9–12.1%** of pot size,
+  **relabelling gains nothing** (11.9% → 11.9%), and the **true naming still wins
+  10 of 10**. No piece has the wrong name; a piece is in the wrong place. That is
+  **scattering — the Juglet's shape** — and e075 is past the Juglet's own measured
+  roughness. `blue_pot`'s own ladder has gone to scattering by e075 too.
+
+  **The binding limit is now calibration, not object count.** Only **two** of the
+  four controlled pots were actually worn to the Juglet's `relief_p90` of 0.171:
+  `blue_pot` (0.170 at e050) and `pink_bowl` (0.152 at e075). `narrow_bottle4`
+  survives every rung but **plateaus at 0.244 and never reaches the Juglet's
+  condition**, so its survival is not evidence of anything — GARF's Exp 7 failure
+  mode, recurring. **Which of the three: the measurement was broken**, in one
+  bounded place — `relief_p90` *inverts* on a piece whose break face is already
+  smooth, because the mollifier's feathered band boundary leaves a raised rim that
+  a 90th percentile picks up (`narrow_bottle2` reads 0.180 → 0.369 under
+  *increasing* abrasion). Rendered and confirmed as a statistic artefact, not mesh
+  damage: displacement is monotone on every pot and inverted triangles stay below
+  0.1%.
+
+  **Weight: n = 2, a lead and not a conclusion.** The direction has reversed,
+  which is worth more than the count, but two Fractura ceramics cannot carry a
+  claim about one excavated juglet. What route (b) now needs is not more pots — it
+  is an erosion operator that reaches the Juglet's condition on more than two of
+  them. Renders:
+  `artifacts/wearsig_ceramics/renders/ladder_sherd_placement.png` (per sherd,
+  unbinned, median draw), `.../narrow_bottle{2,3,4}_band.png`. Note:
+  `docs/notes/EROSION_LADDER_CERAMICS.md`. Ticket
+  `.scratch/juglet-cause/issues/11-erosion-ladder-on-pots-tora-rebuilds.md`.
 
 - **The Juglet's own joins close — to about the width of the scan's resolution, which
   settles nothing (2026-09-09, ticket 10, no GPU, no fetch).** The last cheap check on this

@@ -238,7 +238,7 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   built and the first was wrong in a way every number it produced concealed; its control
   caught it. This is the result the Juglet's own seam check (ticket 10) is calibrated
   against. `scripts/check_seam_swap.py`, `artifacts/nb3seam/narrow_bottle3_seam_swap.png`.
-- **Wear breaks a pot the *other* way round: route (b) is spent.** Ticket 09 (2026-09-09, no
+- **[REVERSED by ticket 11 — see the next bullet. Route (b) is NOT spent; the ladder had never run its object-selection step. The `blue_pot` observation below reproduced exactly and stands.]** **Wear breaks a pot the *other* way round: route (b) is spent.** Ticket 09 (2026-09-09, no
   GPU, laptop analysis of clouds already fetched) asked the bridge question that needs no
   finer scan — does wear produce the *kind* of failure the Juglet is having? On the erosion
   ladder (job 30190268 baseline arm, six objects × five abrasion levels × ten attempts), the
@@ -262,6 +262,39 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   correctly when unworn (one GPU evaluation pass). `scripts/check_wear_failure_shape.py`,
   `artifacts/wearsig/blue_pot_e{000,025,075}.png`.
   [09: Does wear fail like the Juglet?](issues/09-does-wear-fail-like-the-juglet.md)
+
+- **Route (b) reopened, and the reading reverses: at the Juglet's own wear level a pot
+  scatters (ticket 11, job 30293058, `COMPLETED|0:0`, 2026-09-09).** Ticket 09's n = 1 was
+  never a limit of the method or the instrument — the sweep **never ran a selection step
+  at all**. `build_erosion_sweep.py` specifies "pots TORA CAN currently rebuild" in its own
+  docstring, but the job passed no `--objects` filter and sourced `real_heldout_norm.hdf5`:
+  six objects, three of them bones. Rerun on the Fractura `ceramics` group (eight real
+  pots; no leakage, because the baseline is synthetic-only trained), **four** pots now
+  carry a valid unworn control at 2.4–4.0% of pot size, against one.
+
+  `blue_pot`'s exchange **reproduced exactly from a different source file** (13.8% → 4.0%
+  relabelled, 9 of 10 attempts, vs 14.2% → 4.0%, 9 of 10). The instrument is sound. What
+  one pot could not show is that **exchange is the light-wear mode**: `pink_bowl` fails at
+  e050/e075 with its worst sherd at 11.9–12.1%, **relabelling gaining nothing** and the
+  **true naming still winning 10 of 10** — a piece in the wrong place, not a piece with the
+  wrong name. That is scattering, the Juglet's shape, at a rung past the Juglet's own
+  measured roughness.
+
+  **The binding constraint moved from object count to calibration.** Only two of the four
+  controlled pots were actually worn to the Juglet's `relief_p90` 0.171; `narrow_bottle4`
+  plateaus at 0.244 and survives every rung, which is therefore evidence of nothing. And
+  the calibration statistic itself **inverts** on a smooth-faced piece — `narrow_bottle2`
+  reads 0.180 → 0.369 under *increasing* abrasion — because the mollifier's feathered band
+  boundary leaves a raised rim that a 90th percentile picks up. Rendered and confirmed as a
+  statistic artefact, not damage (displacement monotone, inverted triangles < 0.1%).
+  Underneath it, `erode_fracture_band` saturates: at most `knn=48` of 20000 samples, so
+  past e075 more strength no longer widens the kernel.
+
+  **n = 2. A lead, not a conclusion** — the direction reversed, which is worth more than
+  the count, but two Fractura ceramics cannot carry a claim about one excavated juglet.
+  What route (b) needs next is not more pots but an operator that reaches the Juglet's
+  condition on more than two of them. `docs/notes/EROSION_LADDER_CERAMICS.md`.
+
 - **The Juglet's own joins close — to about the width of the scan's resolution, which
   settles nothing.** Ticket 10 (2026-09-09, no GPU, no fetch) pointed the `narrow_bottle3`
   seam instrument at this vessel before any decision to spend lab time on route (a). In the
@@ -289,7 +322,7 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
 ## Not yet specified
 
 - **What would attribute the Juglet's failure to wear — or take wear off the list.
-  Narrowed 2026-09-09: route (b) is spent, and the choice is now (a) or (c).** This is the
+  Narrowed 2026-09-09, then WIDENED AGAIN the same day: route (b) is back in play after ticket 11, alongside (a) and (c).** This is the
   reopened destination. Wear breaks reassembly on pots we abrade ourselves; the Juglet's own
   wear is invisible at the resolution it was scanned. Of the three routes originally
   visible:

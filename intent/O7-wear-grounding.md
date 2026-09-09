@@ -132,6 +132,53 @@ size; this finds the joins unmeasurable at 0.3–0.5 mm. **A capture finer than 
 0.1 mm on this vessel is now the binding constraint on the whole wear-grounding claim**,
 and no amount of compute substitutes for it.
 
+## The erosion operator's own limits, measured 2026-09-09 (ticket 11, job 30293058)
+
+This question's restated, accepted criterion is **behavioural**: the wear model earns its
+place if abrading pots we control changes reassembly behaviour in a way that transfers.
+Ticket 11 ran that on all eight Fractura ceramics and the behavioural answer is yes — but
+it also put two hard numbers on what the operator can and cannot do, and both belong here
+rather than in `O8`, because they bound any claim made about the wear model itself.
+
+**1. The operator does not reach the Juglet's condition on most pots.** Achieved
+`relief_p90` at maximum strength, against the Juglet's measured **0.171** (lower = more
+worn): `blue_pot` 0.118 and `pink_bowl` 0.134 pass it; `narrow_bottle4` stops at **0.244**
+and `narrow_bottle1` at 0.245, nowhere near. So on half the pots that can carry a control,
+the ladder **plateaus above the target and cannot be interpreted** — the exact failure that
+made GARF's Exp 7 uninterpretable. A pot surviving "full wear" therefore does not mean it
+survives Juglet-level wear, and must not be reported as if it did.
+
+**2. `relief_p90` inverts on a smooth-faced piece, so the calibration cannot be trusted
+unchecked.** On `narrow_bottle2` achieved wear reads 0.228 → 0.217 → 0.180 → **0.272** →
+**0.369**: rising under increasing abrasion. Rendered per sample, the cause is visible and
+is not mesh damage — displacement is clean and monotone on every pot and inverted triangles
+stay under 0.1%. The break face interior is *already* smooth, so the mollifier has no relief
+to remove; what it does instead is round the rim, and the boundary where its feathered band
+meets untouched surface is a new sharp crease. A 90th percentile is dominated by exactly
+that minority. Restricting the measure to the fracture band makes it worse (0.396 → 0.629),
+which confirms the band boundary as the source.
+
+**3. A mechanism behind both, found by reading the operator.** `erode_fracture_band`
+mollifies each band vertex onto at most `knn=48` of `n_self_samples=20000` surface samples.
+Past the radius that holds 48 samples the kernel **saturates**: further strength no longer
+widens the smoothing, it only raises the blend weight. Measured, the requested radius
+exceeds that radius from e075 on **for every pot in the corpus**. Raising `knn` and
+`n_self_samples` with strength is the obvious fix and has not been tried.
+
+**What this does to the criterion.** The behavioural evidence strengthened — the operator
+demonstrably drives correctly-assembled real pots into failure, and at the Juglet's own
+roughness the failure it produces is **scattering**, which is the Juglet's shape. But the
+bounded claim this question exists to protect must now also say: *the operator is validated
+over the range it actually reaches, which on this corpus is roughly `relief_p90` 0.12–0.24,
+and its achieved-wear calibration is unreliable on pieces whose break faces are already
+smooth.* That is a concession worth making in advance, for the same reason as the rest of
+this question.
+
+Detail: `docs/notes/EROSION_LADDER_CERAMICS.md`. Renders:
+`artifacts/wearsig_ceramics/renders/narrow_bottle{2,3,4}_band.png` (the measured quantity
+itself, per sample) and `.../ladder_sherd_placement.png`. Ticket
+`.scratch/juglet-cause/issues/11-erosion-ladder-on-pots-tora-rebuilds.md`.
+
 ## Restatement — **ACCEPTED by the conservator, 2026-09-09.** Criteria are now
 behavioural and bounded-range; the boxes below were rewritten to match.
 
