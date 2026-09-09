@@ -34,14 +34,27 @@ set -euo pipefail
 # only thing that lets a score be recomputed without GPU time. It is what
 # exposed the units bug below on two pots; save it for all eight.
 #
-# READ THE PART ACCURACY IN THIS RUN WITH CARE. tora/eval/evaluator.py rescales
-# the clouds back to the object's own units before thresholding chamfer at a
-# fixed 0.01. Fractura's real subsets are stored in MILLIMETRES (scale ~61),
-# Breaking Bad is normalised (scale ~0.5), so the same 0.01 asks a ceramic
-# fragment to land ~15,000x more precisely than a synthetic one. Every real
-# object then scores exactly 1/n_parts -- the anchor, free by construction --
-# and that zero is the ruler, not the model. Rescore with
-# scripts/rescore_part_acc.py off the npz. rotation_error is unaffected.
+# THE UNITS BUG IS FIXED; DO NOT RESCORE BY HAND. Commit 0d6a85f (2026-09-02
+# 14:58) moved part_accuracy into the unit-length box the benchmark states its
+# threshold in. `part_accuracy` is now the corrected number and
+# `part_accuracy_absolute` the legacy stored-units one, kept as the marker that
+# a result is post-fix. Before that fix every real object scored exactly
+# 1/n_parts -- the anchor, free by construction -- because millimetre-scale
+# ceramics (scale ~61) were asked to land ~15,000x more precisely than
+# normalised Breaking Bad fragments (scale ~0.5). The one baseline arm that
+# completed, job 29886425, finished at 14:11 and is therefore PRE-fix: it can
+# not be compared against arms from this run, which is why baseline is rerun
+# here rather than reused.
+#
+# TWO THINGS THAT STILL NEED CARE, both from the wear v3 read-out
+# (docs/notes/LORAV3_29880370_RESULT.md):
+#   - part_accuracy is a RELABELLED count. compute_part_acc runs a Hungarian
+#     assignment, so a sherd standing in another sherd's place is credited. The
+#     saved npz is what separates that from own-place seating; on the Juglet,
+#     70% of one arm's credit turned out to be relabelling.
+#   - the free anchor counts as a seated fragment, and is skipped in the
+#     rotation sum while dividing by all fragments. Read through
+#     scripts/readout.py, which names it, never off the printed tables.
 #
 # The config is otherwise left exactly as prior runs used it (anchor-fixed,
 # min 3 / max 12 parts, all eight pots pass) so these numbers sit next to jobs
@@ -87,7 +100,12 @@ if [[ "$ARMS" == *adapter* ]] && [ -z "${TRAINED_CKPT:-}" ]; then
     # validation, not the last. More than one means the checkpointing changed
     # and picking by date would silently take the final epoch again, which is
     # what made job 29623885 uninterpretable. Stop rather than guess.
-    FOUND=$(find "$TORA_ROOT/output" -path "*lora_vessels_v3_*" -name "epoch-*.ckpt" | sort)
+    # -not -path "*_smoke_*" : the training script writes a smoke-test run under
+    # lora_vessels_v3_smoke_<jobid> beside the real one, so without this the
+    # guard below counts three checkpoints and refuses to pick. That is what
+    # stopped job 29888541 before either adapter arm ran.
+    FOUND=$(find "$TORA_ROOT/output" -path "*lora_vessels_v3_*" \
+                 -not -path "*_smoke_*" -name "epoch-*.ckpt" | sort)
     N=$(echo "$FOUND" | grep -c . || true)
     [ "$N" = "1" ] || { echo "expected exactly one v3 adapter checkpoint, found $N:"; echo "$FOUND"; exit 1; }
     TRAINED_CKPT="$FOUND"
@@ -135,8 +153,13 @@ python scripts/summarise_ceramics_arms.py --runs "${DONE_DIRS[@]}" || true
 
 echo ""
 echo "### renders ###"
-find "$LOG_ROOT" -path "*ceramarm_*_${SLURM_JOB_ID}*" \
-    \( -name "*.png" -o -name "*.npz" \) | sort | head -60
+# NOT `find | sort | head`: head closes the pipe, find takes SIGPIPE, and under
+# `set -o pipefail` the job exits 141 with every result already written. That is
+# exactly how job 29888540 "FAILED". The subshell finishes before head runs.
+LISTING=$(find "$LOG_ROOT" -path "*ceramarm_*_${SLURM_JOB_ID}*" \
+    \( -name "*.png" -o -name "*.npz" \) | sort)
+printf '%s\n' "$LISTING" | head -60
+echo "saved clouds (npz): $(printf '%s\n' "$LISTING" | grep -c '[.]npz$' || true)"
 
 echo ""
 echo "=== Finished at $(date) ==="
