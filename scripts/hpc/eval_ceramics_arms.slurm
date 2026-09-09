@@ -25,9 +25,30 @@ set -euo pipefail
 # conservator has confirmed these eight are in their correct assembly, so a bad
 # score here is the method failing, not the answer key being wrong.
 #
-# Data lives in dataset/ceramics.hdf5, a symlink onto the 3 GB
-# fractura_real.hdf5. Load it by that name: the loader matches the file stem
-# against a key inside the file, and "fractura_real" is not one of them.
+# NORMALISE THE SOURCE, OR THE RUN MEANS NOTHING. Job 30336653 ran all three
+# arms against `zeroshot/fractura/ceramics`, which loads the RAW scan file:
+# ceramics arrive at max|v| 54.9-187.3 raw units, so `scales` reached 77.4. The
+# model was trained on scales in [0.375, 0.811]. `scales` is a CONDITIONING
+# INPUT to the flow model at every denoising step, not bookkeeping, so at 77
+# every arm is being asked about an object a hundred times larger than anything
+# it has seen -- and every arm duly floored at 1/n_parts, the free anchor, on
+# seven of eight pots. That is the input being out of domain, not the method
+# failing, and it is a DIFFERENT fault from the scoring-units bug below that
+# happens to share the word "units".
+#
+# The same eight pots normalised (scales 0.386-0.412, ticket 11 job 30293058)
+# score blue_pot 5/5 at rung e000. So this job now defaults to the normalised
+# ladder built by ticket 11, `zeroshot/erosion_ceramics`: the same eight pots at
+# rung e000 (unworn) plus four abrasion rungs each, 40 objects. That also
+# retires the six-object real_heldout_norm file whose sweep was half bones.
+#
+# SOURCE=fractura/ceramics is kept for reproducing the old runs and WILL be out
+# of the trained band. The guard below refuses it unless SCALE_OK=1 is set.
+#
+# Data lives in dataset/erosion_ceramics.hdf5 (normalised once before erosion)
+# and dataset/ceramics.hdf5, a symlink onto the 3 GB fractura_real.hdf5. Load
+# either by that stem: the loader matches the file stem against a key inside
+# the file, and "fractura_real" is not one of them.
 #
 # max_samples_per_batch is 8, not the 1 earlier runs used. All eight pots fit in
 # one batch, so 1 saved the point clouds for a single pot -- and the npz is the
@@ -56,14 +77,15 @@ set -euo pipefail
 #     rotation sum while dividing by all fragments. Read through
 #     scripts/readout.py, which names it, never off the printed tables.
 #
-# The config is otherwise left exactly as prior runs used it (anchor-fixed,
-# min 3 / max 12 parts, all eight pots pass) so these numbers sit next to jobs
-# 24342475 and 24343146 without adjustment.
+# Anchor-fixed, as every prior run on these pots. Note that numbers from this
+# job do NOT sit beside jobs 24342475 / 24343146 / 29886425 without adjustment:
+# those predate both the unit-box scoring fix and the normalised source.
 #
 # Usage:
-#   ARMS=baseline sbatch scripts/hpc/eval_ceramics_arms.slurm
-#   sbatch --dependency=afterok:<lora job> scripts/hpc/eval_ceramics_arms.slurm
+#   sbatch scripts/hpc/eval_ceramics_arms.slurm                  # 3 arms, ladder
+#   DRAWS=20 ARMS=baseline sbatch scripts/hpc/eval_ceramics_arms.slurm
 #   TRAINED_CKPT=/path/to/epoch-N.ckpt sbatch scripts/hpc/eval_ceramics_arms.slurm
+#   SOURCE=zeroshot/fractura/ceramics SCALE_OK=1 BATCH=8 sbatch ...   # raw, out of band
 
 echo "=== ceramics arms started at $(date) on $(hostname) ==="
 nvidia-smi | head -15 || true
@@ -75,6 +97,16 @@ LOG_ROOT=$TORA_ROOT/eval_runs
 CKPT=$TORA_ROOT/checkpoints/bbad_everyday_cka.ckpt
 DRAWS=${DRAWS:-10}
 ARMS=${ARMS:-"adapter_on adapter_off baseline"}
+SOURCE=${SOURCE:-zeroshot/erosion_ceramics}
+BATCH=${BATCH:-4}
+
+if [[ "$SOURCE" == *fractura/ceramics* && "${SCALE_OK:-0}" != "1" ]]; then
+    echo "REFUSING: $SOURCE is the raw millimetre scan file (scales ~77) and the"
+    echo "model was trained on scales in [0.375, 0.811]. That is what made job"
+    echo "30336653 uninterpretable. Use SOURCE=zeroshot/erosion_ceramics, or set"
+    echo "SCALE_OK=1 if you are deliberately reproducing an out-of-band run."
+    exit 1
+fi
 
 LORA_ON=(lora.enabled=true lora.r=128 lora.alpha=256 lora.dropout=0.1 lora.last_n_blocks=6 lora.train_head=true)
 
@@ -89,7 +121,7 @@ export HF_HOME=$TORA_ROOT/.hf-cache
 export WANDB_MODE=offline
 cd "$TORA_ROOT/repo"
 
-for f in "$DATA_ROOT/ceramics.hdf5" "$CKPT"; do
+for f in "$DATA_ROOT/$(basename "$SOURCE").hdf5" "$CKPT"; do
     [ -e "$f" ] || { echo "missing: $f"; exit 1; }
 done
 
@@ -120,14 +152,14 @@ run_arm () {
     echo ""
     echo "########## $NAME : $DRAWS draws on each of the 8 pots ##########"
     python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
-        data=zeroshot/fractura/ceramics data.batch_size=8 data.num_workers=4 \
+        data="$SOURCE" data.batch_size="$BATCH" data.num_workers=4 \
         "$@" \
         log_dir="$LOG_ROOT/ceramarm_${NAME}_${SLURM_JOB_ID}" \
         model.n_generations="$DRAWS" \
         "+visualizer._target_=tora.visualizer.FlowVisualizationCallback" \
         "+visualizer.renderer=mitsuba" \
         "+visualizer.image_size=512" \
-        "+visualizer.max_samples_per_batch=8" \
+        "+visualizer.max_samples_per_batch=$BATCH" \
         "+visualizer.center_points=true" \
         "+visualizer.save_trajectory=false" \
         "+visualizer.save_procrustes_assembly=true" \
@@ -158,8 +190,8 @@ echo "### renders ###"
 # exactly how job 29888540 "FAILED". The subshell finishes before head runs.
 LISTING=$(find "$LOG_ROOT" -path "*ceramarm_*_${SLURM_JOB_ID}*" \
     \( -name "*.png" -o -name "*.npz" \) | sort)
-printf '%s\n' "$LISTING" | head -60
-echo "saved clouds (npz): $(printf '%s\n' "$LISTING" | grep -c '[.]npz$' || true)"
+head -60 <<< "$LISTING"
+echo "saved clouds (npz): $(grep -c '[.]npz$' <<< "$LISTING" || true)"
 
 echo ""
 echo "=== Finished at $(date) ==="
