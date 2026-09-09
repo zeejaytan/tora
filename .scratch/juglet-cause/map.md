@@ -318,6 +318,17 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
     sweep had five of six objects already broken at zero abrasion, which is a selection
     problem in the sweep and not a limit on the method. **One GPU evaluation pass, no lab
     time — this is now the cheapest live route and the only one with power to grow.**
+    **Ticketed 2026-09-09 as `issues/11`, and the diagnosis got sharper in the writing.**
+    The sweep did not select its objects badly; it never selected at all — the job passed
+    no `--objects` filter and pointed at `real_heldout_norm.hdf5`, six objects of which
+    **three are bones**. Only three ceramics have ever been worn. The Fractura `ceramics`
+    group holds **eight** real pots, and the five never tested include `narrow_bottle2` and
+    `narrow_bottle4`, the two TORA reassembles almost perfectly unworn. No leakage blocks
+    using them: the baseline was trained on synthetic data only, so "held out" was never
+    the constraint — the file was. One trap found before submitting: the ceramics group is
+    **not scale-normalised** (max|v| 54.9–187.3 against the model's 0.375–0.625 band), and
+    `scales` is a conditioning input, not bookkeeping — so the source is normalised once,
+    before erosion, and `--normalize` is not used.
   - **(c) accept it cannot be attributed with what exists and say so as the result.**
     **This is what the evidence now supports.** Three independent instruments — Gate A,
     ticket 05, ticket 10 — agree the data runs out before the question does. The failure to

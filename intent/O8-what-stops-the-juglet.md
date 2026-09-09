@@ -130,7 +130,10 @@ is not evidence, and any candidate below must be rendered at individual-sherd pl
       rule wear out but cannot rule it in**, and **(b) is not spent, it is underpowered**:
       ticket 09 had exactly one object with a usable control because five of six were
       already broken at zero abrasion. The live work is a ladder built on objects TORA
-      assembles correctly unworn — one GPU evaluation pass, no lab
+      assembles correctly unworn — one GPU evaluation pass, no lab. **Ticketed as
+      `.scratch/juglet-cause/issues/11` (2026-09-09):** the sweep never ran a selection
+      step at all, and the Fractura `ceramics` group holds eight real pots against the
+      three ever worn
 
 Stopping at the first candidate that looks sufficient is what produced "piece count is
 ruled out" in the first place. Rule all six.
