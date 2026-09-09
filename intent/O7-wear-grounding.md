@@ -230,6 +230,46 @@ measured quantity itself, per sherd, all five draws, with the median draw drawn 
 Detail: `docs/notes/LORAV3_29880370_RESULT.md`; the change record against wear v2 is
 `docs/notes/WEAR_V2_TO_V3.md`.
 
+## Confirmed on real pottery, with a control arm (job 30337242, 2026-09-10)
+
+The v3 read-out above was on synthetic vessels and one Juglet. This is the same
+adapter on **eight real Fractura pots at five levels of controlled abrasion** — 40
+objects, 20 draws, three arms — which is the material the BEHAVIOURAL box is actually
+about.
+
+**It failed again, and this time the instrument was known-good first.** Six of the eight
+pots reassemble essentially completely unworn (`blue_pot` 5/5, `narrow_bottle4` 4/4,
+`narrow_bottle2` 3/3, `pink_bowl` 3/3, `galli_pot` 8/10, `plate` 4/6), so a loss here is
+a loss on pots the model demonstrably can do.
+
+Paired per pot per rung, on fragments earned (no pooled mean):
+
+| comparison | adapter better | baseline better | level | p |
+|---|---|---|---|---|
+| `adapter_on` vs `baseline` | 4 | **14** | 22 | **0.031** |
+| `adapter_off` vs `baseline` | 5 | 11 | 24 | 0.210 |
+| `adapter_on` vs `adapter_off` | 6 | 13 | 21 | 0.167 |
+
+**The `train_head=true` contamination flagged above is now measured, not just noted.**
+`adapter_off` is the same weights with the adapters switched off and should reproduce the
+baseline exactly. It loses 11 to 5. The five moved pose-head tensors do not switch off,
+so the do-no-harm arm that the LoRA design was *chosen* to guarantee by construction was
+never guaranteed at all. Sharpest case: `pink_bowl` at full abrasion holds 3 of 3 on the
+untouched baseline (worst fragment 3.6% of bowl width) and collapses to 1 of 3 on
+`adapter_off` (21.1%) — with the adapter disabled.
+
+That splits the headline honestly: `adapter_on` vs `adapter_off` (6–13, p = 0.167)
+isolates the adapter and is a null, not a loss; the significant 4–14 against baseline is
+the adapter **plus** the damaged head.
+
+Rendered before reporting: `artifacts/ceramarm_30337242/ladder_blue_pot_baseline.png`
+and `ladder_pink_bowl_{baseline,adapter_off}.png` — the median draw of twenty above the
+per-sherd distances, so picture and figure are the same attempt.
+
+**Any future adapter run sets `train_head=false`, or its control arm means nothing.**
+
+Detail: `docs/notes/CERAMARM_30337242_RESULT.md`.
+
 ## Restatement — **ACCEPTED by the conservator, 2026-09-09.** Criteria are now
 behavioural and bounded-range; the boxes below were rewritten to match.
 
@@ -307,9 +347,13 @@ general. The bar moved sideways, not down.
       rather than to augmentation in general. Reported **per object and up the erosion
       ladder, never as a pooled mean** — a pooled six-pot mean already scored a model that
       cut the ladder drop by two thirds as indistinguishable from the untouched baseline
-      (`intent/O2`). **Attempted once and not met (2026-09-10, job 29880370):** the wear v3
-      shape-variety adapter lost on its own held-out vessels (49 worse / 30 better,
-      p = 0.042) and did nothing on the erosion sweep. Still open
+      (`intent/O2`). **Attempted twice and not met (2026-09-10).** Job 29880370: the wear
+      v3 shape-variety adapter lost on its own held-out vessels (49 worse / 30 better,
+      p = 0.042) and did nothing on the erosion sweep. Job 30337242, on **real** pottery
+      with a control arm — eight Fractura pots at five abrasion levels, six of which the
+      baseline assembles unworn — it lost again, 14 worse to 4 better, p = 0.031. The
+      cruder-augmentation comparison this box also asks for has still never been run, so
+      the box is unmet on both halves. Still open
 - [ ] **BOUNDED-RANGE — the parameters are defensible without being measured.** Fabric,
       temper and wall-thickness distributions pulled from the archaeometric literature
       (Khashuri Natsargora, Tsaghkasar, the Kars corpus), wear parameters shown to lie

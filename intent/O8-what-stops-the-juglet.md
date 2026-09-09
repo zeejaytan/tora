@@ -103,6 +103,30 @@ is not evidence, and any candidate below must be rendered at individual-sherd pl
 | 5 | Wear | expensive | **Ruled in, 2026-09-07 — demonstrated by intervention, not by correlation; decision taken with the conservator.** Take pots TORA reassembles cleanly, abrade **only the break surfaces**, leave the faces and the correct poses untouched, re-run: same pots, same pieces, same correct answer. **Sherds seated falls 0.843 → 0.645**, twenty points, and the pictures agree — the baseline `blue_pot` splits open at heaviest wear, the baseline `plate` has collapsed by heavy — with wear-augmented training repairing exactly those two (16.3° and 19.9°). The repair transfers **across simulators**: the test sweep uses GARF's `erode_fracture_band`, wear_v2 was trained on `wear_ops.apply_wear` from different source objects. wear_v1 does **not** earn that credit — trained on the test operator, so object-held-out but operator-circular. **Which of the three: the method genuinely failed**, plus **the measurement was broken** in this ticket's own first pass — the +14.3° residual was tested in *turn*, which the intervention moves by ~3°, against a ±27.7° between-pot floor. Standing rule: **score wear on seating, not turn.** **Two things are not claimed:** the Juglet's own +14.3° gap is not attributed to wear (n = 8, 27.7° spread — it fails as a nine-fragment pot fails *and* is worn, and this data cannot apportion them); and the bridge from simulated wear to the Juglet's **real** wear stays **(c) unmeasurable** — Gate A, job 29404479, found real eroded fracture carries no fracture-like roughness at any resolvable scale. That half is a **capture** question and moves to [O7](O7-wear-grounding.md): a scan finer than 0.1% of object size (~0.1 mm points on this vessel), or a real paired control. **Corrected 2026-09-09:** "fresh *and* worn scans of the same pot" as originally written included abrading a modern replica, which is **struck** — burial cannot be simulated, so that calibrates one simulator against another. The surviving form is an excavated sherd bearing both an ancient and a fresh break face. A finer scan also does not reach *this* question alone: `num_points_to_sample: 5000` leaves ~1.2 mm between the points the network sees. The wear curriculum is specified for `/to-spec` in the ticket. Job 29308186. Renders: `WEAR_TEST_RESULTS.md` §6 `heldout_viz/`. Ticket `.scratch/juglet-cause/issues/05-can-wear-be-demonstrated.md`. **Superseded 2026-09-07 (jobs 30187601 / 30190268): those two figures are on the retired size-dependent ruler.** On the corrected unit-box scoring the baseline seats **0.597** fresh and **0.560** worn — a gap of **3.7 points, not 20**. The intervention finding survives on the erosion ladder (0.624 → 0.407) and per pot, but never as a pooled six-pot mean, which scored a model that cut the ladder drop by two thirds as indistinguishable from the untouched baseline. See `intent/O2`, `WEAR_TEST_RESULTS.md` §4. |
 | 6 | Evaluated in a mode the model was never trained in | free | **Opened and closed 2026-09-06, same day: ruled out.** `juglet_gt.yaml:6` is `anchor_free: true` while all twelve training configs are `false`, and the encoder does read absolute coordinates (`tora/modeling/encoder/point_cloud_encoder.py:101-113`), so this looked live. It is not: job **28228263** already ran six real pots in both modes, median change **−2.2°**, inconsistent in sign, every object inside the 17° threshold, seating unchanged on five of six — and not a floor effect, since `blue_pot` reads 5.6° anchor-fixed with all five seated. Recorded because the search for it produced the ruled-in reading of candidate 2, not because it explains anything. Renders: `artifacts/anchor_mode.png`, `artifacts/fragment_count.png` |
 
+## The ladder reproduced from an independent run (job 30337242, 2026-09-10)
+
+Job 30293058 built the erosion ladder and read it on the baseline only. Job 30337242 is
+a separately submitted three-arm run on the same eight pots and five rungs, and its
+baseline arm **reproduces the ladder**: `blue_pot` exchanging at light abrasion and
+scattering by e075, `pink_bowl` holding 3 of 3 at every rung with its worst free sherd
+moving only 1.7% → 3.6% of bowl width. The instrument repeats, which is what route (b)
+needed before anything is carried across the bridge on it.
+
+**Ticket 11's floor is cleared.** Six of eight ceramics pass their own e000 control
+(`blue_pot` 5/5, `narrow_bottle4` 4/4, `narrow_bottle2` 3/3, `pink_bowl` 3/3,
+`galli_pot` 8/10, `plate` 4/6), against a floor of three. This is no longer n ≈ 1.
+`narrow_bottle1` and `narrow_bottle3` are broken unworn and their ladders carry nothing.
+
+**A prediction stated in advance, and refuted.** `eval_erosion_ceramics.slurm` predicted
+exchange would be the common pattern at light and moderate wear. The own-place vs
+Hungarian audit says otherwise: on every pot that assembles unworn, relabelling gains
+nothing at all — nothing is being swapped, so the failure is **scattering**, the Juglet's
+own shape. Exchange shows up only on the pots that were already broken at zero wear.
+That is the outcome the ticket said would point route (b) *toward* the Juglet, and it
+is the one that happened. It remains a shape match, not an attribution.
+
+Detail and the full table: `docs/notes/CERAMARM_30337242_RESULT.md`.
+
 ## Done when
 
 - [x] Each candidate is ruled in or ruled out (**6 of 6 done**: 1 and 5 ruled in, 2 ruled
