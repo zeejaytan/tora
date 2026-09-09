@@ -125,6 +125,40 @@ for f in "$DATA_ROOT/$(basename "$SOURCE").hdf5" "$CKPT"; do
     [ -e "$f" ] || { echo "missing: $f"; exit 1; }
 done
 
+echo ""
+echo '########## gate: the SOURCE must sit inside the trained scale band ##########'
+# The block above refuses one source BY NAME. That is a paragraph, not a gate:
+# any other raw-unit file walks straight past it. This one reads the data.
+# `scales` is a CONDITIONING INPUT -- the object extent is sinusoidally encoded
+# and fed to the flow model at every denoising step -- so a source outside the
+# band the model was trained on is compromised before the first draw. Job
+# 30336653 spent three GPU-hours proving that again at scales ~77.
+SRC_HDF5="$DATA_ROOT/$(basename "$SOURCE").hdf5"
+SCALE_OK="${SCALE_OK:-0}" python - "$SRC_HDF5" <<'PYEOF'
+import os, sys, h5py, numpy as np
+LO, HI = 0.375, 0.811          # scripts/readout.py: TRAINED_SCALE_BAND
+bad = []
+with h5py.File(sys.argv[1], "r") as f:
+    for ds in sorted(f.keys()):
+        for tag in sorted(f[ds].keys()):
+            g = f[ds][tag]["pieces"]
+            m = max(float(np.abs(g[k]["vertices"][:]).max()) for k in g.keys())
+            if not (LO <= 2 * m <= HI):
+                bad.append((tag, 2 * m))
+if bad:
+    for tag, v in bad[:8]:
+        print(f"  {tag:24s} scales = {v:.3f}   OUT OF BAND")
+    print(f"  ... {len(bad)} object(s) outside [{LO}, {HI}]")
+    if os.environ.get("SCALE_OK") == "1":
+        print("SCALE_OK=1: continuing deliberately. These numbers are not comparable")
+        print("to any in-band run and must be labelled out-of-band wherever quoted.")
+    else:
+        sys.exit("FAIL: source is outside the trained scale band. Set SCALE_OK=1 to "
+                 "reproduce an out-of-band run on purpose.")
+else:
+    print(f"PASS: every object has scales inside [{LO}, {HI}]")
+PYEOF
+
 # Only go looking for the adapter if an arm actually needs it, so the baseline
 # can be scored before the training run has finished.
 if [[ "$ARMS" == *adapter* ]] && [ -z "${TRAINED_CKPT:-}" ]; then
@@ -196,5 +230,5 @@ echo "saved clouds (npz): $(grep -c '[.]npz$' <<< "$LISTING" || true)"
 echo ""
 echo "=== Finished at $(date) ==="
 echo "Do not quote object_chamfer or translation_error raw: they are in each"
-echo "pot's own units and the scales here run near 77. The summariser prints"
-echo "offset as a fraction of the pot instead."
+echo "pot's own units. The summariser prints offset as a fraction of the pot"
+echo "instead, which is the number that survives a change of source."
