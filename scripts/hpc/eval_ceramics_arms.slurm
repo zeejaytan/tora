@@ -137,26 +137,45 @@ SRC_HDF5="$DATA_ROOT/$(basename "$SOURCE").hdf5"
 SCALE_OK="${SCALE_OK:-0}" python - "$SRC_HDF5" <<'PYEOF'
 import os, sys, h5py, numpy as np
 LO, HI = 0.375, 0.811          # scripts/readout.py: TRAINED_SCALE_BAND
+# `scales` is np.max(np.abs(pts_gt)) AFTER the dataset centres the sampled
+# cloud (tora/data/dataset.py:427), not the raw stored extent. Centring on the
+# vertex centroid reproduces it to ~2% (blue_pot: 0.4052 here vs 0.4117 fed),
+# which is close enough to catch an order-of-magnitude error and NOT close
+# enough to adjudicate the band edge -- so this warns near the edge and refuses
+# only on a gross violation. The exact per-draw check is the summariser's, on
+# the `scales` the model actually received.
+GROSS = 3.0                    # a factor-3 miss is never a borderline call
 bad = []
 with h5py.File(sys.argv[1], "r") as f:
     for ds in sorted(f.keys()):
         for tag in sorted(f[ds].keys()):
             g = f[ds][tag]["pieces"]
-            m = max(float(np.abs(g[k]["vertices"][:]).max()) for k in g.keys())
-            if not (LO <= 2 * m <= HI):
-                bad.append((tag, 2 * m))
+            V = np.concatenate([g[k]["vertices"][:] for k in g.keys()], 0)
+            est = float(np.abs(V - V.mean(0)).max())
+            if not (LO <= est <= HI):
+                bad.append((tag, est))
+gross = [(t, v) for t, v in bad if v > HI * GROSS or v < LO / GROSS]
 if bad:
     for tag, v in bad[:8]:
-        print(f"  {tag:24s} scales = {v:.3f}   OUT OF BAND")
-    print(f"  ... {len(bad)} object(s) outside [{LO}, {HI}]")
-    if os.environ.get("SCALE_OK") == "1":
-        print("SCALE_OK=1: continuing deliberately. These numbers are not comparable")
-        print("to any in-band run and must be labelled out-of-band wherever quoted.")
-    else:
-        sys.exit("FAIL: source is outside the trained scale band. Set SCALE_OK=1 to "
-                 "reproduce an out-of-band run on purpose.")
+        print(f"  {tag:24s} scales ~ {v:.3f}   outside [{LO}, {HI}]")
+    if len(bad) > 8:
+        print(f"  ... {len(bad)} object(s) outside the band in total")
+if gross and os.environ.get("SCALE_OK") != "1":
+    sys.exit(f"FAIL: {len(gross)} object(s) miss the trained band by more than "
+             f"{GROSS}x -- this is the fault that made job 30336653 "
+             f"uninterpretable. Normalise the source, or set SCALE_OK=1 to "
+             f"reproduce an out-of-band run on purpose.")
+if gross:
+    print("SCALE_OK=1: continuing on a grossly out-of-band source. These numbers")
+    print("are not comparable to any in-band run; label them out-of-band wherever")
+    print("they are quoted.")
+elif bad:
+    print(f"WARN: {len(bad)} object(s) sit modestly outside [{LO}, {HI}]. Not fatal --")
+    print("normalising to max|v| = 0.5 sets the extent from the file origin, and a")
+    print("squat or off-centre pot loses more than a tall one when the cloud is")
+    print("re-centred. Read these objects knowing they are a mild extrapolation.")
 else:
-    print(f"PASS: every object has scales inside [{LO}, {HI}]")
+    print(f"PASS: every object estimates inside [{LO}, {HI}]")
 PYEOF
 
 # Only go looking for the adapter if an arm actually needs it, so the baseline
