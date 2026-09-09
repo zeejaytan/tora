@@ -1,17 +1,26 @@
-# O7 — Is the wear model grounded in real material?
+# O7 — Does the wear augmentation earn its place, and are its parameters bounded?
 
 **Status:** open · **Blocked by:** none · **Effort:** ~3 days, can run in parallel
+**Restated 2026-09-09, accepted by the conservator.** This question used to read *"is the
+wear model grounded in real material?"* and was blocked on a capture that does not exist and
+cannot be built. The argument for the change is in **Restatement** below; the short version
+is that the wear model is a **training augmentation**, not a measuring instrument, and
+augmentations are validated by whether they help rather than by physical fidelity. The two
+criteria are now **behavioural** and **bounded-range**.
 
 ## Why it matters
 
-The wear model is currently calibrated against **a physical argument and one pot**.
-That is enough to have shown wear-augmented training stops heavily worn pottery
-collapsing — a visible effect, small n — but not enough to call the result
-*archaeologically accurate*.
+The wear model is currently calibrated against **a physical argument and one pot**. That is
+enough to have shown wear-augmented training stops heavily worn pottery collapsing — a
+visible effect, small n — but not enough to rely on without knowing *why* it helps.
 
 Kura-Araxes black-burnished surfaces, Bedeni and Trialeti fabrics differ in hardness,
-temper and firing, and therefore in how they abrade. Parameters chosen rather than
-measured are a soft spot in any claim built on top of them.
+temper and firing, and therefore in how they abrade. Parameters chosen freely, with nothing
+saying what a plausible value even is, are a soft spot in any claim built on top of them.
+**What is no longer claimed** is that those parameters reproduce burial: that was the old
+framing, it required a measurement of this material, and no reachable capture supplies it
+(see the struck routes below). Bounding them against published archaeometry is a weaker and
+achievable thing, and it must be labelled as the weaker thing.
 
 ## Handed here by O8, 2026-09-07
 
@@ -123,7 +132,8 @@ size; this finds the joins unmeasurable at 0.3–0.5 mm. **A capture finer than 
 0.1 mm on this vessel is now the binding constraint on the whole wear-grounding claim**,
 and no amount of compute substitutes for it.
 
-## Proposed restatement — NOT YET TAKEN, 2026-09-09. The conservator's decision.
+## Restatement — **ACCEPTED by the conservator, 2026-09-09.** Criteria are now
+behavioural and bounded-range; the boxes below were rewritten to match.
 
 Three capture routes have now been written into this question and all three are struck or
 conditional. That is a pattern, and the honest reading of it is that **the problem is the
@@ -177,27 +187,45 @@ What is defensible:
 
 A stated and argued limitation is a better position than a claim that can be knocked over.
 
-**If this restatement is accepted**, the two "Done when" boxes below that demand parameters
-*driven from measured ranges* and a *mapping from measured property to wear parameter* are
-the impossible pair and would be replaced by a behavioural criterion plus a bounded-range
-one. They are left standing until that decision is taken, so the file does not quietly
-lower its own bar.
+**Accepted.** The two "Done when" boxes that demanded parameters *driven from measured
+ranges* and a *mapping from measured property to wear parameter* were the impossible pair
+and have been replaced by a behavioural criterion and a bounded-range one. Note what did
+**not** get easier: the behavioural box carries a control the old framing never had — a
+comparison against cruder augmentation — because "wear augmentation helps" is worth nothing
+until it is shown that *wear-shaped* augmentation is what helps, rather than augmentation in
+general. The bar moved sideways, not down.
 
 ## Done when
 
-- [ ] One of the two captures above exists, or is recorded as unreachable with a
-      reason. **Now the binding constraint on `O8` as well (2026-09-09)** — three
-      instruments agree the existing scans cannot reach the question
-- [ ] Fabric, temper and wall-thickness distributions have been pulled from the
-      archaeometric literature (Khashuri Natsargora, Tsaghkasar, the Kars corpus)
-- [ ] Wear parameters are driven from **measured ranges** rather than chosen values
-- [ ] The mapping from measured property to wear parameter is written down, so a
-      reader can disagree with it specifically
+- [x] **One of the two captures is recorded as unreachable, with a reason (2026-09-09).**
+      Both are. Capture 1 is reachable in principle but buys only the endpoint comparison,
+      and the pipeline discards the scale it would deliver; capture 2 is struck in every
+      form. Three instruments (Gate A, ticket 05, ticket 10) agree the existing scans cannot
+      reach the question
+- [ ] **BEHAVIOURAL — the augmentation is shown to earn its place.** Its benefit holds on
+      an erosion operator it was **not** trained on (wear_v2 already has this; wear_v1 does
+      not, being trained on the test operator), **and** beats at least one cruder
+      augmentation baseline, so the gain is attributable to *wear-shaped* augmentation
+      rather than to augmentation in general. Reported **per object and up the erosion
+      ladder, never as a pooled mean** — a pooled six-pot mean already scored a model that
+      cut the ladder drop by two thirds as indistinguishable from the untouched baseline
+      (`intent/O2`)
+- [ ] **BOUNDED-RANGE — the parameters are defensible without being measured.** Fabric,
+      temper and wall-thickness distributions pulled from the archaeometric literature
+      (Khashuri Natsargora, Tsaghkasar, the Kars corpus), wear parameters shown to lie
+      inside the ranges those imply, and the mapping from published property to parameter
+      written down so a reader can disagree with it specifically
+- [ ] **The claim as written down is the bounded one.** Wherever this work is described,
+      it says the wear model is a training augmentation validated behaviourally with
+      parameters bounded by published ranges — **not** that it reproduces burial — and
+      states why the stronger claim is not measurable here
 
 ## What this buys
 
-It is what makes "archaeologically accurate" a defensible phrase rather than an
-aspiration — and it is the part a conservation examiner is most likely to press on.
+A claim that survives being pressed on. "Archaeologically accurate" could not be defended
+and was the obvious place for a conservation examiner to push; a bounded, behaviourally
+validated claim with its limitation stated in advance is a stronger position precisely
+because it concedes the right thing before being asked.
 
 ## Related
 

@@ -121,10 +121,16 @@ is not evidence, and any candidate below must be rendered at individual-sherd pl
       still do not exist. *(The "abrade a replica" version of that second capture was struck
       2026-09-09: burial cannot be simulated — see `O7`.)* Everything reachable
       from the scans we hold has now been tried, by three instruments that agree the data
-      runs out before the question does (tickets 05, 09, 10). **One decision is
-      outstanding and it is the conservator's, not the analysis's:** buy the capture
-      (route **a**, lab time) or close on route **c**. This box records that the negative
-      result is stated; it does not close the question
+      runs out before the question does (tickets 05, 09, 10). This box records that
+      the negative result is stated; it does not close the question. **Revised 2026-09-09
+      after `O7` was restated:** the outstanding item is no longer a lab-time decision.
+      Buying a finer capture would give the Juglet's wear *dose*, and a dose is not an
+      attribution — getting from "worn by this much" to "and that is why it fails" still
+      runs through an intervention on pots we control, which is route (b). So **(a) can
+      rule wear out but cannot rule it in**, and **(b) is not spent, it is underpowered**:
+      ticket 09 had exactly one object with a usable control because five of six were
+      already broken at zero abrasion. The live work is a ladder built on objects TORA
+      assembles correctly unworn — one GPU evaluation pass, no lab
 
 Stopping at the first candidate that looks sufficient is what produced "piece count is
 ruled out" in the first place. Rule all six.

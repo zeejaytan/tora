@@ -1,13 +1,16 @@
 # Map — what actually stops TORA reassembling the Juglet
 
 **Label:** `wayfinder:map` · **Charted:** 2026-09-05 · **Status:** open — **reopened
-2026-09-07; one decision left, and it is the conservator's (2026-09-09)**
+2026-09-07; the remaining work is one GPU pass, not a lab decision (revised 2026-09-09)**
 **Why it is open:** six candidates are ruled in or out and the object's own failure is still
 unattributed. Wear was demonstrated on *other* pots with *simulated* wear; nothing carries
 that to this vessel. Wear is the leading suspect, not the answer. **The behavioural route
 (b) has now been run and did not carry it across** — and on the one object where wear does
-break a pot, it breaks it the *opposite* way to the Juglet. Route (a), a finer capture, is
-conservation-lab work; route (c) is to state the failure to attribute as the result.
+break a pot, it breaks it the *opposite* way to the Juglet. **Revised the same day, after
+`O7` was restated:** a finer capture yields the Juglet's wear *dose*, and a dose is not an
+attribution — so route (a) can rule wear **out** but not **in**, and it is no longer the
+decision this map is waiting on. Route (b) is **underpowered, not spent**, and repowering it
+is compute we already have. Route (c) stands as the statement about the data that exists.
 **Answers:** [O8](../../intent/O8-what-stops-the-juglet.md)
 
 ## Destination
@@ -291,33 +294,42 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   wear is invisible at the resolution it was scanned. Of the three routes originally
   visible:
   - **(a) a capture that resolves the wear** — points about **0.1 mm** apart on this
-    vessel, three to five times finer than the 0.29–0.48 mm we have, which is reachable
-    with close-range structured-light kit rather than anything exotic; **or** an excavated
-    sherd that carries both an ancient buried break face and a fresh modern one, giving a
-    real paired control inside a single object. Still open, still the only route that can
-    positively attribute. It is `O7`'s question and it is **conservation-lab work, not
-    compute** — a decision about lab time, which is the conservator's to make, not the
-    analysis's. **Two corrections, 2026-09-09:** the "break a replica, abrade it, scan it
-    again" version of the paired capture is **struck** — burial cannot be simulated, and a
-    lab abrasion calibrates one simulator against another (`O7`); and a finer scan alone
-    does not reach *this* map's question, because `num_points_to_sample: 5000` puts ~1.2 mm
-    between the points the model is shown, so the pipeline already discards the detail the
-    current scan holds.
+    vessel, three to five times finer than the 0.29–0.48 mm we have, reachable with
+    close-range structured-light kit rather than anything exotic. **Heavily downgraded
+    2026-09-09, in three steps.** First, the paired-control half of this route — an
+    excavated sherd bearing both an ancient and a fresh break face, or a replica broken and
+    abraded — is **struck in every form**: burial cannot be simulated, no two pots are the
+    same, and even two faces on one sherd are two different *fracture events*, so the
+    comparison confounds burial with "these broke differently" (`O7`). Second, a finer scan
+    does not reach this map's question anyway, because `num_points_to_sample: 5000` puts
+    ~1.2 mm between the points the model is shown — the pipeline already discards the detail
+    the current scan holds. Third and decisive: **a capture measures the wear *dose*, and a
+    dose is not an attribution.** Going from "the Juglet is worn by this much" to "and that
+    is why it fails" still requires an intervention on pots we control, which is route (b).
+    So this route **can rule wear out** — a fine scan showing nothing there would falsify
+    the candidate — **but it cannot rule it in**, and it is not what this map is waiting on.
   - **(b) a behavioural test that needs no scan** — does the Juglet's failure have the shape
-    wear produces on pots where we control it? **Run, and it did not carry wear across.**
-    Ticket 08 found the Juglet scattered; ticket 09 found that the one object wear breaks on
+    wear produces on pots where we control it? **Run once, and it did not carry wear across:**
+    ticket 08 found the Juglet scattered; ticket 09 found that the one object wear breaks on
     the erosion ladder fails by *exchange* instead. Weak evidence against wear, on n = 1.
-    The one thing that would revive this route is a ladder built on objects TORA assembles
-    correctly when unworn — one GPU evaluation pass, and it does not need this map to stay
-    open to be worth doing.
+    **Called "spent" on 2026-09-09 and that was wrong — it is underpowered, not spent**, and
+    the difference matters because route (a) turns out not to attribute anything either. The
+    fix is a ladder built on objects TORA assembles correctly when unworn; ticket 09's own
+    sweep had five of six objects already broken at zero abrasion, which is a selection
+    problem in the sweep and not a limit on the method. **One GPU evaluation pass, no lab
+    time — this is now the cheapest live route and the only one with power to grow.**
   - **(c) accept it cannot be attributed with what exists and say so as the result.**
     **This is what the evidence now supports.** Three independent instruments — Gate A,
     ticket 05, ticket 10 — agree the data runs out before the question does. The failure to
     attribute has been written into `O8` as the result.
 
-  So this is no longer fog: it is one decision, and it is not a technical one. **Close on
-  (c) unless the conservator judges (a) worth the lab time.** Nothing further on this map
-  can be squeezed from the scans that exist.
+  So this is no longer fog. **Revised 2026-09-09 after `O7` was restated: close on (c) as
+  the statement about the data that exists — that part is settled and does not depend on
+  what happens next — and treat the powered erosion ladder (route b) as the live follow-up.**
+  It is one GPU pass rather than a lab booking, and it is worth running whether or not this
+  map stays open, because it is the only thing that would let ticket 09's n = 1 bear weight.
+  Route (a) reduces to a falsification test held in reserve. Nothing further can be squeezed
+  from the scans that exist, and nothing needs to be.
 
 - **What replaces "domain gap" as the standing explanation.** `JUGLET_TORA_ROOTCAUSE.md`
   concluded synthetic-to-real domain gap plus piece count; both halves were computed on
