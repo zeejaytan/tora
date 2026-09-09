@@ -172,9 +172,15 @@ scoring convention.
 All three turn figures are above the **~50°** collapse threshold, so by the standing
 criterion nothing is assembled on any arm, which is what the renders show.
 
-**The Juglet cannot adjudicate anything here anyway.** It has no valid archaeological
-answer key; that is why `intent/O6` exists. It is included because the job included
-it, and it is reported because leaving it out would be selective.
+**What the Juglet can and cannot adjudicate.** It **does** have a valid answer key:
+`juglet_gt.hdf5`, the conservator's hand reassembly in Blender (2026-08-10), fitted
+back to the source fragments as a rigid transform with **0.0000% residual**. All three
+arms here were scored against it (`data=zeroshot/juglet_gt`), so these scores are real
+scores — `intent/O6` records that the failure survives the valid reference. What limits
+it is **weight, not validity**: one pot, one reassembly, five draws. And the pot is
+**incomplete** — a visible piece is missing and no reassembly can put it back, so a
+reconstruction that leaves that gap open is correct and any metric rewarding contact
+everywhere still misleads here.
 
 ## 5. What was measured badly, recorded rather than buried
 
@@ -213,9 +219,9 @@ it, and it is reported because leaving it out would be selective.
   detected", not "no effect".
 - **Section 3 is very weak**: 3 pots. The `blue_pot` turn jump is a lead about the
   pose head, not a result.
-- **Section 4 bears no weight on its own** — one object with no valid answer key —
-  except for the relabelling finding, which is about the scoring convention and
-  applies everywhere.
+- **Section 4 bears little weight on its own** — one pot, five draws, scored against a
+  valid but single hand reassembly — except for the relabelling finding, which is about
+  the scoring convention and applies everywhere.
 - **One trained model throughout.** Nothing here separates "adapters do not help on
   this task" from "this particular adapter, at this learning rate, on this corpus,
   did not help". The validation curve falling from epoch 1 onwards is consistent with
@@ -234,13 +240,15 @@ it, and it is reported because leaving it out would be selective.
 3. **Save clouds on every arm.** Without them a seating count cannot be separated
    from a relabelling count, and on the one arm where we could check, most of the
    score was relabelling.
-4. **The Juglet is the wrong object to spend GPU time on.** A 20-draw Juglet rerun was
-   the obvious next job and it is probably not worth doing: the Juglet has no valid
-   answer key and all three arms already sit above the collapse threshold, so more
-   draws against a doubtful key buys very little. The better corpus is the **eight
-   Fractura ceramics** established by ticket 11 — real pots, real ground truth, four
-   of them with a valid unworn control — instead of the six-object bone-contaminated
-   file this job used.
+4. **A 20-draw Juglet rerun is worth less than more pots, but it is not worthless.**
+   The Juglet's reference is sound, so the question a rerun answers is a real one:
+   whether the three arms differ from each other by more than run-to-run noise, which
+   is the first ticket of `intent/O8`. Only 5 of the requested 20 draws ran here. What
+   caps its value is the object count, not the answer key — one pot, and an incomplete
+   one. The better spend is the **eight Fractura ceramics** established by ticket 11 —
+   real pots, real ground truth, four of them with a valid unworn control — instead of
+   the six-object bone-contaminated file this job used, with the Juglet arms carried
+   along at full draw count since they cost little.
 
 ## Reproduce
 
