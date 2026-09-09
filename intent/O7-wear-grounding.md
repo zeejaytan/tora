@@ -179,6 +179,57 @@ Detail: `docs/notes/EROSION_LADDER_CERAMICS.md`. Renders:
 itself, per sample) and `.../ladder_sherd_placement.png`. Ticket
 `.scratch/juglet-cause/issues/11-erosion-ladder-on-pots-tora-rebuilds.md`.
 
+## Wear v3 tested the behavioural criterion directly, and failed it (job 29880370, read out 2026-09-10)
+
+This is the first intervention aimed squarely at the **BEHAVIOURAL** box below, and it is
+worth recording as a negative because the box says "shown to earn its place" and this one
+did not. Wear v3 attacked the shape-variety half of the gap — 203 synthetic vessel shapes
+instead of our 8 real ceramic pots — and delivered it as a **switchable LoRA adapter**
+(2.69% of the weights) rather than a full fine-tune, precisely so that the do-no-harm arm
+would be guaranteed by construction rather than bought with replay data.
+
+**Read per object, never pooled.** On the adapter's own held-out vessel shapes (107 objects,
+3 draws each), switching the adapter **on** seats fewer sherds than the untouched model on
+**49** objects against **30** better (sign test **p = 0.042**); against the same trained file
+with the switch flipped off it is **20 better / 53 worse (p < 0.001)**. The off-arm against
+the untouched model is 39/30/38, p = 0.34 — the control behaves. So the adapter weights
+themselves carry the loss. The validation curve agrees from the other end: seating peaks at
+**epoch 0 (0.843)** — the selected checkpoint — and falls to 0.727-0.76 for the remaining
+nineteen epochs.
+
+On the erosion sweep, the gain it was bought for, there is **nothing**: 3 better / 7 worse /
+5 unchanged over 15 ceramic ladder points, p = 0.34, on far too few pots to have detected a
+small effect. **Half that sweep is not pottery** — it is the six-object `real_heldout_norm`
+file, three of whose objects are bones. Same defect ticket 11 found, recurring because the
+same source file was used.
+
+**Which of the three: the method genuinely did not help.** The ruler was the corrected
+unit-box one (every arm carries `part_accuracy_absolute`), the comparison is paired against
+the untouched model, and the ground truth on the synthetic and Fractura material is sound.
+
+**Three things this leaves behind that do bear on the criterion.**
+
+1. **"Reversible" is only three-quarters true.** `train_head=true` left the pose head
+   trainable and 5 of its tensors moved (largest 1.943e-03). The switch does not cover them,
+   so "adapter off" is not the untouched baseline — and on `blue_pot` the off-arm holds
+   5.0/5 seated while its average turn goes from **6 deg to 53 deg**. A seating count alone
+   would have called that "no change". Set `train_head=false` next time.
+2. **The seating count is a *relabelled* count.** `compute_part_acc` runs a Hungarian
+   assignment, so a sherd standing in another sherd's place is credited. On the Juglet, the
+   only arm whose clouds were saved, own-place seating is **3.4 / 2.6 / 1.2 of 9** against
+   the reported 5.0 / 3.8 / 4.0 — **70% of the adapter arm's credit is relabelling**, and
+   one of the 1.2 is the free anchor. Every seating figure in this question's evidence base
+   should be read as an upper bound until an arm is audited against identity.
+3. **Clouds must be saved on every arm.** They were not here, so the vessel, sweep and fresh
+   numbers cannot be rendered or identity-checked at all.
+
+Rendered before reporting: `artifacts/lorav3_29880370/juglet_arms_per_sherd.png` — the
+measured quantity itself, per sherd, all five draws, with the median draw drawn above.
+**Nothing is a juglet on any arm**, and all three sit above the ~50 deg collapse threshold.
+
+Detail: `docs/notes/LORAV3_29880370_RESULT.md`; the change record against wear v2 is
+`docs/notes/WEAR_V2_TO_V3.md`.
+
 ## Restatement — **ACCEPTED by the conservator, 2026-09-09.** Criteria are now
 behavioural and bounded-range; the boxes below were rewritten to match.
 
@@ -256,7 +307,9 @@ general. The bar moved sideways, not down.
       rather than to augmentation in general. Reported **per object and up the erosion
       ladder, never as a pooled mean** — a pooled six-pot mean already scored a model that
       cut the ladder drop by two thirds as indistinguishable from the untouched baseline
-      (`intent/O2`)
+      (`intent/O2`). **Attempted once and not met (2026-09-10, job 29880370):** the wear v3
+      shape-variety adapter lost on its own held-out vessels (49 worse / 30 better,
+      p = 0.042) and did nothing on the erosion sweep. Still open
 - [ ] **BOUNDED-RANGE — the parameters are defensible without being measured.** Fabric,
       temper and wall-thickness distributions pulled from the archaeometric literature
       (Khashuri Natsargora, Tsaghkasar, the Kars corpus), wear parameters shown to lie

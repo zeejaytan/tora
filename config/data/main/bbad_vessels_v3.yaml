@@ -38,8 +38,14 @@ data_root: ${data_root}
 # CAUTION: `test` is a verbatim copy of `val` (build_bbad_vessel_trainset.py
 # :417). There is no independent held-out set in this file.
 #
-# Two wear doses per break (0.05% and 0.10% recession); 0.20% was dropped for
-# costing one object 6.6% of its curve.
+# Two wear doses per break: 0.15% and 0.30% of object recession, with 2-3 chips
+# at 0.22-0.25% (build_bbad_vessel_trainset.py, WEAR_LEVELS). Corrected
+# 2026-09-10: this comment previously read "0.05% and 0.10%; 0.20% was dropped
+# for costing one object 6.6% of its curve", which is pre-rebuild text. The
+# 0.20% exclusion was overturned once the metric behind it turned out to be an
+# artefact, and the doses were raised at rebuild -- 0.30% lands the contact-band
+# gap on a real worn pot at all three percentiles (p10/p50/p90 =
+# 0.181/0.588/1.771 against 0.182/0.615/1.692). The built file is the authority.
 #
 # NO SYNTHETIC REPLAY, and that is a departure from wear_finetune_v2 on purpose.
 # Replay (pig/rib) was there because a full fine-tune overwrites the weights it
