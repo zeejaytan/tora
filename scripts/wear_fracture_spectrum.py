@@ -588,11 +588,21 @@ def main():
                 if not faces:
                     print("  " + tag + ": no mating faces found, skipped")
                     continue
-            faces = [(f if len(f) <= a.max_face_pts else
-                      f[rng.choice(len(f), a.max_face_pts, False)],
-                      n if len(n) <= a.max_face_pts else
-                      n[rng.choice(len(n), a.max_face_pts, False)])
-                     for f, n in faces]
+            # ONE draw per face, applied to points AND normals. Two
+            # independent rng.choice calls decouple them, and the off-face
+            # gate then compares unrelated normals: nrms[sel] @ nrms[n] goes
+            # to noise, off_face lands near 0.5 and every radius fails
+            # OFF_FACE_MAX = 0.15. It has not fired in any run so far -- it
+            # needs a SINGLE face above --max-face-pts, and job 30356470's
+            # largest pot carried 165,629 points spread over 10 faces -- but
+            # the gate would have refused every radius silently if it had.
+            def _cap(f, n):
+                if len(f) <= a.max_face_pts:
+                    return f, n
+                sel = rng.choice(len(f), a.max_face_pts, replace=False)
+                return f[sel], n[sel]
+
+            faces = [_cap(f, n) for f, n in faces]
             face_pts = int(sum(len(f) for f, _ in faces))
 
             sp = []
