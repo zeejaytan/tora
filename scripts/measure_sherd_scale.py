@@ -103,6 +103,28 @@ def raw_scales(raw_path, raw_group):
     return scale_of
 
 
+def juglet_union_extent(h5_path, group):
+    """Longest side of the ASSEMBLED vessel, in file units.
+
+    The fragments sit in their ground-truth pose in this file, so their union
+    is the vessel. Per-fragment extents cannot give this: a fragment is
+    smaller than the pot it came from.
+    """
+    lo = np.full(3, np.inf)
+    hi = np.full(3, -np.inf)
+    with h5py.File(h5_path, "r") as h:
+        for tag in sorted(h[group].keys()):
+            node = h[group][tag]
+            if "pieces" not in node:
+                continue
+            for k in node["pieces"].keys():
+                v = np.asarray(node["pieces"][k]["vertices"][:],
+                               dtype=np.float64)
+                lo = np.minimum(lo, v.min(axis=0))
+                hi = np.maximum(hi, v.max(axis=0))
+    return float((hi - lo).max()) if np.isfinite(lo).all() else 0.0
+
+
 def report(title, per_tag, unit):
     print("")
     print("=" * 78)
@@ -146,12 +168,15 @@ def report(title, per_tag, unit):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--erosion", required=True)
-    p.add_argument("--erosion-group", default="ceramics")
+    p.add_argument("--erosion-group", default="erosion_ceramics")
     p.add_argument("--rung", default="e000")
     p.add_argument("--raw", required=True)
     p.add_argument("--raw-group", default="ceramics")
     p.add_argument("--juglet")
-    p.add_argument("--juglet-group", default="juglet")
+    p.add_argument("--juglet-group", default="juglet_gt")
+    p.add_argument("--juglet-mm", type=float, default=65.0,
+                   help="assembled vessel longest side, mm "
+                        "(O7-wear-grounding.md:83)")
     p.add_argument("--out", default="artifacts/sherd_scale.json")
     a = p.parse_args()
 
@@ -181,26 +206,36 @@ def main():
 
     jug = {}
     if a.juglet:
-        with h5py.File(a.juglet, "r") as h:
-            print("")
-            print("juglet file top level: " + str(list(h.keys())))
         jug = walk(a.juglet, a.juglet_group)
-        # The Juglet ladder has no raw counterpart, so units are the file's.
-        # The vessel is 65 mm (O7:83); the report prints the assembled extent
-        # so the factor can be read off rather than assumed.
-        allext = [s["extent"] for v in jug.values() for s in v]
-        if allext:
-            print("juglet largest fragment extent in file units: " +
-                  format(max(allext), ".4f") + "  -- if the file is "
-                  "normalised, divide 65 mm by the assembled extent")
-        report("JUGLET (FILE UNITS, not mm -- see note above)", jug, "file")
+        # The Juglet has no raw counterpart to rescale from, so its file units
+        # are set against the one measured figure: the assembled vessel is
+        # 65 mm on its longest side (O7-wear-grounding.md:83). Older notes use
+        # a "~100 mm juglet" convention -- flagged at O7:89 -- so the factor is
+        # printed rather than folded in silently.
+        union = juglet_union_extent(a.juglet, a.juglet_group)
+        jf = (a.juglet_mm / union) if union > 0 else 1.0
+        print("")
+        print("juglet assembled longest side, file units: " +
+              format(union, ".4f") + "   taken as " +
+              format(a.juglet_mm, ".1f") + " mm  ->  x" + format(jf, ".4f"))
+        jug = {t: [dict(extent=s["extent"] * jf,
+                        wall_2va=s["wall_2va"] * jf,
+                        area=s["area"] * jf * jf,
+                        n_vertices=s["n_vertices"]) for s in v]
+               for t, v in jug.items()}
+        # No sigma table: the Juglet is the reference, not a rung of our
+        # ladder. Its wall thickness is what the pots' patch radii scale to.
+        report("JUGLET, scaled to a " + format(a.juglet_mm, ".1f") +
+               " mm vessel", jug, "mm (reference, no ladder)")
 
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(dict(pots=pots, juglet=jug, rung=a.rung,
                                    kernel_frac_max=KERNEL_FRAC_MAX,
                                    strength=STRENGTH,
-                                   juglet_spacing_mm=JUGLET_SPACING),
+                                   juglet_vessel_mm=a.juglet_mm,
+                                   juglet_spacing_mm=JUGLET_SPACING,
+                                   units="millimetres throughout"),
                               indent=2))
     print("")
     print("wrote " + str(out))
