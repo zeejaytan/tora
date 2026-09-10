@@ -33,9 +33,12 @@ Exponent at e000 → e100, all radii passing the gates on most pots:
 | plate | 1.02 | 1.18 |
 
 The exponent **falls** up the wear ladder on **seven of eight** pots — the opposite direction
-from what burial erosion should do. That cannot yet be read as "the wear model does the wrong
-thing", because our erosion operator plausibly reduces the break's large-scale meander, and
-the meander is most of what this statistic responds to (below). **Untested, and the next test.**
+from what burial erosion should do. **This must not be read as "the wear model does the wrong
+thing", and the reason is measured, not speculative:** the point spacing within the measured
+set falls 20–46% up the ladder on every pot while the mesh itself is byte-identical, so the
+sampling changes alongside the entire effect. See *"The direction finding is confounded by
+sampling"* below. The wear column cannot be read until every rung is subsampled to a common
+spacing.
 
 The strict e000 control gate passes **four** pots, so four is the number to quote, not six.
 
@@ -154,6 +157,88 @@ The script now **asserts the geometry before it scores anything**: the two faces
 `GAP` apart with a partner-normal dot of ~−1, or it prints `GEOMETRY INVALID` and stops. It
 passes at gap 0.100 mm and dot −1.000 exactly. Both sweeps were run twice and agree on all
 six rows.
+
+## Job 30356470 finished: `COMPLETED`, exit 0:0, 1:22:03, peak 3.5 GB
+
+### Band control — the synthetic prediction reproduced on real pots
+
+The contaminated near-only selection has **off-face 100.0% at every radius** and passes
+**0 of 40** pot-rungs. Its readings, pooled per rung, are **slope 1.18–1.36 with decline
+−1.06 to −1.55**, and the script's own second axis labels every rung *"erosion-like"*.
+
+The manufactured-truth test predicted, for a 62%-pure selection on surfaces built **fresh**:
+slope **1.217–1.414**, decline **−1.35 to −1.68**. The observed ranges overlap. So the
+prediction made from labelled synthetic geometry reproduces what the contaminated selection
+actually does on the real pots, and the two-axis test is shown being fooled **on real data**,
+not only in simulation.
+
+### Wide ladder — the script refuses its own table, and now we know why
+
+Over Gate A's own 0.40–6.40 mm ladder the gates do **not** refuse the top radii as the job
+header predicted: off-face is 0.3% at 0.40 mm rising only to 13.1% at 6.40 mm, and 40/40
+pot-rungs pass at 0.80 and 1.60 mm. Fresh e000 reads **1.03–1.68, median 1.37**, and the
+script stops itself: *"STILL ABOVE THE SELF-AFFINE CEILING … Do not quote the table."* It
+offered two explanations — the selection is still contaminated, or our scans do not resolve
+fresh fracture at all.
+
+**Both are now wrong, and there is a third.** The selection is proven exact against labelled
+truth (100% purity, 100% recall), so it is not contamination. And a fresh synthetic break at
+H = 0.8 with a 3 mm meander reads **1.62**, inside the observed fresh range. The ceiling is
+exceeded by **break shape**, which the calibration never modelled because it was run on a
+flat plaque.
+
+### The direction finding is confounded by sampling, not a wear-model result
+
+The exponent falls up the ladder on 7 of 8 pots in the narrow window and on 6 of 8 in the
+wide one. Two facts together stop that being read as wear:
+
+- **The mesh is identical at every rung.** Vertex and face counts are byte-identical
+  e000 → e100 on `blue_pot` (1,043,149 v / 2,086,278 f), `pink_bowl`, `plate` and
+  `narrow_bottle3`. The operator displaces vertices and changes no topology.
+- **But the measurement's sampling is not held fixed.** The selection keeps steadily more of
+  the break face as wear rises — `blue_pot` 18.2% → 25.7% of near, 28,452 → 37,330 points —
+  and the point spacing *within the measured set* therefore falls on **every pot**:
+
+  | pot | e000 → e100 spacing | change |
+  |---|---|---|
+  | blue_pot | 0.106 → 0.084 mm | −21% |
+  | galli_pot | 0.100 → 0.080 mm | −20% |
+  | narrow_bottle1 | 0.082 → 0.065 mm | −21% |
+  | narrow_bottle2 | 0.168 → 0.090 mm | −46% |
+  | narrow_bottle3 | 0.118 → 0.081 mm | −31% |
+  | narrow_bottle4 | 0.104 → 0.074 mm | −29% |
+  | pink_bowl | 0.138 → 0.086 mm | −38% |
+  | plate | 0.198 → 0.121 mm | −39% |
+
+This statistic tracks **the finest wavelength present in the sampled set** — that is the one
+thing established about it beyond doubt. A 20–46% change in the spacing of the measured points
+runs alongside the entire wear effect, in the same direction on every pot, so the two cannot
+be separated in this run. Plausibly the erosion smooths the normals, so more points satisfy
+the mating criterion and the sample fills in.
+
+Note this does **not** contradict the earlier density test (H = 0.5 sampled at 0.267 mm still
+recovered 0.651). That coarsened a *fixed* surface whose content ran below the sampling scale.
+It did not test a selection converging on the true mesh density as the surface changes.
+
+**The fix is cheap and decisive:** subsample every rung to the coarsest rung's point spacing
+before measuring, then re-read the ladder. Until that is done the wear column says nothing,
+and the earlier reading that "the exponent moves the wrong way" is withdrawn — it was
+category 2 as well.
+
+**Also withdrawn:** the hypothesis that our erosion operator reduces the break's meander.
+Decline falls up the ladder (`blue_pot` +0.11 → −0.31, `narrow_bottle1` +1.09 → 0.00), and
+on labelled geometry a *falling* decline is what **added** waviness produces. That points the
+opposite way, and is confounded by the same sampling change, so it is not evidence either.
+
+### The plot says more than the exponent
+
+`artifacts/wear_spectrum_30356470/wide_ladder_spectrum.png` (local, gitignored; source `eval_runs/wear_spectrum_30356470/wide_ladder/spectrum.png` on Spartan). RePAIR's curve starts **lowest**
+of everything at 0.40 mm (~0.0018 mm of texture) and converges with ours at 6.40 mm
+(~0.22 mm). Its steep exponent is not extra coarse roughness — it is **missing fine relief**,
+which is what erosion physically does. Ours start higher at the fine end (0.002–0.009 mm) and
+end at or below RePAIR at the coarse end. That is the one comparison in this whole run that
+reads as physically meaningful, and it is a statement about *absolute fine-scale texture*,
+not about the exponent. Whether it survives the sampling correction above is untested.
 
 ## What would still discriminate
 

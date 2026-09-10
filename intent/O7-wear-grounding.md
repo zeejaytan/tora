@@ -252,9 +252,30 @@ intervention.
 removes roughness at all scales and would give a high slope with a small decline. It no longer
 needs separating, because the decline axis is spent either way.
 
+**A second confound, measured after job 30356470 completed, which withdraws the direction
+reading.** The exponent *falls* up the wear ladder on 7 of 8 pots, opposite to what burial
+erosion should do. That is not a wear-model result. The erosion meshes are **byte-identical at
+every rung** (`blue_pot` 1,043,149 v / 2,086,278 f at e000 and at e100 — the operator displaces
+vertices and changes no topology), but the selection keeps steadily more of the break face as
+wear rises (`blue_pot` 18.2% → 25.7% of near), so the point spacing *within the measured set*
+falls **20–46% on every pot** (0.106 → 0.084, 0.168 → 0.090, 0.198 → 0.121 mm …). This
+statistic tracks the finest wavelength present in the sampled set, and that sampling changes in
+the same direction as the wear on every pot. **The wear column cannot be read until every rung
+is subsampled to a common spacing** — cheap, and the next job. The hypothesis that our erosion
+operator reduces the break's meander is withdrawn with it: decline *falls* up the ladder, and
+on labelled geometry a falling decline is what **added** waviness produces.
+
+**The one comparison that still reads as physical**, from the log-log plot rather than the
+exponent: RePAIR's curve starts **lowest of everything** at 0.40 mm (~0.0018 mm of texture) and
+converges with ours by 6.40 mm (~0.22 mm). Its steep exponent is *missing fine relief*, which
+is what erosion physically does — not extra coarse roughness. Ours start higher at the fine end
+(0.002–0.009 mm). Whether that survives the sampling correction is untested.
+
 **What would still discriminate**, for whoever picks this up: a statistic computed *after* the
 break's low-frequency shape is removed — not by a quadric over a 1.6 mm patch, which cannot
-see a 15 mm meander, but by subtracting a fit over the whole face. Untested.
+see a 15 mm meander, but by subtracting a fit over the whole face; and absolute fine-scale
+texture at a fixed point spacing, which is the axis the plot above suggests is meaningful.
+Untested. Full read-out: `docs/notes/WEAR_SPECTRUM_GATE_A_30356470.md`.
 
 ## TORA is not blind to the wear — the orientation channel, measured
 
