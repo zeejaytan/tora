@@ -199,6 +199,21 @@ CALIBRATION = {0.2: 0.358, 0.5: 0.585, 0.8: 0.864}
 # above this a reading is no longer fracture texture: the roughest possible
 # self-affine surface (H = 0.8) reads 0.864 through this instrument.
 SELF_AFFINE_CEILING = 0.9
+# SECOND AXIS: how much the local log-log slope falls between the smallest and
+# largest patch. A capture that lost fine detail is smooth only at small
+# scales, so its local slope collapses as patches grow; a surface eroded
+# through and through is equally smooth at every scale and its slope holds.
+# Measured on RePAIR's published table over 0.8-6.4 mm, and on known-fresh
+# H = 0.5 surfaces smoothed until they read the same slope
+# (scripts/selftest_wear_spectrum_kink.py):
+#   RePAIR, slope 1.80          decline 0.40
+#   fresh + 0.50 mm smoothing, slope 1.60   decline 1.52
+#   fresh + 0.80 mm smoothing, slope 2.00   decline 1.62
+# So a high slope with a SMALL decline is genuine erosion, and a high slope
+# with a LARGE decline is lost resolution. This is the discriminator Gate A's
+# straight-line argument was reaching for, made into a number.
+REPAIR_DECLINE = 0.40
+DECLINE_ARTEFACT = 1.5
 
 # radii a 4.5 mm wall can hold, floor set by 3x the 0.13-0.36 mm spacing
 RADII_V2 = [0.40, 0.55, 0.80, 1.10, 1.60]
@@ -364,6 +379,46 @@ def probe_radius(pts, nrms, R, max_probe, rng):
                 aspect=float(np.median(asp)), n_probes=len(res))
 
 
+def repair_reference(radii):
+    """RePAIR's own slope and decline, computed on OUR radii, not borrowed.
+
+    The published table has five points at 0.4, 0.8, 1.6, 3.2 and 6.4 mm. Its
+    local log-log slope is not constant -- 1.44 then 2.01 then 1.80 then 1.61 --
+    so a slope quoted over one span is not the reference for another, and a
+    DECLINE quoted over 0.8-6.4 mm is certainly not the reference for 0.4-1.6,
+    where RePAIR's slope actually rises. Both reference numbers are therefore
+    interpolated in log-log onto whatever ladder is in use, so ours and theirs
+    are read over the same span with the same arithmetic.
+    """
+    rr = np.array(sorted(REPAIR_TEXTURE))
+    tt = np.array([REPAIR_TEXTURE[r] for r in rr])
+    lo, hi = min(radii), max(radii)
+    inside = [r for r in radii if rr[0] - 1e-9 <= r <= rr[-1] + 1e-9]
+    if len(inside) < 2:
+        return float("nan"), float("nan"), 0
+    t = np.exp(np.interp(np.log(inside), np.log(rr), np.log(tt)))
+    slope, _ = fit_exponent(inside, list(t))
+    return slope, slope_decline(inside, list(t)), len(inside)
+
+
+def slope_decline(radii, texture):
+    """Local log-log slope at the smallest span, minus at the largest.
+
+    Positive and large means the surface is smooth at fine scales but rough at
+    coarse ones -- the signature of detail the capture never recorded. Near
+    zero means it is equally smooth at every scale, which is what erosion
+    through the whole surface does. See REPAIR_DECLINE.
+    """
+    pairs = [(r, t) for r, t in zip(radii, texture)
+             if t is not None and np.isfinite(t) and t > 0]
+    if len(pairs) < 3:
+        return float("nan")
+    r = np.log(np.array([p[0] for p in pairs]))
+    t = np.log(np.array([p[1] for p in pairs]))
+    seg = np.diff(t) / np.diff(r)
+    return float(seg[0] - seg[-1])
+
+
 def probe_faces(faces, R, max_probe, rng):
     """One radius, across every sherd's break face separately.
 
@@ -486,10 +541,11 @@ def main():
     scale_of, rawdiag_of = raw_scales(a.raw, a.raw_group)
     print("face mode: " + a.face_mode + "   radii mm: " +
           ", ".join(format(r, ".2f") for r in radii))
-    print("reference: RePAIR real eroded fracture R^" +
-          format(REPAIR_EXPONENT_WINDOW, ".2f") + " over " +
-          format(radii[0], ".2f") + "-" + format(radii[-1], ".2f") +
-          " mm; fresh fracture 0.4-0.8")
+    rs, rd, rn = repair_reference(radii)
+    print("reference: RePAIR real eroded fracture, interpolated onto these "
+          "radii, R^" + format(rs, ".2f") + " with decline " +
+          format(rd, ".2f") + " (" + str(rn) + " radii); fresh fracture "
+          "0.4-0.8")
 
     want = [p for p in a.pots.split(",") if p] or None
     want_rungs = [r for r in a.rungs.split(",") if r] or None
@@ -563,6 +619,7 @@ def main():
             e_gated, n_gated = (fit_exponent(radii, tex, min(ok), max(ok))
                                 if len(ok) >= 2 else (float("nan"), len(ok)))
             e_all, n_all = fit_exponent(radii, tex)
+            decline = slope_decline(radii, tex)
 
             rows.append(dict(tag=tag, pot=pot, rung=rung, diag_mm=diag,
                              scale_drift_pct=drift, face_pts=face_pts,
@@ -574,7 +631,8 @@ def main():
                              per_radius={str(k): v for k, v in per_r.items()},
                              radii_passing_gates=ok,
                              exponent=e_gated, n_gated=n_gated,
-                             exponent_ungated=e_all, n_ungated=n_all))
+                             exponent_ungated=e_all, n_ungated=n_all,
+                             slope_decline=decline))
             print("  " + tag.ljust(22) + " diag " + format(diag, "6.1f") +
                   " (drift " + format(drift, ".2f") + "%)  face " +
                   str(face_pts).rjust(6) + " pts on " +
@@ -583,7 +641,8 @@ def main():
                   "% of near  spacing " + format(spacing, ".3f") +
                   "  radii passing " + str(len(ok)) + "/" + str(len(radii)) +
                   "  exponent " + format(e_gated, "5.2f") +
-                  " (ungated " + format(e_all, "5.2f") + ")", flush=True)
+                  " (ungated " + format(e_all, "5.2f") + ")" +
+                  "  decline " + format(decline, "5.2f"), flush=True)
 
             if rung in ("e000", "e100") and len(shown) < 6:
                 near_pts = np.concatenate(
@@ -619,17 +678,18 @@ def main():
           "= 0.4 - 0.8")
     print("=" * 78)
     print("pot".ljust(16) + "".join(x.rjust(8) for x in RUNGS) +
-          "   spacing   radii passing gates")
+          "   spacing   decline")
     for pot in pots:
         line = pot.ljust(16)
         for rg in RUNGS:
             m = [r for r in rows if r["pot"] == pot and r["rung"] == rg]
             line += (format(m[0]["exponent"], "8.2f") if m else "-".rjust(8))
         sp = [r["spacing_mm"] for r in rows if r["pot"] == pot]
-        ng = [len(r["radii_passing_gates"]) for r in rows if r["pot"] == pot]
+        dc = [r["slope_decline"] for r in rows if r["pot"] == pot
+              and np.isfinite(r["slope_decline"])]
         line += "   " + format(float(np.median(sp)), ".3f") + " mm"
-        line += "   " + format(float(np.median(ng)), ".1f") + "/" + \
-                str(len(radii))
+        line += "   " + (format(float(np.median(dc)), "6.2f") if dc
+                         else "     -")
         print(line)
 
     # ---- the checks that decide whether the table can be read ------------
@@ -683,6 +743,52 @@ def main():
             print("  IN RANGE: fresh ceramic reads as fresh fracture, so the "
                   "instrument is on the break")
             print("  face and the wear column above can be read.")
+
+    print("")
+    print("=" * 78)
+    print("SECOND AXIS: is a high reading erosion, or detail the capture "
+          "never recorded?")
+    print("=" * 78)
+    ref_slope, ref_decline, ref_n = repair_reference(radii)
+    print("  RePAIR real eroded fracture, ON THESE RADII: slope " +
+          format(ref_slope, ".2f") + "   decline " +
+          format(ref_decline, ".2f") + "   (" + str(ref_n) + " radii)")
+    print("  RePAIR over its own full 0.8-6.4 mm span:     slope 1.80   "
+          "decline " + format(REPAIR_DECLINE, ".2f"))
+    print("  known-fresh surface smoothed to read slope 1.60   decline 1.52")
+    print("  known-fresh surface smoothed to read slope 2.00   decline 1.62")
+    print("")
+    print("  A high slope with a SMALL decline is a genuinely eroded "
+          "surface: smooth at")
+    print("  every scale. A high slope with a decline near " +
+          format(DECLINE_ARTEFACT, ".1f") + " is smooth only at fine "
+          "scales,")
+    print("  which is lost resolution and says nothing about wear.")
+    print("")
+    for rg in RUNGS:
+        d = [r["slope_decline"] for r in rows
+             if r["rung"] == rg and np.isfinite(r["slope_decline"])]
+        e = [r["exponent_ungated"] for r in rows
+             if r["rung"] == rg and np.isfinite(r["exponent_ungated"])]
+        if not d or not e:
+            continue
+        md, me = float(np.median(d)), float(np.median(e))
+        verdict = ("erosion-like" if md < 0.8 else
+                   "resolution-limited -- NOT a wear signal"
+                   if md > DECLINE_ARTEFACT - 0.4 else "ambiguous")
+        print("  " + rg + "   slope " + format(me, "5.2f") + "   decline " +
+              format(md, "5.2f") + "   " + verdict)
+    print("")
+    print("  If our rungs sit at a large decline while RePAIR on the same "
+          "radii sits at")
+    print("  " + format(ref_decline, ".2f") + ", then our break")
+    print("  faces and RePAIR's are not the same kind of surface whatever "
+          "their slopes")
+    print("  look like, and the distributional comparison in intent/O7 "
+          "cannot be made on")
+    print("  this statistic with this capture. That is a real answer, and it "
+          "is about the")
+    print("  data we have rather than about the wear model.")
     print("")
     print("wrote " + str(outd) + "/wear_spectrum.json, spectrum.png" +
           (", face_selection.png" if a.face_mode == "mating" else ""))
