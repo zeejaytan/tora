@@ -195,29 +195,66 @@ against the analytic 0.01596, and known Hurst exponents 0.2/0.5/0.8 recover as
    recorded by the capture" give the same number. That is a limit on the reference as much
    as on us, and it is the sharpest form yet of the scanner-vs-ground caveat above.
 
-**What rescues the comparison is the shape of the log-log line, not its slope.** Smoothing
-only touches fine scales, so a resolution artefact's local slope collapses as patches grow:
-a known-fresh surface smoothed to read slope 1.60 falls 2.43 → 1.50 → 0.91 across
-0.8–6.4 mm, a decline of 1.52. RePAIR declines 0.40 over that span, and over 0.4–1.6 mm its
-slope *rises* (decline −0.56). RePAIR's frescoes are smooth at every scale measured — eroded
-through, not band-limited. So the test now has two axes, and the refutation condition is
-sharper than the one written above:
+**~~What rescues the comparison is the shape of the log-log line, not its slope.~~ STRUCK
+2026-09-10 — it does not.** The claim was that a resolution artefact's local slope collapses
+as patches grow while genuine erosion's does not, so the *decline* separates them: a
+known-fresh surface smoothed until it read slope 1.60 fell 2.43 → 1.50 → 0.91 over
+0.8–6.4 mm, a decline of +1.52, whereas RePAIR's slope *rises* over 0.4–1.6 mm
+(decline −0.56). That contrast is real. It is not diagnostic of erosion, because two other
+things reproduce −0.56 on a surface built to be **fresh**.
 
-| | slope | decline | verdict |
-|---|---|---|---|
-| real eroded fracture (RePAIR, 0.4–1.6 mm) | 1.72 | **−0.56** | eroded through |
-| known-fresh, blurred until slope matches | ~1.60 | **+1.52** | capture artefact |
-| fresh fracture, literature | 0.4–0.8 | — | — |
+Both were measured on a pot whose every point is labelled by construction — thin curved
+wall, 4.5 mm, 0.2 mm spacing, 0.10 mm mating gap, roughness at a known Hurst H — because the
+dataset carries no break-face label and all three routes to one are closed (`shared_faces` is
+−1 for every triangle; `full_mesh` contains the break faces rather than predating them; the
+cut duplicated no vertices). `scripts/selftest_wear_spectrum_pot.py`.
 
-**Refuted if** our fresh e000 faces read a high slope with a *large positive* decline: that
-would mean our meshes simply do not record fracture texture, and no wear ladder measured on
-them can be compared with RePAIR on this statistic. **Also refuted, differently,** if our
-worn faces do not move toward RePAIR on both axes together.
+**1. A fresh break that merely MEANDERS lands on RePAIR's decline.** Add a 3 mm waviness at
+~15 mm wavelength — less than any real pot break — and hold the roughness fixed:
 
-**A confound this cannot yet separate**, recorded now rather than after the fact: a
-reconstruction with a smoothness prior removes roughness at *all* scales, so it would produce
-a high slope with a small decline — the same signature as genuine erosion. If our fresh faces
-land there, that is what has to be ruled out next, and the decline axis will not do it.
+| true H | flat cut | | wavy cut | |
+|---|---|---|---|---|
+| | slope | decline | slope | decline |
+| 0.2 | 0.573 | **+0.61** | 0.546 | **−0.25** |
+| 0.5 | 0.763 | **+0.52** | 0.906 | **−1.00** |
+| 0.8 | 0.994 | **+0.45** | 1.618 | **−1.76** |
+
+The decline is **+0.45 to +0.61 on a flat cut whatever the roughness, and −0.25 to −1.76 on a
+wavy one**. It is a measure of the break's shape, not its wear, and RePAIR's −0.56 sits
+between the H = 0.2 and H = 0.5 fresh-wavy rows. The slope is no better: the meander moves it
+by −0.03 at H = 0.2 and **+0.62** at H = 0.8, so its effect is neither a fixed size nor a
+fixed sign and cannot be subtracted off.
+
+**2. A contaminated selection lands there too, on a FLAT fresh cut.** The near-only selection
+of job 30352180 is 62% pure on this pot, and reads **slope 1.217–1.414, decline −1.35 to
+−1.68** on a cut built flat and fresh at H = 0.2–0.8. Its slope barely tracks H at all
+(1.217 / 1.354 / 1.414 for H = 0.2 / 0.5 / 0.8) — the signature of a statistic reading the
+vessel wall rather than the break. That reproduces job 30352180's 1.06–1.81 from ground truth
+and closes it independently of the wall-thickness argument: **void, and now demonstrably so.**
+
+**What survives.** The v2 selection is exact — **100% purity and 100% recall** on every row,
+its slope matching the labelled truth to within 0.006 — and the candidate tightening (mating
+gap within 3 point spacings *and* an antiparallel partner normal) is equally exact at 99.5–
+99.8% recall. The instrument reads high but monotonically on a flat cut, roughly
+0.7·H + 0.43, so it can **rank** roughness. What it cannot do is separate roughness from break
+shape, and the two confound each other at the same magnitude.
+
+**Consequence for this question: Gate A cannot ground the wear model, on either axis.** Our
+fresh e000 faces read 0.67–1.78 (job 30356470, v2 selection), RePAIR's real eroded fresco
+reads 1.71, and a fresh synthetic break at H = 0.8 with a modest meander reads 1.62. Those are
+the same number. The distributional comparison — *do our worn surfaces land where real worn
+archaeological surfaces land* — is not refuted as a question; it is that **this statistic
+cannot answer it**, which is category 2, a broken ruler, and not a verdict on the wear model.
+This does not touch O8's finding that wear *causes* reassembly failure, which came from
+intervention.
+
+**A confound recorded earlier and now subsumed:** a reconstruction with a smoothness prior
+removes roughness at all scales and would give a high slope with a small decline. It no longer
+needs separating, because the decline axis is spent either way.
+
+**What would still discriminate**, for whoever picks this up: a statistic computed *after* the
+break's low-frequency shape is removed — not by a quadric over a 1.6 mm patch, which cannot
+see a 15 mm meander, but by subtracting a fit over the whole face. Untested.
 
 ## TORA is not blind to the wear — the orientation channel, measured
 
