@@ -121,18 +121,52 @@ which route does not exist is worth as much as one that does.
    not been found. See the restatement below.
 
 **Rewritten 2026-09-10, now that both captures are struck.** This used to read "until one
-exists" — as though the measurement were merely unfunded. It is not. **The physical-fidelity
-question is unanswerable from the object**: reading any measurement of a worn break face
-requires knowing what that face was like before burial, no capture recovers that, and every
-route to a "before" is a second fracture event, a second chosen abrasion process, or a
-different pot. So "the Juglet fails *because* its fractures are worn" stays an inference
-from a simulator permanently, not pending equipment.
+exists" — as though the measurement were merely unfunded. It is not. **The *paired*
+fidelity question is unanswerable from the object**: reading a measurement of one worn break
+face as correct-or-not requires knowing what *that face* was like before burial, no capture
+recovers that, and every route to a "before" is a second fracture event, a second chosen
+abrasion process, or a different pot. So "the Juglet fails *because* its fractures are worn"
+stays an inference from a simulator permanently, not pending equipment.
 
-**This strengthens the 2026-09-09 restatement rather than weakening it.** That restatement
-moved this question to behavioural and bounded-range criteria on the grounds that no
-*reachable* capture supplies the measurement. The honest ground is that **no capture
-supplies it**. Validating the wear model as a training augmentation is therefore not a
-fallback from the real test — it is the only category of claim this material can support.
+**Corrected the same day, on the conservator's objection.** The paragraph above first said
+the fidelity question was unanswerable full stop, and that was over-broad. The objection:
+*we know the definition of wear, we have real archaeological objects showing the wear, and
+the simulator was built to reproduce what those objects show.* That is right, and it names a
+**second, different question** that the struck captures do not touch:
+
+| | needs a before-state | needs a pairing | status |
+|---|---|---|---|
+| **paired** — is the wear on *this* face right? | yes | yes | **struck, permanently** |
+| **distributional** — do our worn surfaces land where real worn archaeological surfaces land, and away from fresh fracture? | **no** | **no** | **open, and testable now** |
+
+The distributional question is answerable because the real-worn end of the axis has already
+been measured here. Gate A put a roughness-scaling exponent of **1.71** on real eroded
+archaeological fracture — 20 RePAIR Pompeii frescoes, one straight log-log line from 0.4 to
+6.4 mm, no kink, low scatter across all 20 — against **0.4–0.8** for fresh fracture in
+metals, ceramics and rocks. That statistic is dimensionless and size-independent, which is
+exactly the property the fine/coarse ratio lacked when it put the worn Juglet at 0.169
+*inside* the fresh range 0.167–0.386. A bad statistic is not an unanswerable question.
+
+**What it can and cannot settle.** It can say whether our operator moves a real ceramic
+break face off the fresh-fracture value and toward the value real worn fracture shows. It
+cannot say any particular sherd's wear is right, and it inherits Gate A's own limit —
+"the ground removed the texture" and "the scanner never recorded it" are not separable. So
+the claim it supports is *our simulated wear matches real **scanned** worn fracture*, which
+is the honest target for training data anyway, because the file is what a model sees.
+
+**This still strengthens the 2026-09-09 restatement, for a narrower reason.** That
+restatement moved the question to behavioural and bounded-range criteria on the grounds that
+no *reachable* capture supplies the paired measurement. That ground holds: no capture
+supplies it. What has changed is that the behavioural criteria are no longer the *only*
+category of claim available — there is one physical claim this material can carry, and it is
+the population one.
+
+**Being tested:** `scripts/wear_fracture_spectrum.py`, job **30352180** (2026-09-10). It
+reuses Gate A's `spectrum_mm` verbatim so the measurement is identical, takes the break face
+from the contact band rather than Gate A's slab-plane fit (undefined on a curved sherd), and
+rescales each pot to real millimetres. Predictions were recorded in its docstring before the
+run, including the one that refutes the test: **if our fresh e000 faces already read ≥ 1.5,
+the fingerprint cannot separate fresh from worn on this material** and this route closes too.
 
 ## TORA is not blind to the wear — the orientation channel, measured
 
