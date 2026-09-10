@@ -161,12 +161,63 @@ supplies it. What has changed is that the behavioural criteria are no longer the
 category of claim available — there is one physical claim this material can carry, and it is
 the population one.
 
-**Being tested:** `scripts/wear_fracture_spectrum.py`, job **30352180** (2026-09-10). It
-reuses Gate A's `spectrum_mm` verbatim so the measurement is identical, takes the break face
-from the contact band rather than Gate A's slab-plane fit (undefined on a curved sherd), and
-rescales each pot to real millimetres. Predictions were recorded in its docstring before the
-run, including the one that refutes the test: **if our fresh e000 faces already read ≥ 1.5,
-the fingerprint cannot separate fresh from worn on this material** and this route closes too.
+**Being tested:** `scripts/wear_fracture_spectrum.py`. Predictions are recorded in its
+docstring before each run, including the one that refutes the test: **if our fresh e000 faces
+already read ≥ 1.5, the fingerprint cannot separate fresh from worn on this material** and
+this route closes too.
+
+**Job 30352180 (2026-09-10) is void — do not quote it.** Its numbers were a measurement of
+the pot wall, not the break face. It selected the break face as anything within 2% of object
+size of another sherd and read Gate A's radii unchanged; Gate A's largest patch is 12.8 mm
+across, which is 0.55× the thickness of a 23.5 mm RePAIR fresco plaque but **2.9×** a 4.5 mm
+pot wall, so patches ran over the arris onto the vessel surface and a quadric absorbs
+curvature but not a crease. At 6.4 mm, 64% of each patch faced away from its own probe point
+and 100% of patches straddled an edge; the residual there was 1.1 mm on a 4.5 mm wall.
+Fresh ceramic read 1.06–1.81. **Which of the three: the measurement was broken** — nothing
+follows from it about the wear model. Diagnosed by `scripts/diagnose_wear_spectrum_band.py`
+and rendered per point in `artifacts/wearspec_diag_smoke/residual_pink_bowl_e000.png`, where
+the residual runs in a line along the broken edge rather than spreading over a face.
+
+**What the correction cost the question, stated before the next run reads out.** Version 2
+selects the break face by mating direction (near another sherd *and* facing it), stops the
+radii at 1.60 mm because that is the largest patch a 4.5 mm wall holds, and gates every
+radius on off-face fraction and patch shape. It is calibrated against surfaces of known
+roughness first — a flat break reads 0.00000, white noise of σ = 0.02 mm reads 0.01594
+against the analytic 0.01596, and known Hurst exponents 0.2/0.5/0.8 recover as
+0.36/0.58/0.86. Two properties of that calibration bear on this question directly:
+
+1. **The instrument cannot read above about 0.9 on any real fracture surface.** So version
+   1's 1.06–1.81 was never fracture texture — an independent confirmation of the
+   contamination that does not use the wall-thickness argument at all.
+2. **A high reading does not distinguish erosion from lost detail.** A known-fresh H = 0.5
+   surface blurred by only 0.20 mm reads 1.445 while its actual roughness falls 3%. This
+   statistic measures the finest wavelength *present*, so "worn away by burial" and "never
+   recorded by the capture" give the same number. That is a limit on the reference as much
+   as on us, and it is the sharpest form yet of the scanner-vs-ground caveat above.
+
+**What rescues the comparison is the shape of the log-log line, not its slope.** Smoothing
+only touches fine scales, so a resolution artefact's local slope collapses as patches grow:
+a known-fresh surface smoothed to read slope 1.60 falls 2.43 → 1.50 → 0.91 across
+0.8–6.4 mm, a decline of 1.52. RePAIR declines 0.40 over that span, and over 0.4–1.6 mm its
+slope *rises* (decline −0.56). RePAIR's frescoes are smooth at every scale measured — eroded
+through, not band-limited. So the test now has two axes, and the refutation condition is
+sharper than the one written above:
+
+| | slope | decline | verdict |
+|---|---|---|---|
+| real eroded fracture (RePAIR, 0.4–1.6 mm) | 1.72 | **−0.56** | eroded through |
+| known-fresh, blurred until slope matches | ~1.60 | **+1.52** | capture artefact |
+| fresh fracture, literature | 0.4–0.8 | — | — |
+
+**Refuted if** our fresh e000 faces read a high slope with a *large positive* decline: that
+would mean our meshes simply do not record fracture texture, and no wear ladder measured on
+them can be compared with RePAIR on this statistic. **Also refuted, differently,** if our
+worn faces do not move toward RePAIR on both axes together.
+
+**A confound this cannot yet separate**, recorded now rather than after the fact: a
+reconstruction with a smoothness prior removes roughness at *all* scales, so it would produce
+a high slope with a small decline — the same signature as genuine erosion. If our fresh faces
+land there, that is what has to be ruled out next, and the decline axis will not do it.
 
 ## TORA is not blind to the wear — the orientation channel, measured
 
