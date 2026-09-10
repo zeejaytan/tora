@@ -62,6 +62,17 @@ python scripts/wear_fracture_spectrum.py \
     --face-mode band \
     --out-dir "$OUT/band_control"
 
+# and the same corrected selection read over Gate A's own wide ladder. The
+# wall gate is expected to refuse the top radii on a 4.5 mm wall -- that is the
+# point. It says whether the slope DECLINE can be measured over a span matched
+# to RePAIR's +0.40 reference, or only over the narrow window.
+python scripts/wear_fracture_spectrum.py \
+    --erosion "$D/erosion_ceramics.hdf5" \
+    --raw     "$D/fractura_real.hdf5" \
+    --face-mode mating \
+    --radii 0.40,0.80,1.60,3.20,6.40 \
+    --out-dir "$OUT/wide_ladder"
+
 echo ""
 echo "artifacts in $OUT"
 echo "=== done $(date) ==="
