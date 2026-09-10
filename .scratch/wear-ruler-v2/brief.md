@@ -198,6 +198,84 @@ reading is compared. Untested; the wear column says nothing until then.
   a reading once already.
 - Render the measured quantity per-vertex, unbinned, before reporting.
 
+
+## What Q8 asked for, and what came back -- jobs 30386369 (VOID) and 30386546
+
+**Job 30386369 is VOID. None of its numbers may be quoted.** It asked whether
+the break ran at least L mm as seen from inside a ball of radius L/2 -- a
+window L across, so the spread inside it cannot exceed L, and the 2-98
+percentile trims that to 0.88 L. Every object read 0.0% at every length and
+the "available run" column tracked 0.88 x L exactly.
+
+**Job 30386546 replaces it** with arc length along the ribbon (walk the face
+points as a graph, take the longest shortest-path through the largest
+connected piece), gated first on manufactured truth by
+`scripts/selftest_traceable_length.py`: a 30 mm-radius 60-degree ribbon reads
+31.54 against a true arc of 31.42 (0.4%) rather than the 30.00 mm chord; a
+flat 20 x 20 mm patch reaches its 28.28 mm diagonal instead of saturating; a
+ribbon with a 3 mm gap reports the longer piece, 16.27 against 15.85 (2.6%).
+
+**Measured point spacing on break faces, e000, mm** (median over faces, and
+the range): blue_pot 0.122 (0.079-0.200), galli_pot 0.119 (0.080-0.250),
+narrow_bottle1 0.083 (0.075-0.113), narrow_bottle2 0.200 (0.112-0.202),
+narrow_bottle3 0.148 (0.088-0.206), narrow_bottle4 0.129 (0.087-0.202),
+pink_bowl 0.177 (0.147-0.200), plate 0.201 (0.078-0.242), **JUGLET 0.212
+(0.202-0.385)**.
+
+**Traceable arc length, mm** (median over faces / shortest face / longest):
+blue_pot 25.29/6.39/56.76, galli_pot 52.67/18.99/129.69, narrow_bottle1
+43.96/16.77/69.85, narrow_bottle2 53.23/51.94/86.83, narrow_bottle3
+72.87/29.80/115.22, narrow_bottle4 57.91/27.41/62.11, pink_bowl
+18.73/17.10/26.23, plate 81.74/26.51/102.92, **JUGLET 19.32/7.34/25.10**
+(per face 7.34, 9.36, 17.40, 19.32, 23.43, 24.02, 25.10).
+
+Every object meets its own ISO floor on every face. The Juglet's floor is
+5.31 mm at 0.212 mm spacing, and 5 of its 7 faces also clear 12 mm.
+
+### THE JUGLET SPACING FIGURE IS NOT 0.29-0.48 mm ON THIS FILE
+
+`juglet_gt.hdf5`, assembled in ground-truth pose and scaled to a 65 mm vessel,
+gives **median nearest-neighbour 0.222 mm whole-mesh** (per-sherd range
+0.203-0.338) and 0.212 mm on the mating-selected break faces. Ticket
+`.scratch/juglet-cause/issues/10` quotes 0.29-0.48 mm from the same 9
+fragments and the same 60,334 vertices, so the difference is a definition, not
+a file: on those meshes nn-median is 0.203-0.338, nn-mean 0.250-0.349,
+triangle-edge median 0.315-0.530, edge mean 0.450-0.562 mm. ISO 3274's rule is
+on the SAMPLING INTERVAL, i.e. the step between recorded points, so
+nearest-neighbour distance is the right definition and the coarse end of it --
+**0.338 mm, the coarsest sherd** -- is the honest input. That gives
+**lambda_c >= 1.69 mm and a profile >= 8.4 mm**, not 2.4 and 12.
+
+`juglet.hdf5` must not be used for this: 229,373 vertices with median nn
+0.000 mm (duplicates) and fragments not in assembled pose. `juglet_norm.hdf5`
+is per-fragment normalised, so its extent is not the vessel.
+
+### BLOCKING: the selection is too sparse on the Juglet to trust its length
+
+Rendered per-point in `artifacts/juglet_traceable_ribbon.png` (job 30386693).
+The walk does not sweep along a continuous ribbon; it threads a sparse
+scatter. `mating_faces` keeps only **4,187 of 25,534 near points** on the
+Juglet, and the largest connected piece holds just **24.0%** of a face's
+points (median) against 34-59% on the sim pots. So the Juglet's arc lengths
+above are a path through a scatter, not an arc along clay, and must not be
+quoted as ribbon length until the selection is fixed.
+
+Two further honesty notes on the same job:
+
+- **The width control did not pass.** The across-wall extent from the local
+  frame exceeds the measured wall on 6 of 9 objects: blue_pot 4.50 vs 3.08,
+  galli_pot 6.13 vs 4.71, narrow_bottle1 2.52 vs 2.14, narrow_bottle3 3.21 vs
+  2.52, plate 5.16 vs 5.01, **JUGLET 2.02 vs 1.79**. Under the wall only on
+  narrow_bottle2 (2.49 vs 2.73), narrow_bottle4 (3.24 vs 3.36), pink_bowl
+  (2.75 vs 4.49). The 10-30% overshoot is the size and direction the
+  known-wide `BAND_FRAC = 2%` of diagonal predicts (2.7 mm band against a
+  0.07-0.13 mm true mating gap on blue_pot), so narrowing the band is now
+  blocking rather than pending.
+- **The render did not resolve the ribbon width.** 1.8 mm across a ~16 mm box
+  drawn at ~300 px is about 34 px, which is the "check the view resolves the
+  scale being tested" failure. A zoomed, equal-aspect view of one face is
+  still owed before the width figure is read either way.
+
 ## Decisions for the conservator (the grilling should land these)
 
 - **D1.** ~~Drop the Juglet?~~ **Settled: keep it.** The remaining sub-question
