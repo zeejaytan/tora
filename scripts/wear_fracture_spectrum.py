@@ -474,6 +474,8 @@ def main():
     ap.add_argument("--max-face-pts", type=int, default=80000)
     ap.add_argument("--max-probe", type=int, default=8000)
     ap.add_argument("--pots", default="")
+    ap.add_argument("--rungs", default="",
+                    help="restrict to these rungs; for smoke tests")
     a = ap.parse_args()
 
     outd = Path(a.out_dir)
@@ -490,12 +492,15 @@ def main():
           " mm; fresh fracture 0.4-0.8")
 
     want = [p for p in a.pots.split(",") if p] or None
+    want_rungs = [r for r in a.rungs.split(",") if r] or None
     rows, shown = [], []
 
     with h5py.File(a.erosion, "r") as fe:
         for tag in sorted(fe[a.group].keys()):
             pot, rung = tag.rsplit("_", 1)
             if want and pot not in want:
+                continue
+            if want_rungs and rung not in want_rungs:
                 continue
             if pot not in scale_of:
                 print("  " + tag + ": no raw counterpart, skipped")
