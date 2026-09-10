@@ -42,11 +42,25 @@ blunting works at 0.3-0.5%. Every scale this comparison can reach lies ABOVE
 where the wear acts. It cannot confirm the model and it cannot refute it, and no
 wear setting changes that -- it is a property of the scan.
 
-Settling it needs a scan of real worn material finer than 0.1% of object size,
-or a fresh and a worn scan of the SAME pot so the between-pot variation cancels.
-Neither exists here. The script is kept because knowing which question the data
-cannot answer is worth as much as an answer, and because the next person will
-otherwise try this again.
+WHAT THIS DOCSTRING USED TO SAY, AND WHY IT IS WRONG. It used to end: "settling
+it needs a scan of real worn material finer than 0.1% of object size, or a fresh
+and a worn scan of the SAME pot". BOTH routes are struck -- see
+intent/O7-wear-grounding.md, which is the authority; do not re-propose them from
+here. The paired scan was struck 2026-09-09 (a lab abrasion is a chosen process,
+so it calibrates one simulator against another; and two break faces are two
+fracture events). The finer scan was struck 2026-09-10, for the paired scan's
+reason one level down: a finer measurement of a worn face is still ONE NUMBER
+WITH NO REFERENCE. A smooth reading cannot be told apart from an instrument that
+never recorded the relief -- Gate A (job 29404479) already hit exactly that on
+real eroded fresco fragments -- and reading it needs the face's state BEFORE
+burial, which the object does not carry at any resolution.
+
+So the blocker is not resolution, it is the missing reference state, and the
+physical-fidelity question is unanswerable from the object rather than merely
+unfunded. O7 is consequently validated behaviourally, not by fidelity.
+
+The script is kept because knowing which question the data cannot answer is worth
+as much as an answer, and because the next person will otherwise try this again.
 
 Usage:
   python scripts/compare_wear_to_juglet.py \

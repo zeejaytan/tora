@@ -36,12 +36,35 @@ break faces are sampled at **0.243% of object size** while the blunting acts at
 dimensionless fine-over-coarse ratio was tried and withdrawn (worn Juglet 0.169, fresh
 `blue_pot` 0.167, fresh range 0.167–0.386).
 
-**This makes O7 a capture question before it is a parameter question.** Two captures would
-settle it, and neither is an algorithm. **Both were rewritten 2026-09-09** — the first
-because its millimetre figure was on a different size convention and because it omits a
-condition, the second because half of it was wrong.
+**~~This makes O7 a capture question before it is a parameter question.~~ Struck
+2026-09-10, on the conservator's objection: there is no capture.** Two captures were
+offered here and **both are now struck** — the second on 2026-09-09, the first on
+2026-09-10 for the second's reason, one level down. They are kept below because knowing
+which route does not exist is worth as much as one that does.
 
-1. **A scan of real worn material finer than 0.1% of object size.** In plain terms: how far
+1. **~~A scan of real worn material finer than 0.1% of object size.~~ Struck 2026-09-10
+   on the conservator's objection.** Two clauses, and both hold:
+
+   - ***"It might still show nothing, because the wear smoothed them."*** A finer scan of a
+     worn face yields **one number with no reference to read it against**. A smooth reading
+     at 0.1 mm is equally consistent with *the ground removed the relief* and with *this
+     instrument never recorded it* — and that is not hypothetical: **Gate A already
+     observed exactly this** (job 29404479, 20 RePAIR fresco fragments — real eroded
+     archaeological fracture carries no fracture-like roughness at any resolvable scale,
+     and the two explanations could not be separated). Finer capture moves that ambiguity
+     down a decade; it does not resolve it. To read the number you must know what the face
+     looked like **before burial**, and the object does not carry that at any resolution.
+     The only sources of a "before" are the paired captures of (2), which are struck for
+     reasons that have nothing to do with resolution. **So capture 1 fails for capture 2's
+     reason: the missing reference state, not scanner precision.**
+   - ***"And TORA might see that level of detail anyway."*** Correct, and already measured
+     — see the condition below, which is true of the join gap and **false** of the
+     orientation channel. The premise that a finer scan is needed before the network could
+     use the detail was wrong.
+
+   The original text follows, retained as the record of what was asked for.
+
+   **~~A scan of real worn material finer than 0.1% of object size.~~** In plain terms: how far
    apart the points sit on the scan. The Juglet's current meshes carry neighbouring points
    **0.29–0.48 mm** apart; the blunting the wear model simulates acts at roughly
    **0.2–0.3 mm** on this vessel. The effect is smaller than the spacing of the dots we
@@ -53,8 +76,10 @@ condition, the second because half of it was wrong.
    single break face rather than a whole vessel, focus-variation or confocal profilometry
    reaches micrometres.
 
-   **Condition, added 2026-09-09: a finer scan grounds `O7` without reaching `O8` on its
-   own.** Every config here sets `num_points_to_sample: 5000` (`config/data/*.yaml`), which
+   **Condition, added 2026-09-09; HALF-RETRACTED 2026-09-10 — it is true of the join gap
+   and false of the orientation channel, so it does not support the claim that TORA cannot
+   see the wear. See the strike above and the section "TORA is not blind to the wear"
+   below.** *A finer scan grounds `O7` without reaching `O8` on its own.* Every config here sets `num_points_to_sample: 5000` (`config/data/*.yaml`), which
    on a 65 mm juglet puts about **1.2 mm** — some 1.8% of object size — between the points
    the network is actually shown. The pipeline already discards the 0.3–0.5 mm the current
    scan holds. So a finer capture validates the wear model's *parameters*, which is this
@@ -95,9 +120,40 @@ condition, the second because half of it was wrong.
    abrasion. No fourth variant is proposed; the problem is not that the right pairing has
    not been found. See the restatement below.
 
-Until one exists, "the Juglet fails *because* its fractures are worn" is an inference from
-a simulator, not a measurement of the object — and the wear model's parameters cannot be
-validated against the material they claim to imitate.
+**Rewritten 2026-09-10, now that both captures are struck.** This used to read "until one
+exists" — as though the measurement were merely unfunded. It is not. **The physical-fidelity
+question is unanswerable from the object**: reading any measurement of a worn break face
+requires knowing what that face was like before burial, no capture recovers that, and every
+route to a "before" is a second fracture event, a second chosen abrasion process, or a
+different pot. So "the Juglet fails *because* its fractures are worn" stays an inference
+from a simulator permanently, not pending equipment.
+
+**This strengthens the 2026-09-09 restatement rather than weakening it.** That restatement
+moved this question to behavioural and bounded-range criteria on the grounds that no
+*reachable* capture supplies the measurement. The honest ground is that **no capture
+supplies it**. Validating the wear model as a training augmentation is therefore not a
+fallback from the real test — it is the only category of claim this material can support.
+
+## TORA is not blind to the wear — the orientation channel, measured
+
+Recorded here 2026-09-10 because it was buried in `.scratch/juglet-cause/issues/05` and its
+absence let the "TORA cannot see it" claim stand unqualified above.
+
+The encoder is fed **six** numbers per point, not three — position *and* the normal of the
+triangle the point landed on (`tora/modeling/encoder/point_cloud_encoder.py:113`). The
+normal is a **sub-spacing cue**: it reports surface orientation at triangle scale, some
+**0.07–0.20%** of object size, roughly thirty times finer than the spacing between the
+sampled points. Break-face roughness *as the network actually receives it* falls
+monotonically under the simulated wear, on the six real objects:
+
+| erosion | e000 | e025 | e050 | e075 | e100 |
+|---|---|---|---|---|---|
+| roughness | 29.7° | 27.2° | 26.6° | 24.3° | **22.2°** |
+
+So "TORA's sampling is too coarse to resolve the wear" is **true of the join gap and false
+of the orientation channel**. There is a signal, the network is fed it, and the intervention
+moves it. `scripts/measure_faces_as_network_sees.py`,
+`docs/notes/LORA_VESSELS_29623885_RESULT.md`.
 
 ## Reinforced by O8, 2026-09-09 — a third instrument, the same wall
 
