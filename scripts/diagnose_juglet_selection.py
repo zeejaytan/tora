@@ -625,10 +625,10 @@ def render_overlap(meshes, sherds, T, M, SG, jf, wall_mm, joins, out_png):
     return dict(px_per_mm=ppm, rows=rows_out)
 
 
-def run_juglet(path, group, juglet_mm, max_pts, out_png):
-    rng = np.random.default_rng(0)
+def vessel_scale(path, group, juglet_mm):
+    """File units to mm: the vessel's longest extent is juglet_mm."""
+    lo, hi = np.full(3, np.inf), np.full(3, -np.inf)
     with h5py.File(path, "r") as h:
-        lo, hi = np.full(3, np.inf), np.full(3, -np.inf)
         for tg in h[group]:
             if "pieces" not in h[group][tg]:
                 continue
@@ -636,7 +636,15 @@ def run_juglet(path, group, juglet_mm, max_pts, out_png):
                 v = np.asarray(h[group][tg]["pieces"][k]["vertices"][:],
                                dtype=np.float64)
                 lo, hi = np.minimum(lo, v.min(0)), np.maximum(hi, v.max(0))
-        jf = juglet_mm / float((hi - lo).max())
+    return juglet_mm / float((hi - lo).max())
+
+
+def run_juglet(path, group, juglet_mm, max_pts, out_png, scale_from=None):
+    rng = np.random.default_rng(0)
+    # A separated copy is a fraction of a mm wider; --scale-from keeps it on
+    # the original's ruler, so before and after read in the same millimetres.
+    jf = vessel_scale(scale_from or path, group, juglet_mm)
+    with h5py.File(path, "r") as h:
         tag = sorted(tg for tg in h[group] if "pieces" in h[group][tg])[0]
         g = h[group][tag]["pieces"]
         keys = sorted(g.keys(), key=lambda s: (len(s), s))
@@ -738,6 +746,8 @@ def main():
     p.add_argument("--group", default="juglet_gt")
     p.add_argument("--juglet-mm", type=float, default=65.0)
     p.add_argument("--max-pts", type=int, default=200000)
+    p.add_argument("--scale-from", help="take the mm scale from this file "
+                   "(the original reference, when reading a separated copy)")
     p.add_argument("--out-json", default="artifacts/juglet_selection.json")
     p.add_argument("--out-png", default="artifacts/juglet_selection.png")
     a = p.parse_args()
@@ -747,7 +757,7 @@ def main():
         out["synthetic"], ok = run_synthetic()
     if a.juglet and ok:
         out["juglet"] = run_juglet(a.juglet, a.group, a.juglet_mm, a.max_pts,
-                                   a.out_png)
+                                   a.out_png, a.scale_from)
     Path(a.out_json).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out_json).write_text(json.dumps(out, indent=2, default=float))
     print("wrote " + a.out_json)

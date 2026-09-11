@@ -428,7 +428,8 @@ Picture: `artifacts/juglet_selection_overlap.png`.
   Q10 below: e025-e075 are reported as unreadable against the Juglet, not
   dropped.
 - **D2.** Is "matches real *scanned* worn fracture" the claim we want, given it
-  is a training-data claim rather than a physical-fidelity one? **Open (Round 3).**
+  is a training-data claim rather than a physical-fidelity one? **Settled by
+  Q16:** claim (a).
 - **D3.** ~~Juglet or RePAIR primary?~~ **Settled by Q4:** the Juglet sets the
   target value, RePAIR is the sample-size check, side by side, never averaged.
 - **D4.** ~~Common point spacing?~~ **Settled by Q11** (below), with the figure
@@ -474,4 +475,83 @@ relief / wear depth / roughness exponent; "texture" retired (umbrella
   job 30386546 and the reconciliation above show 0.48 is a triangle-edge
   figure; the sampling-interval figure ISO means is nearest-neighbour, 0.338 mm
   at the Juglet's coarsest sherd.
+
+**Round 3 (Q12, Q14-Q17 accepted as recommended, 2026-09-11; Q13 deferred).**
+
+- **Q12.** The ruler's spacing is the nearest-neighbour figure, 0.338 mm at the
+  Juglet's coarsest sherd, so the three cutoffs are 1.7 / 2.5 / 3.4 mm (longest
+  profile 17 mm). The triangle-edge figure, 0.48 mm, is printed beside it.
+- **Q13.** Break-face selection: **deferred.** The conservator asked for the
+  overlap to be dealt with first: the hand reassembly may have set sherds a
+  little too close, which does not mean they do not match. See "Separating the
+  reference sherds" below. The options on the table stay as presented: (a)
+  unsigned facing plus the tight gap, recommended, gated on a synthetic
+  overlapping-faces test and on the sim pots staying unchanged; (b) gap plus
+  opposite partner; (c) neighbour-free selection.
+- **Q14.** The null-model control is a gate, run per pot: the fresh sim faces
+  are thinned to the Juglet spacing and must not drift toward worn, measured
+  against the spread between that pot's own fresh faces. Pots that fail are
+  excluded.
+- **Q15.** The match rule is written before measuring, per pot and per cutoff:
+  match / moves toward / no match. Pots are counted in each class, never
+  pooled; RePAIR is reported separately. The result is stated as a lead.
+- **Q16.** Claim (a) -- this settles **D2**.
+- **Q17.** The deeper ladder's rungs are defined by measured wear depth in
+  Juglet dot-steps (1 / 2 / 3, about 0.34 / 0.68 / 1.0 mm). The setting is
+  tuned until each rung is reached, checked by measurement and by render, and
+  the top rung must be deep enough to bracket the Juglet.
+
+## Separating the reference sherds (before Q13)
+
+**Why.** Jobs 30420351 / 30420961: 33.2% of the Juglet's 21,675 join dots, and
+61.7% of its 8,247 face-to-face dots, lie inside the neighbouring sherd. Worst
+join 3-6: median -0.15 mm, 10th percentile -0.52 mm. Typical join 6-5: the
+faces lie on top of each other, crossing within ~0.1 mm. The conservator's
+reading (2026-09-11): the sherds match, but by hand they were set a little
+too close; moving them apart is permitted. Category 2 for the old selection
+(it assumed the neighbour is in front of the face), not category 3: nothing
+here says the reassembly is the wrong answer.
+
+**Opinion, with sources.** Sound and standard. Reassembly pipelines finish
+with a simultaneous, non-penetrating rigid registration of all fragments
+(Huang et al. 2006, ACM TOG 25(3)); the 2025 survey (arXiv 2410.14770) and
+SARe (arXiv 2603.21611) treat interpenetration as a defect to measure and
+remove. What it can and cannot do: a rigid move fixes a sherd pushed in as a
+whole (3-6, ~0.5 mm). It cannot remove two rough faces crossing back and forth
+at one point spacing (6-5, ~0.1 mm) without opening a gap about that wide
+elsewhere. So Q13 stays open: future hand reassemblies will have the same
+touch-level overlap, and the ruler must tolerate it.
+
+**Method** (`scripts/separate_juglet_overlap.py`). Sherd 0 (largest) held
+still; the other eight each get one small turn and shift, solved together.
+Every dot within 1.2 mm of a neighbour is a constraint: signed distance to the
+neighbour's surface (winding number for inside, exact point-to-triangle
+distance) must end at or above a target. Of the moves that meet it, the one
+taken moves the surfaces least from the ORIGINAL pose, so real gaps are not
+pulled shut. Steps of at most 0.2 mm, re-measured exactly each time.
+Two targets, both written: **strict** (no dot inside) and **tolerant**
+(overlap up to one point spacing, what the scan cannot tell from touching).
+
+**Gates.**
+- G0 `scripts/selftest_separate_juglet.py`, boxes with exact answers: 0.1 in ->
+  out 0.1 unturned; 0.1 apart and exactly touching -> nothing moves; three in
+  a row -> 0.1 and 0.2; 0.05 allowed -> out 0.05; turned 3 deg -> cleared with
+  a smaller mean move than a plain shift. **ALL PASS on the laptop,
+  2026-09-11.**
+- G1 run again from the strict result: nothing moves more than 0.01 mm.
+- G2 one sherd pushed 0.2 mm into its neighbour, the rest held: comes back to
+  within 0.05 mm of its strict place.
+- Every sherd's move printed (shift mm, turn deg, mean and furthest point); a
+  move over half the wall is flagged to look at before accepting.
+- Render: worst and typical join, before / strict / tolerant, cut across the
+  join through the meshes, in the left sherd's own frame, with the px-per-mm
+  and frame checks.
+
+**Outputs.** `juglet_gt.hdf5` is only read. Copies go to
+`eval_runs/sherd_scale/juglet_gt_separated_{strict,tolerant}.hdf5` with the
+per-sherd transforms in `juglet_separation.json`, written only if every gate
+and both targets pass. The same Slurm job then reruns
+`diagnose_juglet_selection.py` on each copy (`--scale-from` the original, so
+the millimetres match), which is the evidence Q13 needs. **The copies are not
+swapped into any TORA evaluation without the conservator's say-so.**
 
