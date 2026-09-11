@@ -278,14 +278,54 @@ Two further honesty notes on the same job:
 
 ## Decisions for the conservator (the grilling should land these)
 
-- **D1.** ~~Drop the Juglet?~~ **Settled: keep it.** The remaining sub-question
-  is whether `e025` is reported as unreadable on the Juglet or dropped from the
-  ladder entirely.
+- **D1.** ~~Drop the Juglet?~~ **Settled: keep it.** Sub-question settled by
+  Q10 below: e025-e075 are reported as unreadable against the Juglet, not
+  dropped.
 - **D2.** Is "matches real *scanned* worn fracture" the claim we want, given it
-  is a training-data claim rather than a physical-fidelity one?
-- **D3.** Is the Juglet (ceramic, one vessel) or RePAIR (fresco plaster, 20
-  fragments) the primary worn reference? Same material as our pots against
-  twenty times the sample.
-- **D4.** What common point spacing do we resample everything to? The Juglet's
-  0.48 mm sets the floor if it is in the comparison.
+  is a training-data claim rather than a physical-fidelity one? **Open (Round 3).**
+- **D3.** ~~Juglet or RePAIR primary?~~ **Settled by Q4:** the Juglet sets the
+  target value, RePAIR is the sample-size check, side by side, never averaged.
+- **D4.** ~~Common point spacing?~~ **Settled by Q11** (below), with the figure
+  itself reopened as Round 3 Q12.
+
+## Grilling record
+
+**Round 1 (accepted as recommended).** Q1 strips along the break ribbon, not
+discs. Q2 absolute millimetres, never pooled across objects, wall thickness
+printed beside every figure. Q3 an explicit-cutoff filter (ISO 16610-21
+Gaussian), not a fitted quadric. Q4 Juglet primary for the target value,
+RePAIR the sample-size check, side by side, never averaged. Q5 vocabulary:
+relief / wear depth / roughness exponent; "texture" retired (umbrella
+`docs/glossary.md`, commit 7387d45).
+
+**Round 2 (accepted as recommended, 2026-09-11).**
+
+- **Q6.** Three cutoffs reported side by side. Never fitted to a slope, never
+  averaged, no arithmetic across them -- a fitted line across cutoffs is the
+  refuted statistic rebuilt.
+- **Q7.** "Along the break" = the local in-surface frame of
+  `check_mating_face_is_a_ribbon.py:70-102`. The elongation comes from where
+  the clay ends, not from the surface being measured, so wear cannot bias the
+  direction. Built-in control: across-wall extent saturates at the wall; the
+  outer skin must not. Whole-face PCA is banned (pink_bowl face 0 read
+  99.5 x 56.3 mm on a closed-loop break).
+- **Q8.** The cutoff is taken from ISO, not chosen by us: ISO 3274 sampling
+  interval <= lambda_c / 5, ISO 21920 evaluation length = 5 lambda_c. ONE
+  cutoff set for every object, fixed by the coarsest source (the Juglet). The
+  write-up says in print that ISO's rules assume far denser sampling than
+  photogrammetry gives.
+- **Q9.** Report a robust centre (median absolute height, robust Ra) AND the
+  90th-percentile height. Not full Rz. Wear removes peaks, so a centre-only
+  number under-reports it.
+- **Q10.** (a) Compare against the Juglet at e100 only; e025-e075 are reported
+  as unreadable against it. (b) A deeper-ladder regeneration (raise `knn` /
+  `n_self_samples` in `erode_fracture_band`) is queued as its own data job.
+  (c), statistics below the point spacing, rejected. Consequence: one worn
+  comparison point against the Juglet, no dose-response curve against it yet.
+- **Q11.** Resample every object and every rung to the coarsest source in the
+  comparison, and print the achieved spacing beside every figure. **Caveat
+  carried to Q12:** the recommendation text named "the Juglet's 0.48 mm", but
+  job 30386546 and the reconciliation above show 0.48 is a triangle-edge
+  figure; the sampling-interval figure ISO means is nearest-neighbour, 0.338 mm
+  at the Juglet's coarsest sherd.
 
