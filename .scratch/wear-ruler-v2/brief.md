@@ -362,6 +362,44 @@ are inside, in which case the mesh's surface directions are the suspect.
 Control: each sherd's own dots pushed 0.05 mm in must read inside, and
 pushed out must read outside, at 95% or better.
 
+### Job 30420351 -- the sherds sit into each other (COMPLETED 0:0, commit 18876e4)
+
+**Prediction met.** Control TRUSTED (pushed in: 99.4% inside; pushed out:
+99.9% outside). Known-answer gate `scripts/selftest_juglet_overlap.py` all
+pass, including the refuting case (boxes 0.1 mm apart read 0% inside).
+
+| where | dots | inside the neighbour |
+|---|---|---|
+| all join dots (gap < 3 spacings) | 21,675 | **33.2%** |
+| where facing FAILS (dot <= 0) | 12,291 | 44.3% |
+| where facing PASSES (dot > 0.5) | 4,143 | 13.3% |
+| face against its twin (partner < -0.7) | 8,247 | **61.7%** |
+
+Signed gap, mm (minus = inside), p10/25/50/75/90: all join dots
+-0.182/-0.042/+0.086/+0.305/+0.541; twin faces -0.278/-0.128/-0.030/+0.035/+0.096.
+Every join overlaps somewhere (19-68% of its dots inside). Worst: sherd 3
+against 6 (64.0% / 67.8% inside, median -0.15 mm, p10 -0.52 mm). Typical:
+median +0.02 to +0.16 mm, p10 -0.03 to -0.29 mm.
+
+**Reading.** The reassembled break faces cross through each other by about
+0.1-0.3 mm, roughly one point spacing: a very tight fit whose two surfaces
+interleave. Wherever they cross, the neighbour is *behind* the face, so the
+facing test (which assumes the neighbour is in front) throws the dot away,
+and the kept set becomes a patchwork. Category (2): the selection rule is
+broken for this data; the reference is not wrong. Ticket 10's 0.21-0.28 mm
+"gaps" were unsigned; on the twin faces the signed median is -0.03 mm.
+Weight: one object, 9 sherds, 31 joins, all in the same direction, from a
+deterministic measurement with a passing control.
+
+**Its picture was wrong and was not read.** It resolved the wall (84 px/mm,
+151 px) but `frame_at` fitted its plane to every gap-only dot on the sherd,
+both skins and several joins, so the "face" ran 3 mm across a 1.79 mm wall.
+The px gate checked scale, not orientation. Replaced in commit fc0d06c by
+`join_frame` (one join's twin dots; must be flat to 0.3 mm rms and span
+0.5-1.5 walls) and `render_overlap` (cuts through both meshes, plus a
+face-on view coloured by signed gap), checked on the box pair. Rerun as
+job 30420961.
+
 ## Decisions for the conservator (the grilling should land these)
 
 - **D1.** ~~Drop the Juglet?~~ **Settled: keep it.** Sub-question settled by
