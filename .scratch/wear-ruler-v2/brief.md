@@ -276,6 +276,38 @@ Two further honesty notes on the same job:
   scale being tested" failure. A zoomed, equal-aspect view of one face is
   still owed before the width figure is read either way.
 
+### The proposed selection fix fails its own test at the Juglet's geometry
+
+`scripts/diagnose_juglet_selection.py --synthetic`, run locally (22 s). A
+labelled synthetic pot, wavy cut, every point known to be break face or not.
+The **control** rebuilds the geometry the tight-gap rule was proven on (4.5 mm
+wall, 0.10 mm gap, 0.20 mm spacing) and reproduces it: tight + facing +
+opposite 100.0% pure, 99.6% recall. So the harness is sound.
+
+At the **Juglet's geometry** (1.79 mm wall, 0.22 mm spacing, gap 0.24 mm
+typical and 0.48 mm worst tenth), purity / recall:
+
+| rule | exact normals, 0.24 | estimated, 0.24 | exact, 0.48 | estimated, 0.48 |
+|---|---|---|---|---|
+| v2 (current: near 2% diag + facing) | 100.0 / 100.0 | 98.7 / 96.8 | 100.0 / 100.0 | 95.9 / 97.2 |
+| gap < 3 spacings only | 64.8 / 100.0 | 64.8 / 100.0 | 80.5 / 100.0 | 80.5 / 100.0 |
+| gap + facing + opposite (candidate) | 100.0 / 97.0 | 100.0 / **86.8** | 100.0 / 94.1 | 99.4 / **85.2** |
+| gap + opposite partner | 100.0 / 97.0 | 98.8 / **86.8** | 100.0 / 94.1 | 99.0 / **85.2** |
+
+"Estimated" re-derives normals from 8 neighbouring points, which blurs the
+corner where the break face meets the wall; a mesh's averaged normals do this
+too, though less. Every passing rule holds a ribbon as continuous as the truth
+(largest piece 50%, the two break strips of the synthetic pot).
+
+**So the current rule is not what makes the real Juglet a scatter.** At its
+geometry it keeps a continuous, clean ribbon. The candidate replacement is
+the worse rule there: the opposite-partner test drops 13-15% of the true face
+when normals are blurred. That retires "narrow `BAND_FRAC` to fix the Juglet"
+as a fix for the Juglet (it may still be worth doing for the wide-band
+contamination on the sim pots, which is a separate problem). The cause is
+something in the real Juglet data that the synthetic pot lacks -- job below
+reads it term by term.
+
 ## Decisions for the conservator (the grilling should land these)
 
 - **D1.** ~~Drop the Juglet?~~ **Settled: keep it.** Sub-question settled by
