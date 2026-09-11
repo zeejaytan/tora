@@ -400,6 +400,28 @@ The px gate checked scale, not orientation. Replaced in commit fc0d06c by
 face-on view coloured by signed gap), checked on the box pair. Rerun as
 job 30420961.
 
+### Job 30420961 -- the overlap, drawn (COMPLETED 0:0, commit fc0d06c)
+
+All gates pass: frames flat to 0.12-0.22 mm rms and spanning 1.71-2.11 mm
+across the 1.79 mm wall (sherd 6 against 3, 5 and 8); 120 px/mm, so 0.1 mm
+is 12 px. Overlap numbers reproduced exactly (deterministic).
+Picture: `artifacts/juglet_selection_overlap.png`.
+
+- **Worst join, 6 against 3:** in all three slices (2 mm apart) the
+  neighbour's break face lies 0.2-0.5 mm *inside* sherd 6, up to about
+  0.8 mm at +2 mm (offset along the slice; the 3-D closest distance is
+  smaller, p10 -0.52 mm).
+- **Typical join, 6 against 5:** the two faces lie on top of each other and
+  cross back and forth within about 0.1 mm.
+- Face-on panels agree (68% red against 29%).
+- The selection picture is now in a correct frame: sherd 6's face against 8
+  is one line across the wall at the join, with the skins beside it.
+- **Noticed, not explained, not read into:** in 6 against 5, below the
+  contact, the two sherds' surfaces part in a V (black running down-left at
+  about 45 degrees, blue nearly level) instead of continuing into each other.
+  The face-on views are arch-shaped because the break line curves within
+  12 mm; the frame is local, so that is expected, not a fault.
+
 ## Decisions for the conservator (the grilling should land these)
 
 - **D1.** ~~Drop the Juglet?~~ **Settled: keep it.** Sub-question settled by
