@@ -7,6 +7,13 @@ recall 85.2-86.8% once normals are re-estimated from the points. So the rule
 is not what makes the Juglet a scatter; this script's job became naming what
 in the real data does.
 
+JOB 30419474 (COMPLETED 0:0) named it. The files are sound -- all nine sherds
+closed and wound outward -- and the gap alone finds one continuous ribbon per
+face (largest piece 99.8%, median 50 mm). What scatters it is the FACING test:
+on the join dots its value runs from -0.79 to +0.74 (10th to 90th percentile),
+so for a tenth of them the neighbour sits squarely behind the break face.
+`overlap` asks whether that is the reassembly setting sherds into each other.
+
 WHY THIS EXISTS. Job 30386546 walked the Juglet's break faces as a graph, and
 the render of that walk (job 30386693) showed it threading a sparse scatter
 rather than a continuous ribbon: `wear_fracture_spectrum.mating_faces` kept
@@ -133,6 +140,178 @@ def pca_normals(pts, ref, k=8):
     _w, vec = np.linalg.eigh(np.einsum("nki,nkj->nij", nb, nb))
     n = vec[:, :, 0]
     return n * np.sign(np.sum(n * ref, axis=1) + 1e-12)[:, None]
+
+
+def winding(q, tri, budget=2_000_000):
+    """Generalised winding number of points q about a closed triangle mesh.
+
+    About 1 inside and 0 outside, from the solid angle each triangle subtends
+    (Van Oosterom-Strackee). Needs no normals and no ray library -- the tora
+    env has neither rtree nor embree, so trimesh's `contains` cannot run there.
+    Exact for a closed mesh, and all nine Juglet sherds are closed.
+    """
+    w = np.empty(len(q))
+    step = max(1, budget // len(tri))
+    for s in range(0, len(q), step):
+        d = tri[None] - q[s:s + step, None, None, :]
+        a, b, c = d[:, :, 0], d[:, :, 1], d[:, :, 2]
+        la, lb, lc = (np.linalg.norm(x, axis=2) for x in (a, b, c))
+        num = np.einsum("mfi,mfi->mf", a, np.cross(b, c))
+        den = (la * lb * lc + np.einsum("mfi,mfi->mf", a, b) * lc +
+               np.einsum("mfi,mfi->mf", b, c) * la +
+               np.einsum("mfi,mfi->mf", c, a) * lb)
+        w[s:s + step] = np.arctan2(num, den).sum(axis=1) / (2.0 * np.pi)
+    return w
+
+
+def closest_on_triangle(p, a, b, c):
+    """Closest point on each triangle to each point (Ericson, RTCD 5.1.5)."""
+    ab, ac = b - a, c - a
+    dot = lambda x, y: np.sum(x * y, axis=1)                    # noqa: E731
+    d1, d2 = dot(ab, p - a), dot(ac, p - a)
+    d3, d4 = dot(ab, p - b), dot(ac, p - b)
+    d5, d6 = dot(ab, p - c), dot(ac, p - c)
+    va, vb, vc = d3 * d6 - d5 * d4, d5 * d2 - d1 * d6, d1 * d4 - d3 * d2
+    with np.errstate(divide="ignore", invalid="ignore"):
+        den = va + vb + vc
+        out = a + ab * (vb / den)[:, None] + ac * (vc / den)[:, None]
+        # Regions in reverse priority, so the earlier tests in Ericson win.
+        m = (va <= 0) & (d4 - d3 >= 0) & (d5 - d6 >= 0)
+        t = (d4 - d3) / ((d4 - d3) + (d5 - d6))
+        out[m] = b[m] + t[m, None] * (c - b)[m]
+        m = (vb <= 0) & (d2 >= 0) & (d6 <= 0)
+        t = d2 / (d2 - d6)
+        out[m] = a[m] + t[m, None] * ac[m]
+        m = (d6 >= 0) & (d5 <= d6)
+        out[m] = c[m]
+        m = (vc <= 0) & (d1 >= 0) & (d3 <= 0)
+        t = d1 / (d1 - d3)
+        out[m] = a[m] + t[m, None] * ab[m]
+        m = (d3 >= 0) & (d4 <= d3)
+        out[m] = b[m]
+        m = (d1 <= 0) & (d2 <= 0)
+        out[m] = a[m]
+    return out
+
+
+def surface_distance(q, tri, k=16):
+    """Exact distance from each point to the nearest of a mesh's triangles.
+
+    Nearest-vertex distance would not do: the overlaps in question are about
+    one point spacing deep, the same size as that shortcut's error.
+    """
+    _d, idx = cKDTree(tri.mean(axis=1)).query(q, k=min(k, len(tri)),
+                                              workers=-1)
+    idx = idx.reshape(len(q), -1)
+    best = np.full(len(q), np.inf)
+    for col in range(idx.shape[1]):
+        t = tri[idx[:, col]]
+        best = np.minimum(best, np.linalg.norm(
+            q - closest_on_triangle(q, t[:, 0], t[:, 1], t[:, 2]), axis=1))
+    return best
+
+
+def overlap(sherds, tris, T, M, jf, push_mm=0.05, n_ctrl=500):
+    """Does the hand reassembly put clay inside clay?
+
+    WHY. On the Juglet's join points the facing test is spread almost evenly
+    from -1 to +1 (job 30419474): for a tenth of them the neighbour sits
+    squarely BEHIND the break face. One reading is that the reassembly sets
+    neighbouring sherds slightly into each other, and ticket 10's gaps of
+    0.21-0.28 mm could not show it, because a nearest-dot distance has no sign.
+    This asks the question without normals: is each join dot inside the closed
+    neighbouring sherd, and how far from its surface.
+
+    PREDICTION, WRITTEN BEFORE THE RUN. If overlap is the cause, a third or more
+    of the join dots lie inside the neighbour, and far more of them where the
+    facing test fails (dot <= 0) than where it passes (dot > 0.5). If under 5%
+    are inside, overlap is refuted and the mesh's surface directions are the
+    suspect instead.
+
+    CONTROL FIRST. Each sherd's own dots pushed push_mm inward along their
+    normals must read inside, and pushed outward must read outside, at 95% or
+    more -- else the inside test is not trusted and nothing below it is printed.
+    """
+    rng = np.random.default_rng(1)
+    push = push_mm / jf
+    ins_ok, out_ok = [], []
+    for (v, n), tri in zip(sherds, tris):
+        s = rng.choice(len(v), min(n_ctrl, len(v)), replace=False)
+        ins_ok.append(winding(v[s] - push * n[s], tri) > 0.5)
+        out_ok.append(winding(v[s] + push * n[s], tri) < 0.5)
+    p_in = 100 * np.mean(np.concatenate(ins_ok))
+    p_out = 100 * np.mean(np.concatenate(out_ok))
+    trusted = p_in >= 95.0 and p_out >= 95.0
+    print("")
+    print("  OVERLAP -- is the neighbouring sherd's clay behind the break face?")
+    print("  prediction: overlap is the cause if >= 1/3 of join dots are inside "
+          "the neighbour, mostly where facing fails; refuted if < 5%")
+    print("  control: own dots pushed " + format(push_mm, ".2f") + " mm in read "
+          "inside " + format(p_in, ".1f") + "%, pushed out read outside " +
+          format(p_out, ".1f") + "%  -> " +
+          ("TRUSTED" if trusted else "NOT TRUSTED -- reading withheld"))
+    res = dict(control_inside_pct=p_in, control_outside_pct=p_out,
+               trusted=bool(trusted))
+    if not trusted:
+        return res
+
+    sg, fac, par, pair = [], [], [], []
+    for i, ((v, _n), t, mm) in enumerate(zip(sherds, T, M)):
+        tight = mm["tight"]
+        for j in np.unique(t["owner"][tight]):
+            sel = tight & (t["owner"] == j)
+            q = v[sel]
+            inside = winding(q, tris[j]) > 0.5
+            dist = surface_distance(q, tris[j]) * jf
+            sg.append(np.where(inside, -dist, dist))
+            fac.append(t["facing"][sel])
+            par.append(t["partner"][sel])
+            pair.append(np.full(int(sel.sum()), i * 100 + int(j)))
+    sg, fac, par, pair = map(np.concatenate, (sg, fac, par, pair))
+    ins = sg < 0
+    pc = [10, 25, 50, 75, 90]
+    fail, ok, opp = fac <= 0.0, fac > MATING_DOT, par < ANTI_DOT
+
+    def pct(m):
+        return 100 * np.sum(ins & m) / max(int(m.sum()), 1)
+
+    def pcts(x):
+        return np.percentile(x, pc) if len(x) else np.full(len(pc), np.nan)
+
+    print("  on the " + str(len(sg)) + " join dots (gap < 3 spacings): " +
+          format(100 * ins.mean(), ".1f") + "% lie INSIDE the neighbouring "
+          "sherd")
+    print("    signed gap, mm (minus = overlap), percentiles " + str(pc) + ": " +
+          "  ".join(format(x, "6.3f") for x in np.percentile(sg, pc)))
+    print("    where facing FAILS (dot <= 0, " + str(int(fail.sum())) +
+          " dots): " + format(pct(fail), ".1f") + "% inside;  where it PASSES "
+          "(dot > " + format(MATING_DOT, ".2f") + ", " + str(int(ok.sum())) +
+          " dots): " + format(pct(ok), ".1f") + "% inside")
+    print("    break face against its twin (partner dot < " +
+          format(ANTI_DOT, ".2f") + ", " + str(int(opp.sum())) + " dots): " +
+          format(pct(opp), ".1f") + "% inside; signed gap " +
+          "  ".join(format(x, "6.3f") for x in pcts(sg[opp])))
+    print("    per join, sherd against sherd (>= 200 dots): dots, % inside, "
+          "median and 10th-percentile signed gap mm")
+    rows = []
+    for key in np.unique(pair):
+        m = pair == key
+        if m.sum() < 200:
+            continue
+        r = (int(key // 100), int(key % 100), int(m.sum()),
+             float(100 * ins[m].mean()), float(np.median(sg[m])),
+             float(np.percentile(sg[m], 10)))
+        rows.append(r)
+        print("      " + format(r[0], "2d") + " vs " + format(r[1], "2d") +
+              format(r[2], "7d") + format(r[3], "8.1f") + "%" +
+              format(r[4], "9.3f") + format(r[5], "9.3f"))
+    res.update(dots=int(len(sg)), inside_pct=float(100 * ins.mean()),
+               signed_gap_pct=dict(zip(map(str, pc),
+                                       map(float, np.percentile(sg, pc)))),
+               inside_where_facing_fails_pct=float(pct(fail)),
+               inside_where_facing_passes_pct=float(pct(ok)),
+               inside_on_twin_faces_pct=float(pct(opp)), joins=rows)
+    return res
 
 
 def med(xs):
@@ -265,6 +444,7 @@ def render(sherds, T, M, jf, wall_mm, out_png):
     q = [(v - c) @ F * jf for v, _n in sherds]
     qi = q[i]
     half = wall_mm / 2.0 + 0.8
+    X = 2.5     # mm either side of the join; +-4 gave 95 px across the wall
 
     fig, axes = plt.subplots(2, 4, figsize=(19, 9.2))
     px = []
@@ -272,17 +452,17 @@ def render(sherds, T, M, jf, wall_mm, out_png):
         m = M[i][key]
         ax = axes[0, col]
         s = np.abs(qi[:, 0]) < 0.5
-        s &= (np.abs(qi[:, 1]) < half + 0.6) & (np.abs(qi[:, 2]) < 4.0)
+        s &= (np.abs(qi[:, 1]) < half + 0.6) & (np.abs(qi[:, 2]) < X)
         for j in range(len(q)):
             if j == i:
                 continue
             o = q[j]
             so = (np.abs(o[:, 0]) < 0.5) & (np.abs(o[:, 1]) < half + 0.6) & \
-                (np.abs(o[:, 2]) < 4.0)
+                (np.abs(o[:, 2]) < X)
             ax.scatter(o[so, 2], o[so, 1], s=5, c="#5b8fd6", lw=0)
         ax.scatter(qi[s & ~m, 2], qi[s & ~m, 1], s=7, c="#9a9a9a", lw=0)
         ax.scatter(qi[s & m, 2], qi[s & m, 1], s=9, c="#c0392b", lw=0)
-        ax.set_xlim(-4.0, 4.0)
+        ax.set_xlim(-X, X)
         ax.set_ylim(-(half + 0.6), half + 0.6)
         ax.set_aspect("equal")
         ax.axhline(wall_mm / 2, color="k", lw=0.5, ls=":")
@@ -321,7 +501,7 @@ def render(sherds, T, M, jf, wall_mm, out_png):
     fig.canvas.draw()
     for ax in axes[0]:
         bb = ax.get_window_extent()
-        px.append(bb.width / 8.0)
+        px.append(bb.width / (2.0 * X))
     fig.savefig(out_png, dpi=fig.dpi, facecolor="white")
     ppm = float(np.median(px))
     print("")
@@ -350,12 +530,13 @@ def run_juglet(path, group, juglet_mm, max_pts, out_png):
         tag = sorted(tg for tg in h[group] if "pieces" in h[group][tg])[0]
         g = h[group][tag]["pieces"]
         keys = sorted(g.keys(), key=lambda s: (len(s), s))
-        info, walls = [], []
+        info, walls, tris = [], [], []
         for k in keys:
             m = trimesh.Trimesh(
                 vertices=np.asarray(g[k]["vertices"][:], dtype=np.float64),
                 faces=np.asarray(g[k]["faces"][:], dtype=np.int64),
                 process=False)
+            tris.append(np.asarray(m.vertices)[np.asarray(m.faces)])
             vol = float(m.volume)
             info.append(dict(sherd=k, verts=int(len(m.vertices)),
                              volume_sign=int(np.sign(vol)),
@@ -426,6 +607,10 @@ def run_juglet(path, group, juglet_mm, max_pts, out_png):
               " ".join(format(r[2], ".1f") for r in sorted(rows,
                                                            key=lambda r: r[2])))
         res["rules"][key] = dict(kept=kept, faces=[list(r) for r in rows])
+    # The inside test needs each sherd's dots to be its mesh's own vertices.
+    assert [len(v) for v, _ in sherds] == [x["verts"] for x in info], \
+        "load_sherds subsampled; raise --max-pts"
+    res["overlap"] = overlap(sherds, tris, T, M, jf)
     res["render"] = render(sherds, T, M, jf, wall_mm, out_png)
     return res
 

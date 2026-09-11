@@ -308,6 +308,60 @@ contamination on the sim pots, which is a separate problem). The cause is
 something in the real Juglet data that the synthetic pot lacks -- job below
 reads it term by term.
 
+### Job 30419474 -- the real Juglet, term by term (COMPLETED 0:0)
+
+Same script, `--synthetic --juglet juglet_gt.hdf5`. The synthetic control
+passed again in the same log before the Juglet was read.
+
+**The files are not the problem.** All nine sherds are closed and wound
+outward, so no inside-out sherd and no hole is flipping the normals.
+
+**The gap finds the join; the facing test throws most of it away.**
+
+| rule | kept | faces | largest piece | arc, median |
+|---|---|---|---|---|
+| v2 (current) | 4,187 | 7 | 24.0% | 19.3 mm |
+| gap < 3 spacings only | 21,675 | 9 | 99.8% | 50.1 mm |
+| gap + facing + opposite | 2,126 | 0 | -- | -- |
+| gap + opposite partner | 8,247 | 9 | 76.2% | 48.9 mm |
+
+On the 21,675 dots within 3 spacings (0.89 mm) of another sherd, per sherd
+only 12-27% pass the facing test (the synthetic pot at the same geometry:
+~100%). Percentiles 10/25/50/75/90:
+
+- facing dot (kept if > 0.50): -0.79 / -0.49 / -0.11 / 0.36 / 0.74 -- spread
+  almost evenly; for a tenth of the join dots the neighbour sits squarely
+  **behind** the break face.
+- partner dot (kept if < -0.70): -0.99 / -0.93 / -0.37 / 0.22 / 0.52 -- a
+  real population of face-to-face twins (a quarter at -0.93 or below), plus
+  the skin beside the join.
+
+"Gap only" being continuous does not make it clean: on the synthetic pot the
+same rule was 65-80% pure, because it also takes the outer and inner skin
+beside the join.
+
+Spacing note: this script reports **0.295 mm**, a nearest-dot median pooled
+over all 60,334 vertices, so the big sherd 0 (24,294 vertices) weighs heavily.
+The per-sherd median is still 0.222 mm (range 0.203-0.338). The tight gate
+was therefore 0.89 mm, not 0.67.
+
+The render printed 53 px/mm, i.e. **95 px across the wall, under its own
+100 px gate, so it was not read.** The window is narrowed to +-2.5 mm for the
+rerun.
+
+**Next (job below):** does the hand reassembly set sherds slightly *into*
+each other? An unsigned 0.24 mm "gap" (ticket 10) cannot tell a gap from an
+overlap, and an overlap puts the neighbour behind the face, which is exactly
+what a negative facing dot means. Tested without normals: a generalised
+winding number (solid angles; the tora env has no ray library) says whether
+each join dot lies inside the closed neighbouring sherd, and an exact
+point-to-triangle distance says how deep. **Prediction, written before the
+run:** overlap is the cause if a third or more of the join dots are inside
+the neighbour, concentrated where the facing test fails; refuted if under 5%
+are inside, in which case the mesh's surface directions are the suspect.
+Control: each sherd's own dots pushed 0.05 mm in must read inside, and
+pushed out must read outside, at 95% or better.
+
 ## Decisions for the conservator (the grilling should land these)
 
 - **D1.** ~~Drop the Juglet?~~ **Settled: keep it.** Sub-question settled by
