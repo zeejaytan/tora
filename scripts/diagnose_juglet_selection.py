@@ -256,6 +256,7 @@ def overlap(sherds, tris, T, M, jf, push_mm=0.05, n_ctrl=500):
         return res
 
     sg, fac, par, pair = [], [], [], []
+    SG = [np.full(len(v), np.nan) for v, _ in sherds]
     for i, ((v, _n), t, mm) in enumerate(zip(sherds, T, M)):
         tight = mm["tight"]
         for j in np.unique(t["owner"][tight]):
@@ -263,7 +264,8 @@ def overlap(sherds, tris, T, M, jf, push_mm=0.05, n_ctrl=500):
             q = v[sel]
             inside = winding(q, tris[j]) > 0.5
             dist = surface_distance(q, tris[j]) * jf
-            sg.append(np.where(inside, -dist, dist))
+            SG[i][sel] = np.where(inside, -dist, dist)
+            sg.append(SG[i][sel])
             fac.append(t["facing"][sel])
             par.append(t["partner"][sel])
             pair.append(np.full(int(sel.sum()), i * 100 + int(j)))
@@ -310,7 +312,8 @@ def overlap(sherds, tris, T, M, jf, push_mm=0.05, n_ctrl=500):
                                        map(float, np.percentile(sg, pc)))),
                inside_where_facing_fails_pct=float(pct(fail)),
                inside_where_facing_passes_pct=float(pct(ok)),
-               inside_on_twin_faces_pct=float(pct(opp)), joins=rows)
+               inside_on_twin_faces_pct=float(pct(opp)), joins=rows,
+               _sg=SG)     # per-dot, for render_overlap; popped before JSON
     return res
 
 
@@ -415,32 +418,46 @@ def run_synthetic():
     return out, True
 
 
-def frame_at(sherd, t, tmask, jf):
-    """A point in the middle of the break, and the along/across/normal axes.
+def join_frame(v, n, D, jf, wall_mm, max_rms=0.3):
+    """Local frame on ONE join, from its face-to-face dots D, with a check.
 
-    Taken from the gap-only points, so the frame does not depend on the normal
-    tests being compared.
+    Replaces frame_at, which centred on the middle of every gap-only dot on the
+    sherd. On a sherd with three joins that can land at a corner, and within
+    1.2 mm on a 1.79 mm wall the gap-only dots include both skins, so its plane
+    fit tilted: job 30420351's picture showed a "face" running 3 mm across a
+    1.79 mm wall. It resolved the scale and showed the wrong thing.
+
+    D here is one join's twins (partner dot < -0.7). The frame passes only if
+    those dots within 3 mm lie on a plane (rms <= max_rms mm; a skin mixed in
+    gives about 1 mm) and, in a 1 mm slice, span 0.5-1.5 walls across it.
+    Columns of F: along the break, across the wall, out of the face (toward
+    the neighbour).
     """
-    v, _n = sherd
-    P = v[tmask]
+    P, N = v[D], n[D]
     c = P[np.argmin(np.linalg.norm(P - np.median(P, axis=0), axis=1))]
-    r = np.linalg.norm(P - c, axis=1)
-    loc = P[r < 1.2 / jf] - c
+    near = np.linalg.norm(P - c, axis=1) < 3.0 / jf
+    loc = P[near] - P[near].mean(axis=0)
     _w, vec = np.linalg.eigh(loc.T @ loc)
-    n0 = vec[:, 0]
-    if np.mean((t["foot"][tmask][r < 1.2 / jf] - c) @ n0) < 0:
+    n0, e_al = vec[:, 0], vec[:, 2]
+    if np.mean(N[near] @ n0) < 0:
         n0 = -n0
-    loc3 = P[r < 3.0 / jf] - c
-    loc3 = loc3 - np.outer(loc3 @ n0, n0)
-    _w3, v3 = np.linalg.eigh(loc3.T @ loc3)
-    e_al = v3[:, 2]
-    e_ac = np.cross(n0, e_al)
-    return c, np.column_stack([e_al, e_ac, n0])
+    F = np.column_stack([e_al, np.cross(n0, e_al), n0])
+    q = (P[near] - c) @ F * jf
+    rms = float(np.sqrt(np.mean((q[:, 2] - q[:, 2].mean()) ** 2)))
+    slab = np.abs(q[:, 0]) < 0.5
+    span = float(np.ptp(q[slab, 1])) if slab.sum() >= 3 else float("nan")
+    ok = bool(rms <= max_rms and 0.5 * wall_mm <= span <= 1.5 * wall_mm)
+    return c, F, dict(dots=int(near.sum()), rms_mm=rms, span_mm=span, ok=ok)
 
 
 def render(sherds, T, M, jf, wall_mm, out_png):
     i = int(np.argmax([int(mm["tight"].sum()) for mm in M]))
-    c, F = frame_at(sherds[i], T[i], M[i]["tight"], jf)
+    t, tt = T[i], M[i]["tight"]
+    j = int(np.bincount(t["owner"][tt]).argmax())
+    # The frame only sets the viewing angle; it does not decide what is red.
+    c, F, chk = join_frame(sherds[i][0], sherds[i][1],
+                           tt & (t["owner"] == j) & (t["partner"] < ANTI_DOT),
+                           jf, wall_mm)
     q = [(v - c) @ F * jf for v, _n in sherds]
     qi = q[i]
     half = wall_mm / 2.0 + 0.8
@@ -511,8 +528,101 @@ def render(sherds, T, M, jf, wall_mm, out_png):
           "point spacing about " + format(ppm * 0.22, ".0f") + " px")
     print("  RESOLVES THE WALL" if ppm * wall_mm >= 100 else
           "  DOES NOT RESOLVE THE WALL -- do not read the picture")
+    print("  frame on the join with sherd " + str(j) + ": twins within 3 mm "
+          "lie " + format(chk["rms_mm"], ".2f") + " mm rms off one plane and "
+          "span " + format(chk["span_mm"], ".2f") + " mm across the wall  -> " +
+          ("FRAME OK" if chk["ok"] else
+           "FRAME FAILED ITS CHECK -- do not read the picture"))
     print("wrote " + out_png)
-    return dict(sherd=i, px_per_mm=ppm)
+    return dict(sherd=i, neighbour=j, px_per_mm=ppm, frame=chk)
+
+
+def render_overlap(meshes, sherds, T, M, SG, jf, wall_mm, joins, out_png):
+    """Draw the overlap itself: the most overlapped join and a typical one.
+
+    Three cuts straight across the join, 2 mm apart along it, through BOTH
+    meshes -- the triangles, not the dots, so a crossing smaller than one
+    point spacing still shows. Black is this sherd's surface, blue the
+    neighbour's. Where the blue line runs to the left of the black one, the
+    reassembly has put the neighbour's clay inside this sherd. The fourth
+    panel looks straight at the break face and colours every join dot by its
+    measured signed gap (red inside the neighbour, blue clear of it).
+    """
+    from matplotlib.collections import LineCollection
+    by_pct = sorted(joins, key=lambda r: r[3])
+    pick = [by_pct[-1], by_pct[len(by_pct) // 2]]
+    X, H = 1.5, wall_mm / 2.0 + 0.8
+    fig, axes = plt.subplots(2, 4, figsize=(20, 10.5))
+    rows_out = []
+    for row, (i, j, ndots, pin, msg, p10) in enumerate(pick):
+        v, n = sherds[i]
+        t, tt = T[i], M[i]["tight"]
+        c, F, chk = join_frame(v, n, tt & (t["owner"] == j) &
+                               (t["partner"] < ANTI_DOT), jf, wall_mm)
+        warn = "" if chk["ok"] else "\nFRAME FAILED ITS CHECK -- do not read"
+        for col, a in enumerate((-2.0, 0.0, 2.0)):
+            ax = axes[row, col]
+            for mesh, colour in ((meshes[i], "k"), (meshes[j], "#2e6fd1")):
+                seg = trimesh.intersections.mesh_plane(
+                    mesh, F[:, 0], c + F[:, 0] * (a / jf))
+                if len(seg) == 0:
+                    continue
+                s2 = (np.asarray(seg) - c) @ F * jf
+                keep = np.all((np.abs(s2[:, :, 2]) < X + 0.5) &
+                              (np.abs(s2[:, :, 1]) < H + 0.5), axis=1)
+                ax.add_collection(LineCollection(s2[keep][:, :, [2, 1]],
+                                                 colors=colour, lw=1.3))
+            ax.set_xlim(-X, X)
+            ax.set_ylim(-H, H)
+            ax.set_aspect("equal")
+            for y in (-wall_mm / 2, wall_mm / 2):
+                ax.axhline(y, color="0.6", lw=0.6, ls=":")
+            ax.axvline(0, color="0.8", lw=0.6)
+            ax.set_title("sherd " + str(i) + " (black) against " + str(j) +
+                         " (blue), cut at " + format(a, "+.0f") +
+                         " mm along the join" + warn, fontsize=9.5)
+            ax.set_xlabel("mm, out of this sherd's break face ->", fontsize=8)
+            if col == 0:
+                ax.set_ylabel("mm, across the wall (dotted: " +
+                              format(wall_mm, ".2f") + " mm wall)", fontsize=8)
+            ax.tick_params(labelsize=7)
+        ax = axes[row, 3]
+        sel = tt & (t["owner"] == j)
+        q = (v[sel] - c) @ F * jf
+        w = (np.abs(q[:, 0]) < 6.0) & (np.abs(q[:, 1]) < H) & \
+            (np.abs(q[:, 2]) < 1.0)
+        sc = ax.scatter(q[w, 0], q[w, 1], c=SG[i][sel][w], cmap="RdBu",
+                        vmin=-0.3, vmax=0.3, s=12, lw=0)
+        ax.set_xlim(-6.0, 6.0)
+        ax.set_ylim(-H, H)
+        ax.set_aspect("equal")
+        ax.set_title("face-on, 12 mm of the break: " + format(pin, ".0f") +
+                     "% of dots\ninside the neighbour, median " +
+                     format(msg, "+.3f") + " mm" + warn, fontsize=9.5)
+        ax.set_xlabel("mm, along the break", fontsize=8)
+        ax.tick_params(labelsize=7)
+        fig.colorbar(sc, ax=ax, shrink=0.6,
+                     label="signed gap, mm (red = inside the neighbour)")
+        rows_out.append(dict(sherd=i, neighbour=j, frame=chk))
+        print("  overlap render row " + str(row) + ": sherd " + str(i) +
+              " vs " + str(j) + ", frame rms " + format(chk["rms_mm"], ".2f") +
+              " mm, span " + format(chk["span_mm"], ".2f") + " mm -> " +
+              ("FRAME OK" if chk["ok"] else "FRAME FAILED -- do not read"))
+    fig.suptitle("Juglet: do the reassembled sherds sit inside each other? "
+                 "Each cut goes straight across a join through both sherds' "
+                 "surfaces. Top row: the most overlapped join. Bottom: a "
+                 "typical one.", fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.canvas.draw()
+    ppm = float(np.median([ax.get_window_extent().width / (2 * X)
+                           for ax in axes[:, :3].ravel()]))
+    fig.savefig(out_png, dpi=fig.dpi, facecolor="white")
+    print("  overlap render: " + format(ppm, ".0f") + " px per mm, so 0.1 mm "
+          "is " + format(0.1 * ppm, ".0f") + " px -> " +
+          ("RESOLVES 0.1 mm" if 0.1 * ppm >= 10 else
+           "DOES NOT RESOLVE 0.1 mm -- do not read"))
+    print("wrote " + out_png)
+    return dict(px_per_mm=ppm, rows=rows_out)
 
 
 def run_juglet(path, group, juglet_mm, max_pts, out_png):
@@ -530,13 +640,14 @@ def run_juglet(path, group, juglet_mm, max_pts, out_png):
         tag = sorted(tg for tg in h[group] if "pieces" in h[group][tg])[0]
         g = h[group][tag]["pieces"]
         keys = sorted(g.keys(), key=lambda s: (len(s), s))
-        info, walls, tris = [], [], []
+        info, walls, tris, meshes = [], [], [], []
         for k in keys:
             m = trimesh.Trimesh(
                 vertices=np.asarray(g[k]["vertices"][:], dtype=np.float64),
                 faces=np.asarray(g[k]["faces"][:], dtype=np.int64),
                 process=False)
             tris.append(np.asarray(m.vertices)[np.asarray(m.faces)])
+            meshes.append(m)
             vol = float(m.volume)
             info.append(dict(sherd=k, verts=int(len(m.vertices)),
                              volume_sign=int(np.sign(vol)),
@@ -611,7 +722,12 @@ def run_juglet(path, group, juglet_mm, max_pts, out_png):
     assert [len(v) for v, _ in sherds] == [x["verts"] for x in info], \
         "load_sherds subsampled; raise --max-pts"
     res["overlap"] = overlap(sherds, tris, T, M, jf)
+    SG = res["overlap"].pop("_sg", None)
     res["render"] = render(sherds, T, M, jf, wall_mm, out_png)
+    if SG is not None and res["overlap"].get("joins"):
+        res["overlap_render"] = render_overlap(
+            meshes, sherds, T, M, SG, jf, wall_mm, res["overlap"]["joins"],
+            str(Path(out_png).with_name(Path(out_png).stem + "_overlap.png")))
     return res
 
 
