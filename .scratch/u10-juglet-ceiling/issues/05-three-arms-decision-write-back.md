@@ -20,7 +20,10 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 8 and 9.
       - the own-place median and spread;
       - the swap-allowed count beside it;
       - how far off the unseated sherds land (% of pot height).
-- [ ] The decision rule is applied by the scorer, and its reading is quoted verbatim:
+- [ ] The decision rule is applied by the scorer on the **solid sherds**, with the raw
+      output's reading reported beside it (conservator, 2026-09-14). If the two differ,
+      the solid one stands, and the ticket says what the difference is. The reading is
+      quoted verbatim:
       - the ceiling fails to beat generic by ≥1 sherd (median) → close U10 and skip
         stage 2;
       - the ceiling wins → stage 2;
