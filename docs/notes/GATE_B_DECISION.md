@@ -82,6 +82,12 @@ interior is shaded):
 artefact of one routine. **37% of the corpus is a solid lump.** The conservator's
 warning was right and this section was wrong.
 
+**CORRECTED 2026-09-12 (conservator), on the cause.** The lumps were solid in their
+source models. They were not filled by fracture modes' cage, which is what the
+explanation at the top of this section assumed. Mostly they are bottles, whose unseen
+insides a modeller never builds. The same tool kept 606 of these 1053 hollow. The
+screen and its consequence for training stand. See `CSC/intent/C2`.
+
 Worse, the two defects coincide. Cross-tabulating fill against cells through the
 wall: **solid & ≥2 cells 370, hollow & <2 cells 648, hollow & ≥2 cells 17,
 solid & <2 cells 18** — 97% on one diagonal. Where TORA can resolve the break

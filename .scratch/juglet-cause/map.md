@@ -316,11 +316,32 @@ line is mandatory. Verify with `python ../../scripts/check_intent_links.py`.
   unmeasurable at 0.1% of object size, and this finds the joins unmeasurable at 0.3–0.5 mm.
   `artifacts/jugseam/juglet_gt_seam_gap.png`, `artifacts/jugseam/juglet_gt_vs_scan.png`.
   [10: Do the Juglet's own joins still close?](issues/10-does-the-juglet-seam-close.md)
+- **TORA does not already have the Juglet's shape; its "warped" sherds are mirror
+  images.** Ticket 12 (2026-09-12, no GPU) measured TORA's output before each sherd is
+  made solid. Over 20 attempts the free outline sits **4.4%** of pot size from the true
+  surface, against **4.9%** after the solid step. Pots TORA rebuilds sit at **1.1–1.3%**.
+  Before the solid step each sherd is already about 12 mm from its own place. So this is
+  reading C, and the recorded prediction (A: the shape without the fit) was wrong.
+
+  The warping is sherds coming out as their own mirror image, 64 of 160 sherd-attempts,
+  with none bent out of shape. The solid step cannot mirror, so those sherds stick out.
+  It is unexplained, because TORA never trains on reflections. It is not the Juglet's
+  cause: mirrored sherds sit no further from home than solid ones.
+
+  The missing piece's neighbours (sherds 2, 3, 4, 6) are not clearly the worst placed,
+  so the `galli_pot` follow-up was not triggered. Workspace `U10`'s premise stands, and
+  it stays blocked by `CSC/intent/C2`. **Method genuinely failed**, one object.
+  [12: Does TORA already have the Juglet's shape?](issues/12-does-tora-already-have-the-shape.md)
 - **Scope is the Juglet alone.** The general claim — does any of this hold beyond one
   architecture and a handful of objects — stays with the umbrella's `U3`.
 
 ## Not yet specified
 
+- **Why some sherds come out as their own mirror image, and whether it matters.**
+  Ticketed 2026-09-12 from ticket 12's lead. Its first box checks the mirror test
+  itself, so it can refute ticket 12. Then it reads the data pipeline and the sherd
+  encoder, then the geometry. The first four boxes need no GPU.
+  [13: Why does TORA put some sherds down as their own mirror image?](issues/13-why-mirror-image-sherds.md)
 - **What would attribute the Juglet's failure to wear — or take wear off the list.
   Narrowed 2026-09-09, then WIDENED AGAIN the same day: route (b) is back in play after ticket 11, alongside (a) and (c).** This is the
   reopened destination. Wear breaks reassembly on pots we abrade ourselves; the Juglet's own

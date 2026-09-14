@@ -585,6 +585,11 @@ BeerBottle 21, DrinkBottle 20 -- the closed forms, which fracture-mode
 tetrahedralisation fills through its cage. The thin shells are Vase 211, Bowl 34,
 Cup 31, Mug 30, Bottle 22, DrinkingUtensil 20, WineGlass 17, Teapot 11.
 
+**Corrected 2026-09-12 (conservator).** The lumps were solid in the source models, not
+filled by fracture-modes' cage. A modeller does not build the inside of a bottle nobody
+sees into. So they say nothing against the tool on a walled vessel. The screen's
+consequence for training is unchanged. See `CSC/intent/C2`.
+
 **What this means for the work.** The variety this corpus was built to supply is
 partly an illusion. A large share of the "vessel shapes" are lumps with a broad
 solid break face, which is a different assembly problem from seating a sherd,

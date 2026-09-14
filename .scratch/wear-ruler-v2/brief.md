@@ -555,3 +555,31 @@ and both targets pass. The same Slurm job then reruns
 the millimetres match), which is the evidence Q13 needs. **The copies are not
 swapped into any TORA evaluation without the conservator's say-so.**
 
+**Run.** Job 30422501 (commit aecce62), submitted 2026-09-11. **FAILED 1:0, 00:40:11**
+(recorded 2026-09-14). The exit is the script refusing, not a crash: "A GATE OR A TARGET
+FAILED -- no separated file written". No `juglet_gt_separated_*.hdf5` exists, and
+`diagnose_juglet_selection.py` was not rerun.
+
+- G0 all pass.
+- **Strict** did not converge in 40 steps: 43 dots still up to 0.105 mm inside. Join dots
+  inside fell from 33.2% to 0.3%, but gaps opened elsewhere (median +0.31 mm, 90th
+  percentile +1.0 mm). Four sherds moved more than half the wall, furthest point: sherd 2
+  2.4 mm (turned 11.5°), 4 1.3 mm, 6 1.4 mm, 7 3.5 mm (turned 11.1°).
+- **Tolerant** converged, but 42 dots stay 0.255 mm past the one-spacing allowance, and
+  16.9% of join dots are still below 0. Sherds 2 and 7 still move more than half the wall
+  (0.94 and 1.95 mm, turned 5.0° and 5.5°).
+- G1 FAIL: 0.19 mm. Strict never converged, so G1 started from an unfinished result.
+- G2 FAIL: sherd 4 came back the full 0.200 mm and ended 0.048 mm rms from its strict
+  place, but its target was missed by 0.011 mm.
+
+Render viewed: `artifacts/jugsep_30422501/juglet_separation.png`, 122 px per mm, so it
+resolves 0.1 mm. In the two joins it draws (6-3 worst, 6-5 typical), strict opens a
+0.3–0.4 mm gap and tolerant brings them back to touching. The large moves are sherds 2 and
+7, and neither drawn join includes them, so the picture does not show why.
+
+**Reading.** Small rigid moves do not separate the Juglet. Clearing the overlap needs
+sherds 2 and 7 turned 5–11°, which is more than "set a little too close". This does not
+say the reassembly is wrong: no join of 2 or 7 has been drawn. Q13 stays open, and the
+ruler must tolerate the overlap, as above. Before anything else uses these sherds, the
+next look is joins 2-7 and 0-7 as reassembled by hand.
+

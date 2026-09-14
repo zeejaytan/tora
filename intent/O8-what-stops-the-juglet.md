@@ -318,6 +318,54 @@ declared unclosable.
   **not** rescue `plate` (38.0% → 21.9%, against 2–3% for a correct assembly), so it is a
   scattering with a repeated flavour, not an exchange. Two instruments built for
   different purposes pointing at the same pair of sherds; suggestive, not established.
+- **TORA does not already have the Juglet's shape, and the "warped" sherds are mirror
+  images (2026-09-12, ticket 12, no GPU).** The conservator had seen TORA's intermediate
+  output form a convincing juglet out of warped sherds. TORA moves every point on its own
+  and makes each sherd solid only at the end, so the test was whether the shape is there
+  before that step. It is not, beyond what the solid assembly already shows.
+  - **Outline.** Over 20 attempts by the untouched model, the free output sits **4.4%**
+    of pot size from the true surface (about 2.9 mm on the 65 mm juglet). After the
+    solid step it is **4.9%**. The 0.3 mm difference is finer than the spacing between
+    points.
+  - **Against the control pots.** Pots TORA rebuilds sit at **1.1–1.3%**, and pots it
+    fails on at 2.0–5.1%. Every one of the 20 attempts is above 3.0%.
+  - **Placement.** Before the solid step each free sherd is already about **18%** of pot
+    size (about 12 mm) from its own place.
+  - **The 2026-08-10 picture reproduces** (wear_v2, attempt 05), and it is the flattering
+    end: the free outline is 2.5% against 3.7% solid, with the sherds still 15% from home.
+
+  **What the eye read as warping is mirroring.** A sherd's free points form the mirror
+  image of the real sherd. No solid turn reproduces a mirror image, so once the sherd is
+  made solid its points sit on average up to about 4 mm from the free version, and 6 mm
+  in the worst attempt. That is 64 of 160 free sherd-attempts. No sherd on any Juglet arm
+  is bent out of shape.
+
+  TORA is trained on turns only, never reflections, so the mirroring is unexplained. It
+  is not why the Juglet fails: mirrored sherds sit no further from home than solid ones
+  (13.5% against 19.2%). It does appear on the control pots too:
+  - on `blue_pot`, its two smallest rim chips mirror and still seat;
+  - on `galli_pot` and `plate`, the mirrored sherds are the misplaced ones (20–32% from
+    home, against 1.4–2.4% for the solid ones).
+
+  **A lead, not established.** Ticket
+  `.scratch/juglet-cause/issues/13-why-mirror-image-sherds.md` tests it, starting with
+  whether the mirror test itself can be trusted.
+
+  **The missing piece.** The Juglet's lower body has one hole, about 16 mm across,
+  bordered by sherds 2, 3, 4 and 6. Those four are not clearly the worse-placed ones:
+  - the two sherds TORA usually seats (1 and 7) are away from the hole, but so are two
+    of the worst;
+  - a split this lopsided comes up about one time in five by chance.
+
+  So the `galli_pot` follow-up is not triggered.
+
+  **Which of the three: the method genuinely failed**, by misplacement, before the solid
+  step as after it. The instrument was checked on the four rebuilt pots, and three faults
+  in it were fixed first. This is one object: 20 attempts, against eight control pots.
+  Renders: `artifacts/shape12/shape_before_rigid.png`,
+  `artifacts/shape12/juglet_gap_map.png`. Ticket
+  `.scratch/juglet-cause/issues/12-does-tora-already-have-the-shape.md`; the per-sherd
+  and per-arm figures are in its **Result** section.
 
 ## Source
 

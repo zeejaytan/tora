@@ -515,6 +515,18 @@ def chamfer(a: np.ndarray, b: np.ndarray) -> float:
     return float(d.min(axis=1).mean() + d.min(axis=0).mean())
 
 
+def chamfer_fast(a: np.ndarray, b: np.ndarray) -> float:
+    """`chamfer`, by KD-tree: the same definition, without the dense matrix.
+
+    The dense version holds an (n, m, 3) array, which is 600 MB for two whole
+    5000-point clouds. Same symmetric SUM of mean squared nearest-neighbour
+    distances; callers that switch to this should check the two agree once.
+    """
+    d1, _ = cKDTree(b).query(a)
+    d2, _ = cKDTree(a).query(b)
+    return float((d1 ** 2).mean() + (d2 ** 2).mean())
+
+
 def unit_box_threshold(pts_gt: np.ndarray) -> float:
     """TAU, expressed in the frame the saved clouds are actually stored in.
 

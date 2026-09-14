@@ -13,6 +13,8 @@ learning the wrong thing about pottery.
 It is also plausible rather than paranoid: fracture modes tetrahedralises the
 interior through a cage, so an input that is not watertight and hollow comes out
 of that pipeline solid whatever it looked like as a surface.
+[Corrected 2026-09-12, conservator: the 37% solid lumps this screen found were
+solid in their source models, not filled by the cage. See CSC/intent/C2.]
 
 TWO INDEPENDENT CHECKS, because either alone can mislead.
 
