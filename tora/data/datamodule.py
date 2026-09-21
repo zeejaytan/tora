@@ -47,6 +47,7 @@ class PointCloudDataModule(L.LightningDataModule):
         normalize_object_scale: bool = False,
         scale_multiplier: float = 1.0,
         omit_rank: int | None = None,
+        anchor_part: int | None = None,
     ):
         """Data module for point cloud data.
 
@@ -99,6 +100,9 @@ class PointCloudDataModule(L.LightningDataModule):
         # would change what the model learns, which is a different experiment
         # from asking what a trained model does when a sherd is absent.
         self.omit_rank = omit_rank
+        # Which fragment is held at its true pose. Test/predict only, like
+        # omit_rank: see dataset.py. None keeps the largest, as trained.
+        self.anchor_part = anchor_part
         self.multi_anchor = multi_anchor
         self.persistent_workers = persistent_workers and num_workers > 0
 
@@ -222,6 +226,7 @@ class PointCloudDataModule(L.LightningDataModule):
                     normalize_object_scale=self.normalize_object_scale,
                     scale_multiplier=self.scale_multiplier,
                     omit_rank=self.omit_rank,
+                    anchor_part=self.anchor_part,
                 )
                 for dataset_name in self.dataset_names
             ]

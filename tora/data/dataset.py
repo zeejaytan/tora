@@ -58,6 +58,7 @@ class PointCloudDataset(Dataset):
         normalize_object_scale: bool = False,
         scale_multiplier: float = 1.0,
         omit_rank: int | None = None,
+        anchor_part: int | None = None,
     ):
         super().__init__()
         self.split = split
@@ -101,6 +102,18 @@ class PointCloudDataset(Dataset):
                 "anchor. Dropping it changes which fragment the model is given as "
                 "already-seated, so it tests something else. Use rank >= 2."
             )
+
+        # Which fragment is held at its true pose, by its index in the stored part
+        # order (the order of `points_per_part` in a saved cloud). None = the
+        # largest, which is the only choice the model ever saw in training -- so a
+        # different anchor is out of distribution, and a result with one must be
+        # read with that in mind. Exists to test whether fragments that touch the
+        # held fragment are placed better because they touch it
+        # (.scratch/anchor-choice/). Refused with omit_rank: dropping a mesh
+        # renumbers the parts, so the index would name a different sherd.
+        self.anchor_part = anchor_part
+        if anchor_part is not None and omit_rank is not None:
+            raise ValueError("anchor_part and omit_rank together: omission renumbers parts")
 
         self.use_folder = os.path.isdir(self.data_path)
         self._num_threads = num_threads
@@ -391,9 +404,14 @@ class PointCloudDataset(Dataset):
         pts_gt = np.concatenate(pcs_gt)
         normals_gt = np.concatenate(pns_gt)
 
-        # Use the largest part as the anchor part
+        # Use the largest part as the anchor part, unless one is named
         anchor = np.zeros(self.max_parts, bool)
-        anchor_idx = np.argmax(counts)
+        if self.anchor_part is None:
+            anchor_idx = np.argmax(counts)
+        elif 0 <= self.anchor_part < n_parts:
+            anchor_idx = self.anchor_part
+        else:
+            raise ValueError(f"anchor_part={self.anchor_part}, object has {n_parts} parts")
         anchor[anchor_idx] = True
 
         # Global centering
