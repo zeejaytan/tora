@@ -366,6 +366,46 @@ declared unclosable.
   `artifacts/shape12/juglet_gap_map.png`. Ticket
   `.scratch/juglet-cause/issues/12-does-tora-already-have-the-shape.md`; the per-sherd
   and per-arm figures are in its **Result** section.
+- **Which sherds TORA gets right depends on which sherd it is given (2026-09-21,
+  `.scratch/anchor-choice/issues/01`, job 30917498, `COMPLETED|0:0`).** TORA holds one
+  sherd at its true place and places the rest. Normally that is the largest, sherd 0,
+  the neck. Moving the held sherd moved the good placements with it. Counts are attempts,
+  out of 20, in which each sherd went home:
+
+  | held sherd | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+  |---|---|---|---|---|---|---|---|---|---|
+  | 0 (neck, as trained) | held | 20 | 2 | 4 | 0 | 5 | 0 | 19 | 0 |
+  | 6 (base) | 2 | 0 | 2 | 13 | 20 | 15 | held | 0 | 1 |
+  | 4 (lower body) | 14 | 0 | 0 | 0 | held | 14 | 19 | 5 | 1 |
+
+  With the neck held, the upper body is right and the lower body wrong; with the base
+  held, the reverse. Sherds 4 and 6, never once placed with the neck held, go home 20 and
+  19 times out of 20 when the lower body is held. **So no sherd except 2 and 8 is
+  intrinsically hard; each is placeable from the right starting point.** The total right
+  barely moves (50, 53, 53 of 160), so a small held sherd did not upset the model.
+  - **Refined, not simply confirmed:** the prediction was that sherds *touching* the held
+    one improve. That held for the base, but not fully for sherd 4. Its lower neighbours
+    (5, 6) came right while its upper neighbours (2, 7) did not, and the neck, which does
+    not touch it, came right 14 times. What follows the held sherd is **its region of the
+    pot**, not contact alone.
+  - **The far region is not a correct block put in the wrong place.** Even allowed to
+    move as one rigid piece, it sits 15–28% of pot size off, against 3–4% for the near
+    region on the same ruler. TORA builds outward from what it is given and loses the
+    thread across the pot's middle.
+  - **Which of the three: the method genuinely failed**, in the part of the pot far from
+    the held sherd. The held sherd sat exactly at home in all 60 attempts, and the ruler
+    was checked on regions known to be right.
+  - **Weight: one pot, 20 attempts per arm.** The rerun with the neck held did not repeat
+    job 30130049 exactly despite the same seed: sherds 1 and 7 came home 20 and 19 times,
+    against 15 and 14. So run-to-run noise is about 5 attempts in 20; the shifts above are
+    up to 20.
+  - **For the pipeline ([U16](../../intent/U16-shortest-route-to-one-reassembled-pot.md)):**
+    the Juglet's two halves are each placeable, just not in the same run. Whether that can
+    be used without an answer key is open. It would need a reference-free way to tell
+    which region of a run to trust, and the one tried so far is at chance
+    (`.scratch/juglet-draw-selection/issues/01`).
+
+  Render: `artifacts/anchor/anchor_choice_30917498.png` (median attempt per arm).
 
 ## Source
 
