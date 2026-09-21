@@ -47,7 +47,7 @@ class PointCloudDataModule(L.LightningDataModule):
         normalize_object_scale: bool = False,
         scale_multiplier: float = 1.0,
         omit_rank: int | None = None,
-        anchor_part: int | None = None,
+        anchor_part: int | list[int] | None = None,
     ):
         """Data module for point cloud data.
 

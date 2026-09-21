@@ -58,7 +58,7 @@ class PointCloudDataset(Dataset):
         normalize_object_scale: bool = False,
         scale_multiplier: float = 1.0,
         omit_rank: int | None = None,
-        anchor_part: int | None = None,
+        anchor_part: int | list[int] | None = None,
     ):
         super().__init__()
         self.split = split
@@ -404,15 +404,21 @@ class PointCloudDataset(Dataset):
         pts_gt = np.concatenate(pcs_gt)
         normals_gt = np.concatenate(pns_gt)
 
-        # Use the largest part as the anchor part, unless one is named
+        # Use the largest part as the anchor part, unless one or more are named.
+        # With a list, every named part is held the same way the single anchor
+        # is (true orientation in the input, clamped to its true pose by the
+        # sampler); anchor_idx is the first, which is what the evaluator and the
+        # anchor-fixed asserts below key on.
         anchor = np.zeros(self.max_parts, bool)
         if self.anchor_part is None:
             anchor_idx = np.argmax(counts)
-        elif 0 <= self.anchor_part < n_parts:
-            anchor_idx = self.anchor_part
+            anchor[anchor_idx] = True
         else:
-            raise ValueError(f"anchor_part={self.anchor_part}, object has {n_parts} parts")
-        anchor[anchor_idx] = True
+            named = [int(i) for i in np.atleast_1d(list(self.anchor_part) if not isinstance(self.anchor_part, int) else self.anchor_part)]
+            if not named or any(not 0 <= i < n_parts for i in named) or len(set(named)) != len(named):
+                raise ValueError(f"anchor_part={self.anchor_part}, object has {n_parts} parts")
+            anchor_idx = named[0]
+            anchor[named] = True
 
         # Global centering
         pts_gt, _ = center_pcd(pts_gt)
@@ -470,13 +476,13 @@ class PointCloudDataset(Dataset):
 
             if self.anchor_free:
                 part, trans = center_pcd(pts_gt[st:ed])
-                if i != anchor_idx:
+                if not anchor[i]:
                     part, norms, rot = rotate_pcd(part, normals_gt[st:ed])
                 else:
                     rot = np.eye(3)
                     norms = normals_gt[st:ed]
             else:
-                if i != anchor_idx:
+                if not anchor[i]:
                     part, trans = center_pcd(pts_gt[st:ed])
                     part, norms, rot = rotate_pcd(part, normals_gt[st:ed])
                 else:
