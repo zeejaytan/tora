@@ -148,18 +148,20 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     rep = json.loads(Path(args.report).read_text())
 
-    # every training breakage, by vessel, with the file it lives in
+    # every breakage, training and choosing, with the file it lives in. Choosing vessels
+    # count: the audit judged them too, and the thickest wall was one (job 30919195)
     where, meta = {}, {}
     for path in args.files:
         with h5py.File(path, "r") as f:
             ds = next(iter(f["data_split"]))
-            for n in f["data_split"][ds]["train"][:]:
-                n = n.decode()
-                a = f[n].attrs
-                meta[n] = dict(vessel=str(a["vessel"]), form=str(a["form"]),
-                               sherds=int(a["sherds"]), mm=float(a["mm_per_unit"]),
-                               wall=json.loads(a["recipe"])["wall_mm"])
-                where[n] = path
+            for sp in ("train", "val"):
+                for n in f["data_split"][ds][sp][:]:
+                    n = n.decode()
+                    a = f[n].attrs
+                    meta[n] = dict(vessel=str(a["vessel"]), form=str(a["form"]), split=sp,
+                                   sherds=int(a["sherds"]), mm=float(a["mm_per_unit"]),
+                                   wall=json.loads(a["recipe"])["wall_mm"])
+                    where[n] = path
 
     def load(n):
         with h5py.File(where[n], "r") as f:
@@ -174,7 +176,7 @@ def main():
         jug = upright(pieces(f[jn]))
 
     # 1. same size as the Juglet
-    cn = first_of(lambda m: m["form"] == "ceiling" and 10 <= m["sherds"] <= 30)
+    cn = first_of(lambda m: m["split"] == "train" and m["form"] == "ceiling" and 10 <= m["sherds"] <= 30)
     fig = plt.figure(figsize=(12, 6))
     m = meta[cn]
     shade(fig.add_subplot(1, 2, 1, projection="3d"), load(cn),
@@ -191,6 +193,8 @@ def main():
     ceil, gen = {}, {}
     for n in sorted(meta):
         m = meta[n]
+        if m["split"] != "train":
+            continue
         if m["form"] == "ceiling":
             ceil.setdefault(m["vessel"], n)
         else:
