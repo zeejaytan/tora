@@ -11,7 +11,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 8 and 9.
 
 **Blocked by:** 01 (the scorer), 04 (both adapters).
 
-**Status:** ready-for-agent
+**Status:** ready-for-agent (run plan amended 2026-09-24)
 
 **Needs-eye:** the per-arm Juglet renders. The pictures decide; the table ranks.
 
@@ -45,3 +45,18 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 8 and 9.
         what is left;
       - if generic matches the ceiling, `CSC/intent/C4` gets a line;
       - the umbrella intent README's U10 row is updated.
+
+## How it runs on Spartan (amended 2026-09-24)
+
+- **Three jobs, one per arm** (untouched, generic, ceiling), each on `gpu-a100-short`.
+  Each holds the arm's 20 Juglet draws with renders (under 5 min, job 30130049) and the
+  eight Fractura pots.
+- The two adapter arms are submitted `afterok` on their ticket-04 training job. The
+  untouched arm needs nothing and can run first. It re-runs the baseline under the same
+  code as the other two, so all three are scored alike.
+- **Scoring is CPU work and happens after**: `own_place.py --decide` on the fetched
+  per-draw results, on the laptop or a CPU job. It never holds a GPU.
+- If a render or evaluation step breaks on first contact, the fix is debugged in a held
+  allocation, not by resubmitting.
+- Each job carries the `job_status.log` exit trap, and each gets its own laptop-side
+  poll.

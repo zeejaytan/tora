@@ -12,7 +12,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, module 7.
 **Blocked by:** None (can start immediately). The smoke test uses an existing small
 training file.
 
-**Status:** ready-for-agent
+**Status:** ready-for-agent (run plan amended 2026-09-24)
 
 - [ ] The U10 training configuration sets the head frozen explicitly, not by default.
       The default is still to train it.
@@ -27,3 +27,47 @@ training file.
       recorded here.
 - [ ] Written back: U10's adapter-hygiene lines record that the gate works, with the
       date.
+
+## How it runs on Spartan (amended 2026-09-24)
+
+The conservator asked for no long queue waits, and a held allocation for the debugging at
+the start. What the sizes are, measured rather than guessed:
+- Wear v3's whole job took **1 h 14 min** on one A100 (job 29880370). That covers the
+  smoke test, 20 passes over 1,169 examples with validation every pass, and 12
+  evaluation runs.
+- Each U10 arm trains on **349** examples, under a third as many.
+- 20 Juglet draws took **under 5 min** (job 30130049).
+- So no step here needs the 7-day `gpu-a100` partition. Everything fits
+  `gpu-a100-short` (4 h wall, `docs/agents/slurm.md`).
+
+**This ticket runs inside a held allocation, not through `sbatch`.** Every step is new
+code meeting the GPU for the first time: the frozen-head config, the strict diff, the
+deliberate leak, and ticket 04's own-place check on the choosing set. Each answer
+decides the next command. Through `sbatch`, each one-line fix would cost a queue wait.
+
+1. **Before asking for the node**, on the laptop:
+   - write and push the U10 data config: `max_parts: 64`, `anchor_free: false`,
+     `up_axis: z`, and `min_dataset_size` at or below 349 (see ticket 04);
+   - write and push the training overrides, with `lora.train_head=false` explicit;
+   - write and push the strict mode of `diff_adapter_checkpoint.py`;
+   - write and push ticket 04's own-place validation hook;
+   - smoke-test all of it on the login node on CPU with a tiny slice where the code
+     allows. Then `git pull --ff-only` on Spartan.
+2. `scripts/gpu_session.sh start 4` (default `gpu-a100-short`), launched in the
+   background. The grant is the notice. Step 1 of the session is loaded before the
+   request goes in.
+3. Inside the session, back to back:
+   - freeze test;
+   - reversibility check;
+   - smoke train (8 batches) on `u10_ceiling` with the head frozen, then reload through
+     `sample.py`;
+   - strict diff: pass;
+   - the leak run (head trainable): strict diff must fail;
+   - one full epoch of each arm, with the own-place score printed on its choosing set.
+     That measures time per pass, and memory at 36 sherds × batch 8.
+4. **If the session has time left**, ticket 04's two training runs go straight into it,
+   one after the other, with no queue between them. Otherwise it is stopped
+   (`gpu_session.sh stop`) as soon as step 3 is done. It must never sit idle.
+
+The allocation's job ID and final `sacct` State/ExitCode are recorded here, like any
+batch job's. The session job carries the `job_status.log` exit trap.
