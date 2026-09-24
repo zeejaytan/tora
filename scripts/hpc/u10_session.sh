@@ -38,7 +38,7 @@ TAG="u10_${STEP}_${ARM}_${SLURM_JOB_ID:-nojob}_$(date +%H%M%S)"
 OUT=$TORA_ROOT/output/$TAG
 mkdir -p "$STATUS_DIR"
 exec > >(tee -a "$STATUS_DIR/$TAG.log") 2>&1
-trap 'echo "$(date -u +%FT%TZ) job ${SLURM_JOB_ID:-nojob} step $TAG exit $?" >> "$STATUS_DIR/job_status.log"' EXIT
+trap 'rc=$?; echo "$(date -u +%FT%TZ) job ${SLURM_JOB_ID:-nojob} step $TAG exit $rc" >> "$STATUS_DIR/job_status.log"' EXIT
 
 # The wear v3 recipe with ONE change: train_head=false, stated here and never left to
 # the train.yaml default (true). U10's adapter must be the only thing that moves, so

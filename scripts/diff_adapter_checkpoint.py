@@ -222,8 +222,24 @@ def main() -> None:
         print("in sampling, not in the weights.")
 
     if args.strict:
-        outside = {g: v for g, v in changed.items() if not g.startswith("ADAPTER")}
-        extra = [k for k in only_trained if "lora_A" not in k and "lora_B" not in k]
+        # The alignment teacher and its projector exist only to add a training loss
+        # (tora.py forward: repr_pred / repr_t, computed after v_pred and never fed
+        # back into it), so they cannot change a reassembly. They are also rebuilt
+        # per run: bbad_everyday_cka.ckpt stores an older `alignment_teacher.*`
+        # (499 tensors), a training run stores `teacher.*` (493) plus `projector.*`
+        # -- found by the U10 smoke, job 31200602. Compared by name they read as
+        # hundreds missing and hundreds new. Excluded here, and counted aloud.
+        aux = ("teacher.", "alignment_teacher.", "projector.")
+        n_aux = (sum(1 for k in absent if k.startswith(aux))
+                 + sum(1 for k in only_trained if k.startswith(aux)))
+        absent = [k for k in absent if not k.startswith(aux)]
+        outside = {g: [(k, d) for k, d in v if not k.startswith(aux)]
+                   for g, v in changed.items() if not g.startswith("ADAPTER")}
+        outside = {g: v for g, v in outside.items() if v}
+        extra = [k for k in only_trained if "lora_A" not in k and "lora_B" not in k
+                 and not k.startswith(aux)]
+        print(f"\nSTRICT ignores {n_aux} training-only teacher/projector tensors "
+              f"(alignment loss only; not on the path that places sherds)")
         print()
         if outside or absent or extra or n_lora == 0:
             n_out = sum(len(v) for v in outside.values())
