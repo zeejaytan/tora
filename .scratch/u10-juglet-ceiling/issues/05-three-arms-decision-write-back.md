@@ -60,3 +60,20 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 8 and 9.
   allocation, not by resubmitting.
 - Each job carries the `job_status.log` exit trap, and each gets its own laptop-side
   poll.
+
+## Arms, fixed before any Juglet draw (conservator, 2026-09-24)
+
+Ticket 04 found neither adapter beat the untouched model on its choosing vessels at any
+pass. Choosing on them picked the least-changed pass, a near-copy of the untouched model.
+So each adapter arm is its **last pass** (`last.ckpt`, pass 19), not the kept one:
+- **untouched:** `checkpoints/bbad_everyday_cka.ckpt`, `lora.enabled=false`;
+- **generic:** `output/u10_train_generic_31200602_171624/last.ckpt`;
+- **ceiling:** `output/u10_train_ceiling_31200602_163555/last.ckpt`.
+
+Adapter arms: `lora.train_head=false lora.active=true`, strict diff before the draws.
+Settings are job 30130049's: `zeroshot/juglet_gt`, batch 1, 20 generations, mitsuba 512.
+Job script: `scripts/hpc/u10_juglet_arm.slurm` (tora `6dc1554`).
+
+Submitted 2026-09-24 on `gpu-a100-short`: **31215861** untouched, **31215862** generic,
+**31215863** ceiling. Each has its own laptop poll. The Fractura pots follow once the
+unworn rung of `erosion_ceramics` is pinned down.
