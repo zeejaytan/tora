@@ -93,3 +93,36 @@ model's score on these 5 vessels was never measured. That is the `baseline` step
 
 Weight: 5 choosing vessels, one training run, and one draw per vessel per pass. A few
 points of movement between passes is within noise. The fall from .89 to .77 is not.
+
+**Generic** (`TORA/output/u10_train_generic_31200602_171624/`, 17:16–17:48 AEST, 20 passes,
+exit 0). Kept: **`epoch-1.ckpt`**. Strict diff PASS.
+
+| pass | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| own place | .944 | **.949** | .940 | .940 | .928 | .896 | .906 | .889 | .897 | .912 | .893 | .910 | .910 | .905 | .892 | .906 | .899 | .894 | .895 | .912 |
+| part acc | .969 | .966 | .961 | .960 | .951 | .937 | .932 | .913 | .925 | .948 | .925 | .936 | .932 | .929 | .919 | .923 | .921 | .915 | .928 | .926 |
+
+**The untouched model on the same choosing sets** (`baseline` step, lr 0, strict PASS so
+nothing moved):
+
+| arm's choosing set | untouched | best adapter pass | last pass (19) |
+|---|---|---|---|
+| ceiling | **.897** | .893 (pass 0) | .815 |
+| generic | **.958** | .949 (pass 1) | .912 |
+
+**Reading.** Neither adapter beats the untouched model on its own choosing vessels, at any
+pass. Training at lr 2e-5 makes both worse, and the damage is visible from about pass 4.
+The kept adapters are the least-trained ones, so they are close to the untouched model.
+
+What this does and does not show:
+- It does **not** show the method failed on the Juglet. The choosing vessels are synthetic
+  fresh breaks, where the untouched model already seats 90–96% of sherds. The Juglet seats
+  3 of 9. There is almost no room on the choosing set for an adapter to show a gain, so
+  choosing on it selects "changed least". The choosing ruler may be blind to the thing U10
+  is testing (a measurement problem, not yet a method failure).
+- It **does** show that on vessels like the training ones, 20 passes at lr 2e-5 hurt. That
+  is the method on in-distribution data, and it is real at this weight: 5 vessels, one
+  run, one draw per pass, a fall of 5–13 points against a pass-to-pass noise of about 2.
+
+Ticket 05 as written would compare the untouched model with two near-copies of it. Held
+for the conservator's decision before any Juglet run.

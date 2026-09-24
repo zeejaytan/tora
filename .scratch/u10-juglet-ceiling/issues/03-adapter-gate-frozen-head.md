@@ -12,7 +12,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, module 7.
 **Blocked by:** None (can start immediately). The smoke test uses an existing small
 training file.
 
-**Status:** in progress (2026-09-24): laptop pieces done, held node requested
+**Status:** done (2026-09-24)
 
 - [x] The U10 training configuration sets the head frozen explicitly, not by default.
       The default is still to train it. (`scripts/hpc/u10_session.sh` passes
@@ -33,9 +33,10 @@ training file.
 - [x] Inside the job, a failed gate stops everything after it. (Seen for real: the first
       smoke's strict diff failed, and the leak and epoch steps did not run. The next log
       is the rerun smoke.)
-- [ ] Every `sbatch` has a laptop-side poll, and the final `sacct` State/ExitCode is
+- [x] Every `sbatch` has a laptop-side poll, and the final `sacct` State/ExitCode is
       recorded here. (31200575: `gpu-a100`, CANCELLED 0:0, never started. 31200602:
-      pending until the holder stops after ticket 04.)
+      `gpu-a100-short`, CANCELLED 0:0 by `gpu_session.sh stop`, 2 h 22 min elapsed. Every
+      step inside it logged exit 0 in `job_status.log` under the fixed trap.)
 - [x] Written back: U10's adapter-hygiene lines record that the gate works, with the
       date (2026-09-24).
 
@@ -133,3 +134,8 @@ start 16:20.
   Memory at 36 sherds × batch 8 is about a sixth of the A100's 80 GB. 20 passes come to
   about 55 min per arm, so both of ticket 04's runs went straight into the same holder
   (ceiling started 16:35).
+
+**Idle tail: 17:54–18:41, about 47 min.** The last queued step (baselines) ended at 17:54.
+The laptop's `tail -f` watch on `job_status.log` delivered nothing, and the holder was
+stopped only when it was checked by hand. Next time, the last command queued into a
+holder ends with `gpu_session.sh stop`, so the node releases itself.
