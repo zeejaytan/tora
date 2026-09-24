@@ -75,5 +75,51 @@ Settings are job 30130049's: `zeroshot/juglet_gt`, batch 1, 20 generations, mits
 Job script: `scripts/hpc/u10_juglet_arm.slurm` (tora `6dc1554`).
 
 Submitted 2026-09-24 on `gpu-a100-short`: **31215861** untouched, **31215862** generic,
-**31215863** ceiling. Each has its own laptop poll. The Fractura pots follow once the
-unworn rung of `erosion_ceramics` is pinned down.
+**31215863** ceiling. Each has its own laptop poll.
+
+Fractura: the eight pots at erosion strength 0 (the `_e000` rung of `erosion_ceramics`),
+copied into `dataset/fractura_fresh.hdf5` by `scripts/make_fractura_fresh.py`, config
+`zeroshot/fractura_fresh`, batch 4, same arms and 20 draws. The job is the same script with
+`SET=fractura` (tora `a408494`). Submitted 2026-09-24: **31216108** untouched, **31216109**
+generic, **31216110** ceiling, each polled.
+
+| Job | Arm | sacct State | ExitCode | Elapsed |
+|---|---|---|---|---|
+| 31215861 | Juglet untouched | COMPLETED | 0:0 | 2 min 42 s |
+| 31215862 | Juglet generic | COMPLETED | 0:0 | 1 min 24 s |
+| 31215863 | Juglet ceiling | COMPLETED | 0:0 | 1 min 9 s |
+
+The untouched rerun reproduces ticket 01 (job 30130049): median 3 of 9 in own place on
+both clouds. The code, settings and scorer are the same as before.
+
+### Juglet result (2026-09-24), 20 draws per arm, solid sherds (raw beside)
+
+| Arm | own place, median (range) | swap-allowed | sherds not in own place, from home |
+|---|---|---|---|
+| untouched | 3 of 9 (2–5); raw 3 (3–5) | 4.5; raw 5 | 18.5% of pot size (12.1 mm) |
+| generic, pass 19 | 2 of 9 (1–4); raw 2 (1–4) | 4; raw 4 | 21.5% (14.0 mm) |
+| ceiling, pass 19 | 1 of 9 (1–3); raw 1 (1–3) | 3; raw 4 | 23.6% (15.3 mm) |
+
+The anchor (sherd 0) is pinned at home and counts as one, so the ceiling's median of 1
+means that apart from the anchor, no sherd is in its own place.
+
+The scorer's reading (`own_place.py --decide`) is the same on both clouds, quoted verbatim:
+> own-place medians: untouched 3, generic 2, ceiling 1. Ceiling minus generic = -1
+> sherd(s); the rule needs +1.
+> CEILING LOSES: shape is not what the Juglet is missing, even when handed over. Close
+> U10 (the method genuinely failed, for this lever), skip stage 2, and write back to
+> tora/intent/O8 and GARF/intent/G1 that the break edges are what is left.
+
+Renders, looked at (lead, debugging view): `artifacts/u10/j05_{untouched,generic,ceiling}_{median,worst}.png`.
+Each shows a whole pot at the right size in the pot's own frame. Nothing has collapsed or
+been rescaled, so the ruler is fine. In the ceiling's middle attempt, sherd 8 sits inside
+the neck and the lower body is scrambled among itself. The untouched model's middle
+attempt keeps 1 and 7 at home.
+
+**Caveat on the verdict's wording (lead).** Ticket 04 found both adapters got *worse* with
+training even on their own choosing vessels (ceiling .897 → .815). So the last-pass
+adapters are worse placers in general, not better placers of the Juglet shape. The ceiling
+was supposed to show what handing over the shape can do. Instead it measured a fine-tune
+that damages placement. By the pre-registered rule "ceiling loses" stands. The claim that
+"shape is not what is missing" is stronger than this run can carry. To be settled before
+the write-back (refute-finding offered).
