@@ -12,10 +12,11 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, module 7.
 **Blocked by:** None (can start immediately). The smoke test uses an existing small
 training file.
 
-**Status:** ready-for-agent (run plan amended 2026-09-24)
+**Status:** in progress (2026-09-24): laptop pieces done, held node requested
 
-- [ ] The U10 training configuration sets the head frozen explicitly, not by default.
-      The default is still to train it.
+- [x] The U10 training configuration sets the head frozen explicitly, not by default.
+      The default is still to train it. (`scripts/hpc/u10_session.sh` passes
+      `lora.train_head=false` on every U10 run; `config/train.yaml` still says true.)
 - [ ] Before training, the existing freeze test and the reversibility check pass.
 - [ ] A smoke train of a few steps, then a reload.
 - [ ] The weight diff fails on any frozen change. It also enforces the stricter rule:
@@ -71,3 +72,30 @@ decides the next command. Through `sbatch`, each one-line fix would cost a queue
 
 The allocation's job ID and final `sacct` State/ExitCode are recorded here, like any
 batch job's. The session job carries the `job_status.log` exit trap.
+
+## Progress (2026-09-24)
+
+**Step 1, laptop pieces: done**, tora `22647ed`, pulled on Spartan.
+- `config/data/main/u10_ceiling.yaml` and `u10_generic.yaml`: 64 sherds max, largest
+  sherd held, pots stand on z, `min_dataset_size: 0` (no repetition, so one pass is one
+  pass over the 349). Hydra composes them with every U10 override (`--cfg job` on the
+  login node).
+- `diff_adapter_checkpoint.py --strict`: fails if anything outside the adapter differs at
+  all, if a base tensor is missing, or if a new non-adapter tensor appears.
+- The choosing score in `validation_step`, switched on by `model.extra_metrics=[own_place]`:
+  the share of sherds in their own place per breakage, on the solid sherds
+  (`val/overall/own_place_solid`, what the checkpoint is chosen on) and raw beside it.
+  It calls `scripts/own_place.py`'s own scorer, so choosing and judging use one ruler.
+- `scripts/hpc/u10_session.sh`: one call per step (freeze, gate, smoke, leak, epoch,
+  train). Each step writes its own `job_status.log` line; the holder's sleep job does not
+  carry the trap, the steps do.
+- CPU check on the login node, synthetic sherds: a breakage with two sherds swapped reads
+  2 of 4 in their own place on both clouds. The strict gate passes a clean adapter
+  and fails a moved pose head, which `--fail-on-frozen` passes (exit 0). That is the gap
+  the strict mode closes.
+
+**Holder.** The first request (31200575) was moved by Spartan's submit filter to the long
+`gpu-a100` queue: `gpu-a100-short` accepts at most 8 CPUs. It was cancelled before
+starting. `gpu_session.sh` now defaults to 8 CPUs / 64G and refuses more on the short
+partition (umbrella `a64a166`). Re-requested as **31200602** on `gpu-a100-short`, estimated
+start 16:20.
