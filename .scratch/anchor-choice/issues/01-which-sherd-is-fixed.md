@@ -71,3 +71,13 @@ solid sherds (rigid): neck held [held,20,2,4,0,5,0,17,0]; base held
 home 14 of 20" (0 on solid sherds). The block check (15-28% vs 3-4%) was on raw output and
 is not re-run. O8 carries the corrected table.
 
+Second fault, same day (`.scratch/juglet-cause/issues/14`): own-place chamfer counts a
+sherd home when it lies in its place turned over or spun end for end. Strict home (also
+near its own true points), same job: neck held [held,13,0,0,0,0,0,1,0] = 14/160; base
+held [0,0,0,11,11,12,held,0,0] = 34/160; sherd 4 held [0,0,0,0,held,4,3,0,0] = 7/160.
+**Struck:** "with the neck held, the upper body is right". Sherd 7's 17 of 20 were 1
+truly seated; the rest lay in its place turned. With the neck held, only sherd 1 is
+reliably right. The base is the best single reference; "each sherd is placeable from the
+right start" now holds for 3, 4, 5 (base held) and 1 (neck held), weakly for 5, 6 (sherd
+4 held), and not for 2, 7, 8.
+

@@ -45,34 +45,39 @@ contact. Test: is each half failing only for want of a fixed reference?
 
 ## Result (2026-09-24, solid sherds)
 
-Attempts out of 20 in which each sherd went home (own-place, SEAT_PCT 7.1% of pot size,
-about 4.6 mm), each real sherd placed rigidly (`generations_proposed`):
+Attempts out of 20 in which each sherd went home, each real sherd placed rigidly
+(`generations_proposed`). **Strict home**: on its own home patch (own-place chamfer,
+SEAT_PCT 7.1% of pot size, about 4.6 mm) *and* each point on average within the same
+distance of its own true point, so a sherd turned over or spun end for end in its place
+does not count (`.scratch/juglet-cause/issues/14`). Chamfer-only count in brackets.
 
 | held | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | free sherds home | best attempt |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| {0} control | held | 20 | 1 | 4 | 0 | 5 | 0 | 17 | 0 | 47/160 (29%) | 4 of 8 |
-| {0,6} neck + base | held | 20 | 6 | 16 | 10 | 16 | held | 4 | 7 | **79/140 (56%)** | 6 of 7 |
-| {0,4} neck + lower body | held | 17 | 4 | 0 | held | 4 | 7 | 18 | 0 | 50/140 (36%) | 4 of 7 |
+| {0} control | held | 13 (20) | 0 (1) | 0 (4) | 0 | 0 (5) | 0 | 1 (17) | 0 | 14/160 (9%) [47] | 2 of 8 |
+| {0,6} neck + base | held | 18 (20) | 1 (6) | 7 (16) | 3 (10) | 13 (16) | held | 2 (4) | 1 (7) | **45/140 (32%)** [79] | 4 of 7 |
+| {0,4} neck + lower body | held | 13 (17) | 0 (4) | 0 | held | 0 (4) | 2 (7) | 6 (18) | 0 | 21/140 (15%) [50] | 2 of 7 |
 
 **Against the predictions:**
 
-- **Reference is what's missing: supported for the lower half, with the base.** 3 and 5
-  go home 16 of 20 (control 4, 5), 4 half the time (control 0). Free placements nearly
-  double. **No attempt is whole**: best is attempt 3, 8 of 9 home, sherd 8 about 7 mm
-  (11%) off.
-- **Not "both halves together":** sherd 7 fell from 17 to 4 of 20 when the base was also
-  held -- beyond the ~5-in-20 noise. Holding more trades, it does not simply add.
-- **2 and 8 improve but stay mostly wrong** (6 and 7 of 20): a separate problem.
-- **Sherd 4 is a weaker second reference than the base** (36% vs 56%).
+- **Reference is what's missing: supported for the lower half, with the base.** Sherds 3
+  and 5 go truly home 7 and 13 of 20, where the control has 0 and 0. Free placements rise
+  from 9% to 32%. **No attempt is whole**: the best seat 4 of the 7 free sherds.
+- **Not "both halves together":** sherd 7 fell from 17 to 4 of 20 on the chamfer count
+  when the base was also held. Strictly it was only ever 1 of 20 with the neck alone: it
+  was mostly lying in its place turned over.
+- **2 and 8 stay wrong** (1 and 1 of 20 strict): a separate problem.
+- **Sherd 4 is a weaker second reference than the base** (15% vs 32%).
 - **Not out of distribution:** both two-held arms beat the control.
 
 **Which of the three:** the method, given one correct sherd per half, places over half the
 rest. Held sherds 0.000% in all 60 attempts. Held sherds come from the answer key; in use
 a person would seat them.
 
-**Weight:** one pot, one job, 20 attempts per arm. 29% -> 56% is far beyond noise. The
-best attempt cannot be picked out without the answer key (filters tried are at chance,
-`.scratch/juglet-draw-selection/`).
+**Weight:** one pot, one job, 20 attempts per arm. 9% -> 32% (strict) is far beyond noise.
+Earlier filters for picking the best attempt without the answer key were at chance
+(`.scratch/juglet-draw-selection/`). The inside-out rule (ticket 14) does better: fewest
+flags picks attempt 0, which seats 4, the maximum, reached by 2 of 20 attempts. That is
+one pick on one pot.
 
 ## Correction (2026-09-24)
 
@@ -82,6 +87,13 @@ sherd home". Posing the real meshes for visual-qa showed sherds 2, 4, 7, 8 did n
 rigidly (2-3.5 mm best-fit residual). On solid sherds the whole attempt is gone (its
 sherd 4 was bent into place). **Measurement was broken**; the direction of the finding
 survived. Same trap as `scripts/measure_nonrigid_cheating.py` (2026-08-10).
+
+A second fault in the ruler was then found: own-place chamfer counts a sherd home when it
+lies on its home patch turned over or spun end for end. The conservator saw sherd 4
+inside out in `twoheld_best`. The counts were rescored as strict home (above; ticket 14);
+the solid-sherd chamfer counts 29% / 56% / 36% and "best attempt 8 of 9" are superseded.
+`twoheld_best`'s attempt 3 seats 3 of 7 strictly. **Measurement was broken again**;
+the direction survived, the size shrank.
 
 Look: visual-qa pair `twoheld_best` (real meshes, mm, correct left / attempt 3 right).
 Scripts: `.scratch/anchor-choice/scripts/twoheld.py`, `render_twoheld.py`,

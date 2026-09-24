@@ -370,39 +370,36 @@ declared unclosable.
   `.scratch/anchor-choice/issues/01`, job 30917498, `COMPLETED|0:0`).** TORA holds one
   sherd at its true place and places the rest. Normally that is the largest, sherd 0,
   the neck. Moving the held sherd moved the good placements with it. Counts are attempts,
-  out of 20, in which each sherd went home, **scored on solid sherds** (each real sherd
-  placed rigidly, unbent; corrected 2026-09-24 -- see the last sub-bullet):
+  out of 20, in which each sherd was **truly seated**: a solid sherd (placed rigidly,
+  unbent) on its own home patch *and* the right way round, not turned over or spun end
+  for end (strict home, `.scratch/juglet-cause/issues/14`):
 
-  | held sherd | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
-  |---|---|---|---|---|---|---|---|---|---|
-  | 0 (neck, as trained) | held | 20 | 2 | 4 | 0 | 5 | 0 | 17 | 0 |
-  | 6 (base) | 0 | 0 | 1 | 13 | 19 | 15 | held | 0 | 1 |
-  | 4 (lower body) | 0 | 0 | 0 | 0 | held | 14 | 17 | 5 | 1 |
+  | held sherd | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | total /160 |
+  |---|---|---|---|---|---|---|---|---|---|---|
+  | 0 (neck, as trained) | held | 13 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 14 |
+  | 6 (base) | 0 | 0 | 0 | 11 | 11 | 12 | held | 0 | 0 | 34 |
+  | 4 (lower body) | 0 | 0 | 0 | 0 | held | 4 | 3 | 0 | 0 | 7 |
 
-  With the neck held, the upper body is right and the lower body wrong; with the base
-  held, the reverse. Sherds 4 and 6, never once placed with the neck held, go home 19 and
-  17 times out of 20 when the lower body is held. **So no sherd except 2 and 8 is
-  intrinsically hard; each is placeable from the right starting point.** Totals: 48, 49,
-  37 of 160; sherd 4 is the weakest single reference.
-  - **Refined, not simply confirmed:** the prediction was that sherds *touching* the held
-    one improve. That held for the base, but not fully for sherd 4: its lower neighbours
-    (5, 6) came right while its upper neighbours (2, 7) did not. What follows the held
-    sherd is **its region of the pot**, not contact alone.
+  With the neck held, only sherd 1 beside it is reliably right. With the base held, the
+  lower body (3, 4, 5) comes right about half the time. **The base is the best single
+  reference**, and sherd 4 is the weakest. Sherds 2, 7 and 8 are never seated by any
+  single reference.
+  - **What follows the held sherd is its region of the pot**, not contact alone: the
+    base's neighbours 3, 4, 5 come right, and sherd 4's upper neighbours (2, 7) do not.
   - **The far region is not a correct block put in the wrong place.** Even allowed to
     move as one rigid piece, it sits 15-28% of pot size off, against 3-4% for the near
     region on the same ruler (measured on the raw output; not re-run on solid sherds).
     TORA builds outward from what it is given and loses the thread across the pot's middle.
   - **Which of the three: the method genuinely failed**, in the part of the pot far from
     the held sherd. The held sherd sat exactly at home in all 60 attempts.
-  - **Weight: one pot, 20 attempts per arm.** The rerun with the neck held did not repeat
-    job 30130049 exactly despite the same seed (sherds 1 and 7: 20 and 19 vs 15 and 14 on
-    raw output), so run-to-run noise is about 5 attempts in 20; the shifts above are up
-    to 20.
-  - **Corrected 2026-09-24 (measurement was broken, in part).** These counts were first
-    read off TORA's raw output, where the model may bend a sherd to fit. Posing the real
-    meshes for visual-qa exposed it. On solid sherds, "sherd 4 held -> neck home 14 of 20"
-    was 0 of 20: that claim was bending and is struck. The half-follows-the-held-sherd
-    pattern survives unchanged.
+  - **Weight: one pot, 20 attempts per arm.** Neck held seats 14 of 160 in this job and
+    14 in job 30919372 (9 in job 30130049), so run-to-run noise is a few placements; the
+    base-vs-neck gap (34 vs 14) is beyond it.
+  - **Two rulers were broken before this table.** TORA's raw output lets the model bend a
+    sherd to fit (found by posing real meshes for visual-qa). The own-place home count
+    accepts a sherd lying in its place turned over (found by the conservator's eye on
+    `twoheld_best`). Both inflated the counts; the region-follows-the-held-sherd pattern
+    survives both.
   - **For the pipeline ([U16](../../intent/U16-shortest-route-to-one-reassembled-pot.md)):**
     the Juglet's two halves are each placeable, just not in the same run. Whether that can
     be used without an answer key is open. It would need a reference-free way to tell
@@ -412,31 +409,57 @@ declared unclosable.
   Render: `artifacts/anchor/anchor_choice_30917498.png` (median attempt per arm; raw
   output -- superseded by the visual-qa pair below for anything a person judges).
 
-- **Holding one sherd in each half nearly doubles what TORA places (2026-09-24,
+- **Holding neck and base more than triples what TORA truly seats (2026-09-24,
   `.scratch/anchor-choice/issues/02`, job 30919372, `COMPLETED|0:0`).** Same pot, same
-  model, 20 attempts per arm, neck alone as the in-job control, solid sherds:
+  model, 20 attempts per arm, neck alone as the in-job control, solid sherds, strict home:
 
-  | held | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | free sherds home |
+  | held | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | free sherds seated |
   |---|---|---|---|---|---|---|---|---|---|
-  | neck (0) | 20 | 1 | 4 | 0 | 5 | 0 | 17 | 0 | 29% |
-  | neck + base (0, 6) | 20 | 6 | 16 | 10 | 16 | held | 4 | 7 | **56%** |
-  | neck + sherd 4 | 17 | 4 | 0 | held | 4 | 7 | 18 | 0 | 36% |
+  | neck (0) | 13 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 9% |
+  | neck + base (0, 6) | 18 | 1 | 7 | 3 | 13 | held | 2 | 1 | **32%** |
+  | neck + sherd 4 | 13 | 0 | 0 | held | 0 | 2 | 6 | 0 | 15% |
 
-  - With neck and base held, 3 and 5 come right 16 of 20 and 4 half the time. **No
-    attempt places every sherd:** the best places 6 of the 7 free sherds. (On raw output
-    one attempt looked whole; sherd 4 had been bent into place. Struck.)
-  - **It is a trade, not a sum:** sherd 7 fell from 17 to 4 of 20 when the base was added.
-    2 and 8 improve but stay mostly wrong -- still a separate problem.
+  - With neck and base held, 5 comes right 13 of 20 and 3 about a third of the time.
+    **No attempt is whole:** the best seat 4 of the 7 free sherds.
+  - 2, 7 and 8 stay wrong in every arm. That is still a separate problem.
   - The base is a better second reference than sherd 4.
-  - **Which of the three:** the method, given one correct sherd per half, does over half
-    of the rest. Held sherds sat at exactly 0.000% in all 60 attempts.
-  - **Weight:** one pot, one job. 29% -> 56% is far beyond run-to-run noise (~5 in 20).
-  - **For U16:** a person seating two sherds and TORA placing the rest is the most
-    promising route on this pot, but it does not yet give a whole pot. Open: which attempt
-    to trust without the answer key; sherds 2, 7, 8; a second pot.
+  - **Which of the three:** the method, given one correct sherd per half, seats about a
+    third of the rest. Held sherds sat at exactly 0.000% in all 60 attempts.
+  - **Weight:** one pot, one job. 9% -> 32% is far beyond run-to-run noise.
+  - **For U16:** a person seating two sherds and TORA placing the rest is still the most
+    promising route on this pot, but it is further from a whole pot than first reported.
+    Open: sherds 2, 7, 8; a second pot.
 
-  Seen in visual-qa (conservator's look pending): pair `twoheld_best`, correct Juglet
-  beside the best solid attempt, real sherd meshes in millimetres.
+  Seen in visual-qa (conservator's look pending): pair `twoheld_best` (attempt 3, which
+  seats 3 of 7; its sherd 4 is the inside-out one).
+
+- **TORA puts sherds down inside out, and a simple rule catches it on this pot
+  (2026-09-24, `.scratch/juglet-cause/issues/14`, no new job).** A sherd's outer face is
+  convex and its inner face concave, so a sherd lying in the wall turned over is
+  physically impossible. Yet 10-23 of the placements the home count accepted per Juglet
+  arm were exactly that. The rest of the inflation is sherds spun end for end with the
+  right face out. The encoder is given point normals, so the information is in TORA's
+  input and it does not use it.
+  - **Rule, no answer key:** a sherd's own curvature centre must lie on the pot's side of
+    it. On the Juglet it never flags a correct sherd and agrees with the answer key on
+    212 of 212 placements. On the comparison pots it wrongly flags very large sherds
+    (`narrow_bottle4`) and tiny chips (`narrow_bottle1`, `galli_pot`), so it is
+    **validated on the Juglet only**.
+  - **Picking the attempt with fewest flags works here:** it is the best or tied best in 3
+    of 4 arms. For neck + base it picks attempt 0, which seats 4 of 7, the maximum,
+    reached by 2 of 20 attempts. That is one pick on one pot, not yet a selection method.
+  - **Flipping flagged sherds back failed:** 0 of 23 became seated. A flip exists (the
+    answer key finds one for about half), but the reference-free choice of axis misses it,
+    and the sherds are also off-centre.
+  - **Which of the three:** the method genuinely failed (inside-out placements). Separately,
+    the measurement was broken (home count blind to it); all earlier Juglet home counts
+    overstate.
+  - **Next, and what would change this:** a strict home inside `own_place.py`, so other
+    analyses stop inheriting the blind spot; then the constraint inside TORA's sampling
+    (reject or resample inside-out sherds) rather than after it.
+
+  Seen in visual-qa (conservator's look pending): pair `insideout_rulepick`, correct Juglet
+  beside the rule-picked attempt 0.
 
 ## Source
 
