@@ -136,6 +136,9 @@ class TORA(L.LightningModule):
         gt_algo: Algorithm for ground-truth transform estimation ("icp" or "procrustes").
         use_spatial_norm: Whether to apply spatial normalization to teacher targets.
         spatial_norm_gamma: Gamma for spatial normalization.
+        rigid_from_t: If set, from flow time t <= rigid_from_t (1.0 = every step) the
+            predicted clean assembly is replaced by each part snapped to its nearest
+            proper rigid pose, so no part can bend or mirror mid-flow. None = off.
     """
 
     def __init__(
@@ -168,6 +171,7 @@ class TORA(L.LightningModule):
         precompute_teacher: bool = False,
         teacher_cache_dir: str = "teacher_cache",
         free_teacher_after_cache: bool = True,
+        rigid_from_t: float | None = None,
     ):
         super().__init__()
         self.feature_extractor = feature_extractor
@@ -196,6 +200,7 @@ class TORA(L.LightningModule):
         self.precompute_teacher = precompute_teacher and use_repa
         self.teacher_cache_dir = teacher_cache_dir
         self.free_teacher_after_cache = free_teacher_after_cache
+        self.rigid_from_t = rigid_from_t
 
         # Precomputed teacher feature cache (disk-backed)
         self._teacher_cache = None
@@ -622,6 +627,24 @@ class TORA(L.LightningModule):
                 anchor_indices=anchor_indices,
             )[0]
             return compute_v_pred(out, x, timesteps, self.pred_type)
+
+        if self.rigid_from_t is not None:
+            # Rigid projection (.scratch/juglet-cause/issues/15): x_t = (1-t) x_0 + t x_1,
+            # so the model's clean estimate is x - t v. Snap it per part to the input
+            # sherd moved rigidly (det +1), and return the velocity that heads there.
+            from ..procrustes import apply_rigid_transformations
+            cond = data_dict["pointclouds"]
+            ppp = data_dict["points_per_part"]
+            free_fn = _flow_model_fn
+
+            def _flow_model_fn(x: torch.Tensor, t: float) -> torch.Tensor:
+                v = free_fn(x, t)
+                if t > self.rigid_from_t or t <= 1e-6:
+                    return v
+                x0_hat = x - t * v
+                rot, trans = fit_transformations(cond, x0_hat, ppp)
+                x0_rigid = apply_rigid_transformations(cond.view(x.shape).float(), rot, trans, ppp)
+                return (x - x0_rigid.view(x.shape).to(x.dtype)) / t
 
         x_0 = data_dict["pointclouds_gt"]
         x_1 = torch.randn_like(x_0) if x_1 is None else x_1
