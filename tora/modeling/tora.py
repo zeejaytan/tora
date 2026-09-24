@@ -492,8 +492,37 @@ class TORA(L.LightningModule):
 
         # Evaluate
         eval_results = self.evaluator.run(data_dict, pointclouds_pred, rotations_pred, translations_pred)
+        if "own_place" in self.extra_metrics:
+            eval_results.update(self._own_place(data_dict, pointclouds_pred, rotations_pred, translations_pred))
         self.meter.add_metrics(dataset_names=data_dict["dataset_name"], **eval_results)
         return loss_dict["loss"]
+
+    def _own_place(self, data_dict, pointclouds_pred, rotations_pred, translations_pred) -> dict:
+        """Share of sherds seated in THEIR OWN place, per sample (U10 ticket 04).
+
+        The same ruler U10 is decided on (`scripts/own_place.py`), so the epoch it
+        chooses is chosen by the number the arms are later judged by. Solid is each
+        true sherd moved rigidly (what could be glued, and what U10 decides on); raw
+        is the flow's own points, reported beside it. Never the swap-allowed count.
+        """
+        import sys
+        from pathlib import Path
+
+        scripts = str(Path(__file__).resolve().parents[2] / "scripts")
+        if scripts not in sys.path:
+            sys.path.insert(0, scripts)
+        from own_place import score_batch
+
+        from ..procrustes import apply_rigid_transformations
+
+        ppp = data_dict["points_per_part"]
+        solid = apply_rigid_transformations(
+            data_dict["pointclouds"].float(), rotations_pred.float(), translations_pred.float(), ppp)
+        out = {}
+        for name, cloud in (("own_place_solid", solid), ("own_place_raw", pointclouds_pred)):
+            draws = score_batch(data_dict["pointclouds_gt"].float(), cloud.float(), ppp)
+            out[name] = torch.tensor([d.own / d.n for d in draws], device=ppp.device)
+        return out
 
     # ------------------------------------------------------------------
     # Testing

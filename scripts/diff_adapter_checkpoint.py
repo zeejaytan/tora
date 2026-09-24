@@ -42,6 +42,15 @@ training run instead of a training run plus nine evaluations plus the writing-up
 Usage:
   python scripts/diff_adapter_checkpoint.py --base BASE.ckpt --trained TRAINED.ckpt
   python scripts/diff_adapter_checkpoint.py --base B --trained T --fail-on-frozen
+  python scripts/diff_adapter_checkpoint.py --base B --trained T --strict
+
+--strict (U10 ticket 03) is the stronger gate. --fail-on-frozen looks only at the
+groups named FROZEN, so a run whose pose head or an unnamed ("other") tensor moved
+would pass it. U10's adapter is supposed to be the ONLY thing that changes -- the
+pose head stays frozen (train_head=false) so that "adapter off" is exactly the
+untouched model. --strict exits 1 if any tensor outside the adapter differs at all,
+if any base tensor is missing from the trained file, or if the trained file carries
+a new tensor that is not an adapter tensor.
 """
 
 import argparse
@@ -84,6 +93,9 @@ def main() -> None:
     ap.add_argument("--fail-on-frozen", action="store_true",
                     help="exit 1 if any frozen weight moved, so this can gate a "
                          "job before it spends an A100 on uninterpretable arms")
+    ap.add_argument("--strict", action="store_true",
+                    help="exit 1 if ANYTHING outside the adapter differs (pose head "
+                         "and unnamed tensors included), or a base tensor is absent")
     args = ap.parse_args()
 
     b = torch.load(args.base, map_location="cpu", weights_only=False)["state_dict"]
@@ -208,6 +220,21 @@ def main() -> None:
         print("Nothing outside the adapter moved. Switching it off should give")
         print("the base model exactly; if evaluation disagrees, the difference is")
         print("in sampling, not in the weights.")
+
+    if args.strict:
+        outside = {g: v for g, v in changed.items() if not g.startswith("ADAPTER")}
+        extra = [k for k in only_trained if "lora_A" not in k and "lora_B" not in k]
+        print()
+        if outside or absent or extra or n_lora == 0:
+            n_out = sum(len(v) for v in outside.values())
+            print(f"STRICT: FAIL -- {n_out} tensors outside the adapter differ, "
+                  f"{len(absent)} base tensors absent, {len(extra)} new non-adapter "
+                  f"tensors, {n_lora} adapter tensors")
+            for g, v in outside.items():
+                print(f"  {g}: {len(v)}, e.g. {v[0][0]}")
+            sys.exit(1)
+        print(f"STRICT: PASS -- only the {n_lora} adapter tensors are new; every "
+              f"other tensor is bit-for-bit the base model")
 
 
 if __name__ == "__main__":
