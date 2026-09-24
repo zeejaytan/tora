@@ -116,6 +116,40 @@ been rescaled, so the ruler is fine. In the ceiling's middle attempt, sherd 8 si
 the neck and the lower body is scrambled among itself. The untouched model's middle
 attempt keeps 1 and 7 at home.
 
+### Fractura result (2026-09-24), per pot, never pooled
+
+| Job | Arm | sacct State | ExitCode | Elapsed |
+|---|---|---|---|---|
+| 31216108 | Fractura untouched | COMPLETED | 0:0 | 3 min 47 s |
+| 31216109 | Fractura generic | COMPLETED | 0:0 | 4 min 7 s |
+| 31216110 | Fractura ceiling | COMPLETED | 0:0 | 4 min 11 s |
+
+Own place, solid sherds, median over 20 draws (range). The raw medians are identical
+except generic on narrow_bottle4 (raw 4).
+
+| Pot | sherds | untouched | generic | ceiling |
+|---|---|---|---|---|
+| blue_pot | 5 | 5 (3–5) | 5 (2–5) | 5 (3–5) |
+| galli_pot | 10 | 8 (7–9) | **4.5 (1–7)** | **2 (1–4)** |
+| narrow_bottle1 | 12 | 2 (1–4) | **1 (1–3)** | 2 (1–4) |
+| narrow_bottle2 | 3 | 3 | 3 | 3 |
+| narrow_bottle3 | 4 | 1 (1–2) | 1 (1–2) | 1 (1–4) |
+| narrow_bottle4 | 4 | 4 | 3.5 (3–4) | **3 (3–4)** |
+| pink_bowl | 3 | 3 | 3 (2–3) | 3 (2–3) |
+| plate | 6 | 4 (4–5) | 4 (1–5) | 4 (1–5) |
+
+Pots where an adapter loses one sherd or more (median):
+- galli_pot: generic −3.5, ceiling −6;
+- narrow_bottle1: generic −1;
+- narrow_bottle4: ceiling −1.
+
+No adapter gains a sherd on any pot. Render looked at (lead, debugging view):
+`artifacts/u10/j05_fractura_galli_{untouched,ceiling}_median.png`. It is a genuine
+scramble at the right scale, with anchor sherd 3 at home. Sherd 2 has swung into the
+middle and 1/6/7/9 sit outside the vessel. Per the ticket this is recorded and does not
+change the reading. It is independent evidence that the last-pass adapters damage
+placement on pots unlike their training shapes too.
+
 **Caveat on the verdict's wording (lead).** Ticket 04 found both adapters got *worse* with
 training even on their own choosing vessels (ceiling .897 → .815). So the last-pass
 adapters are worse placers in general, not better placers of the Juglet shape. The ceiling
