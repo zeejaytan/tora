@@ -407,6 +407,34 @@ declared unclosable.
 
   Render: `artifacts/anchor/anchor_choice_30917498.png` (median attempt per arm).
 
+- **Holding one sherd in each half roughly doubles what TORA places (2026-09-24,
+  `.scratch/anchor-choice/issues/02`, job 30919372, `COMPLETED|0:0`).** Same pot, same
+  model, 20 attempts per arm, neck alone as the in-job control:
+
+  | held | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | free sherds home |
+  |---|---|---|---|---|---|---|---|---|---|
+  | neck (0) | 20 | 1 | 4 | 0 | 5 | 0 | 19 | 0 | 31% |
+  | neck + base (0, 6) | 20 | 6 | 16 | 18 | 16 | held | 7 | 7 | **64%** |
+  | neck + sherd 4 | 17 | 4 | 0 | held | 8 | 10 | 18 | 0 | 41% |
+
+  - With neck and base held the lower body comes right (3, 4, 5 home 16–18 of 20), and
+    **one attempt in 20 put every sherd home** — the first whole Juglet recorded here.
+    It reads as a closed juglet from outside; its worst sherd (7) is ~4.5 mm off, right
+    at the tolerance edge, so it is not yet a witnessed correct reassembly.
+  - **It is a trade, not a sum:** sherd 7 fell from 19 to 7 of 20 when the base was
+    added. 2 and 8 improve but stay mostly wrong — still a separate problem.
+  - The base is a better second reference than sherd 4.
+  - **Which of the three:** the method, given one correct sherd per half, does most of
+    the rest. Held sherds sat at exactly 0.000% in all 60 attempts; same ruler as above.
+  - **Weight:** one pot, one job. The 31% → 64% rise is far beyond run-to-run noise (~5
+    in 20). The single whole attempt cannot yet be picked out without the answer key.
+  - **For U16:** a workflow where a person seats two sherds and TORA places the rest is
+    now the most promising route on this pot. Open: choosing the good attempt without the
+    answer key, and whether it holds on a second pot.
+
+  Render: `artifacts/twoheld/two_held_30919372.png` (median per arm),
+  `artifacts/twoheld/two_held_best_30919372.png` (the whole attempt).
+
 ## Source
 
 `docs/notes/JUGLET_TORA_ROOTCAUSE.md`, `WEAR_TEST_RESULTS.md`, `GATE_A_RESULT.md`,
