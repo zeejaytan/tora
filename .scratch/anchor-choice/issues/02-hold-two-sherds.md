@@ -8,9 +8,11 @@ per arm. Job: `scripts/hpc/juglet_two_held.slurm`.
 
 **Answers:** O8
 
+**Needs-eye:** `visual-qa/preview/manifest_twoheld_best.json` (stage: `python visual-qa/viewer/stage_pair.py visual-qa/viewer/pairs/twoheld_best.json`)
+
 **Blocked by:** none
 
-**Status:** done
+**Status:** ready-for-human
 
 **Why:** ticket 01 showed which half comes right is caused by which sherd is held,
 never both halves. The halves share long breaks (0-3, 1-5, 7-4), so it is not lack of
@@ -34,54 +36,53 @@ contact. Test: is each half failing only for want of a fixed reference?
       from `sacct` directly)
 - [x] Both held sherds at home in every draw -- worst held offset 0.000% in all three arms
 - [x] Per-sherd home counts, three arms
-- [x] Median draw per arm rendered and looked at before any verdict; best draw of {0,6}
-      rendered separately because it is the headline
+- [x] Median draw per arm rendered and looked at before any verdict (matplotlib, raw
+      output -- superseded, see Correction)
+- [x] Scored on solid sherds (rigid, unbent), not raw output
+- [x] Best solid attempt staged in visual-qa as real sherd meshes (pair `twoheld_best`)
+- [ ] Conservator's witnessed look and note on `twoheld_best`, with agent reply
 - [x] Verdict against the predictions, written back to O8
 
-## Result (2026-09-24)
+## Result (2026-09-24, solid sherds)
 
 Attempts out of 20 in which each sherd went home (own-place, SEAT_PCT 7.1% of pot size,
-about 4.6 mm):
+about 4.6 mm), each real sherd placed rigidly (`generations_proposed`):
 
-| held | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | not-held home | best attempt |
+| held | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | free sherds home | best attempt |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| {0} control | held | 20 | 1 | 4 | 0 | 5 | 0 | 19 | 0 | 49/160 (31%) | 4 of 8 |
-| {0,6} neck + base | held | 20 | 6 | 16 | 18 | 16 | held | **7** | 7 | **90/140 (64%)** | **7 of 7** |
-| {0,4} neck + lower body | held | 17 | 4 | 0 | held | 8 | 10 | 18 | 0 | 57/140 (41%) | 5 of 7 |
-
-Median attempt: {0} 3/9 home, {0,6} 6/9, {0,4} 5/9 (counting held sherds).
+| {0} control | held | 20 | 1 | 4 | 0 | 5 | 0 | 17 | 0 | 47/160 (29%) | 4 of 8 |
+| {0,6} neck + base | held | 20 | 6 | 16 | 10 | 16 | held | 4 | 7 | **79/140 (56%)** | 6 of 7 |
+| {0,4} neck + lower body | held | 17 | 4 | 0 | held | 4 | 7 | 18 | 0 | 50/140 (36%) | 4 of 7 |
 
 **Against the predictions:**
 
-- **Reference is what's missing: supported for the lower half, with the base.** With neck
-  and base held, 3, 4 and 5 go home 16-18 of 20 (control: 4, 0, 5). Not-held placements
-  roughly double. One attempt (attempt 4) put all seven free sherds home -- the only
-  whole-Juglet attempt on record here.
-- **But it is not "both halves together".** Sherd 7 (upper body, touches the neck) fell
-  from 19 to 7 of 20 once the base was also held. The shift of 12 is beyond the ~5-in-20
-  run-to-run noise. Holding more does not simply add; something is traded.
-- **2 and 8 improve but stay mostly wrong** (1 -> 6, 0 -> 7 of 20). They remain a
-  separate problem, as predicted if they did not come right.
-- **Sherd 4 is a weaker second reference than the base** (41% vs 64%): 3 never comes home
-  with 4 held, 6 only 10 of 20.
-- **Not out of distribution:** both two-held arms beat the control, so two held sherds did
-  not break the model trained with one.
+- **Reference is what's missing: supported for the lower half, with the base.** 3 and 5
+  go home 16 of 20 (control 4, 5), 4 half the time (control 0). Free placements nearly
+  double. **No attempt is whole**: best is attempt 3, 8 of 9 home, sherd 8 about 7 mm
+  (11%) off.
+- **Not "both halves together":** sherd 7 fell from 17 to 4 of 20 when the base was also
+  held -- beyond the ~5-in-20 noise. Holding more trades, it does not simply add.
+- **2 and 8 improve but stay mostly wrong** (6 and 7 of 20): a separate problem.
+- **Sherd 4 is a weaker second reference than the base** (36% vs 56%).
+- **Not out of distribution:** both two-held arms beat the control.
 
-**Best attempt of {0,6}, per-sherd offset (% of pot size, ~mm):** 1: 2.0 (1.3),
-2: 4.9 (3.2), 3: 1.3 (0.8), 4: 5.6 (3.7), 5: 2.1 (1.3), 7: 7.0 (4.5), 8: 2.2 (1.4).
-Sherd 7 sits right at the 7.1% edge. The whole-pot render reads as a closed juglet, but
-that view cannot resolve a 3-5 mm miss; it needs the conservator's eye at a join-level
-view before it is called a correct reassembly.
+**Which of the three:** the method, given one correct sherd per half, places over half the
+rest. Held sherds 0.000% in all 60 attempts. Held sherds come from the answer key; in use
+a person would seat them.
 
-**Which of the three:** the method, given a correct reference in each half, places most
-of the lower body -- not a measurement fault (held sherds exactly at 0.000%; same ruler as
-ticket 01) and the Juglet answer key is the validated one. The held sherds come **from
-the answer key**; in use a person would seat them.
+**Weight:** one pot, one job, 20 attempts per arm. 29% -> 56% is far beyond noise. The
+best attempt cannot be picked out without the answer key (filters tried are at chance,
+`.scratch/juglet-draw-selection/`).
 
-**Weight:** one pot, one job, 20 attempts per arm. The 31% -> 64% rise is far beyond
-noise; the single all-home attempt is one of 20 and cannot be picked out without the
-answer key (the draw filters tried are at chance, `.scratch/juglet-draw-selection/`).
+## Correction (2026-09-24)
 
-Render: `artifacts/twoheld/two_held_30919372.png` (median per arm),
-`artifacts/twoheld/two_held_best_30919372.png` (best {0,6}). Scripts:
-`.scratch/anchor-choice/scripts/twoheld.py`, `render_twoheld.py`, `render_best.py`.
+The first write-up of this ticket (commit c3bc45d) scored TORA's **raw** output, in which
+the model may bend a sherd to fit, and reported 31% -> 64% and "one attempt with every
+sherd home". Posing the real meshes for visual-qa showed sherds 2, 4, 7, 8 did not move
+rigidly (2-3.5 mm best-fit residual). On solid sherds the whole attempt is gone (its
+sherd 4 was bent into place). **Measurement was broken**; the direction of the finding
+survived. Same trap as `scripts/measure_nonrigid_cheating.py` (2026-08-10).
+
+Look: visual-qa pair `twoheld_best` (real meshes, mm, correct left / attempt 3 right).
+Scripts: `.scratch/anchor-choice/scripts/twoheld.py`, `render_twoheld.py`,
+`render_best.py` (raw; superseded), `pose_meshes.py` (solid, for the viewer).

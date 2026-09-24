@@ -61,3 +61,13 @@ Held sherd at home in all 60 attempts (offset 0.000%), so the override took effe
   than own-place chamfer, so its per-sherd counts run low; only the gap is read.
 
 Scripts: `scripts/` beside this folder (run from `tora/`, arg = job id where needed).
+
+## Correction (2026-09-24)
+
+The counts above were read off TORA's raw output, where sherds may bend. Rescored on
+solid sherds (rigid): neck held [held,20,2,4,0,5,0,17,0]; base held
+[0,0,1,13,19,15,held,0,1]; sherd 4 held [0,0,0,0,held,14,17,5,1] (totals 48, 49, 37 of
+160). The half-follows-the-held-sherd pattern survives. **Struck:** "sherd 4 held -> neck
+home 14 of 20" (0 on solid sherds). The block check (15-28% vs 3-4%) was on raw output and
+is not re-run. O8 carries the corrected table.
+
