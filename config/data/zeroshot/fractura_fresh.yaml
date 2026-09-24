@@ -1,0 +1,17 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# U10 ticket 05: the eight Fractura pots, no applied wear -- the e000 rung of
+# erosion_ceramics (same normalisation, same settings), copied out by
+# scripts/make_fractura_fresh.py so the 32 worn variants are not scored with them.
+dataset_names: ["fractura_fresh"]
+
+batch_size: 4
+num_workers: 4
+limit_val_samples: 0
