@@ -68,3 +68,28 @@ the start. What the sizes are, measured rather than guessed:
   back instead, with no queue at all.
 - Each job carries the `job_status.log` exit trap, and each gets its own laptop-side
   poll.
+
+## Progress (2026-09-24)
+
+Both arms trained back to back in ticket 03's holder **31200602**, with no queue.
+
+**Ceiling** (`TORA/output/u10_train_ceiling_31200602_163555/`, 16:35–17:16 AEST, 20 passes,
+exit 0). Kept: **`epoch-0.ckpt`**, the first pass. Strict diff PASS on it: only the 48
+adapter tensors differ from the untouched model.
+
+Choosing score per pass (share of sherds in their own place on the 5 choosing vessels,
+solid sherds):
+
+| pass | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| own place | **.893** | .893 | .881 | .870 | .787 | .769 | .794 | .803 | .804 | .816 | .790 | .815 | .818 | .825 | .817 | .822 | .829 | .809 | .822 | .815 |
+| part acc | .931 | .923 | .918 | .856 | .832 | .855 | .860 | .856 | .868 | .861 | .875 | .873 | .888 | .881 | .883 | .888 | .870 | .877 | .886 | .870 |
+
+Training made the choosing score **worse**: from 89% after the first pass to 77% by the
+sixth, with a partial recovery to about 82%. The kept model has had one pass at lr 2e-5,
+so it is close to the untouched model. How close cannot be read yet, because the untouched
+model's score on these 5 vessels was never measured. That is the `baseline` step
+(tora `8b6a4c0`), queued in the same holder after the generic run.
+
+Weight: 5 choosing vessels, one training run, and one draw per vessel per pass. A few
+points of movement between passes is within noise. The fall from .89 to .77 is not.
