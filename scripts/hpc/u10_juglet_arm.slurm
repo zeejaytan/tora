@@ -30,10 +30,18 @@ set -uo pipefail
 
 TORA_ROOT=/data/gpfs/projects/punim2657/TORA
 STATUS_DIR=$TORA_ROOT/logs
-trap 'rc=$?; echo "$(date -u +%FT%TZ) job ${SLURM_JOB_ID:-nojob} step u10_juglet_${ARM:-?} exit $rc" >> "$STATUS_DIR/job_status.log"' EXIT
+trap 'rc=$?; echo "$(date -u +%FT%TZ) job ${SLURM_JOB_ID:-nojob} step u10_${SET:-juglet}_${ARM:-?} exit $rc" >> "$STATUS_DIR/job_status.log"' EXIT
 
 ARM="${ARM:?ARM=untouched|generic|ceiling}"
 DRAWS=${DRAWS:-20}
+# SET=fractura: the eight unworn Fractura pots (scripts/make_fractura_fresh.py), same
+# arms and draws, scored pot by pot. No --pot-mm: they have no measured height.
+SET="${SET:-juglet}"
+case "$SET" in
+  juglet)   DATA=zeroshot/juglet_gt;     FILE=juglet_gt.hdf5;      BATCH=1; POTMM=(--pot-mm 65) ;;
+  fractura) DATA=zeroshot/fractura_fresh; FILE=fractura_fresh.hdf5; BATCH=4; POTMM=() ;;
+  *) echo "SET must be juglet or fractura"; exit 2 ;;
+esac
 DATA_ROOT=$TORA_ROOT/dataset
 LOG_ROOT=$TORA_ROOT/eval_runs
 CKPT=$TORA_ROOT/checkpoints/bbad_everyday_cka.ckpt
@@ -54,10 +62,10 @@ export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
 export HF_HOME=$TORA_ROOT/.hf-cache
 export WANDB_MODE=offline
 cd "$TORA_ROOT/repo"
-echo "=== u10 juglet $ARM on $(hostname) at $(date), repo $(git rev-parse --short HEAD) ==="
+echo "=== u10 $SET $ARM on $(hostname) at $(date), repo $(git rev-parse --short HEAD) ==="
 echo "checkpoint: $C"
 
-for f in "$DATA_ROOT/juglet_gt.hdf5" "$C"; do
+for f in "$DATA_ROOT/$FILE" "$C"; do
     [ -f "$f" ] || { echo "missing: $f"; exit 1; }
 done
 
@@ -68,22 +76,22 @@ if [ "$ARM" != untouched ]; then
         || { echo "STRICT diff failed on $C -- not evaluating"; exit 1; }
 fi
 
-OUT=$LOG_ROOT/u10_juglet_${ARM}_${SLURM_JOB_ID}
+OUT=$LOG_ROOT/u10_${SET}_${ARM}_${SLURM_JOB_ID}
 python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
-    data=zeroshot/juglet_gt data.batch_size=1 \
+    data="$DATA" data.batch_size="$BATCH" \
     "${ARGS[@]}" \
     log_dir="$OUT" \
     model.n_generations="$DRAWS" \
     "+visualizer._target_=tora.visualizer.FlowVisualizationCallback" \
     "+visualizer.renderer=mitsuba" \
     "+visualizer.image_size=512" \
-    "+visualizer.max_samples_per_batch=1" \
+    "+visualizer.max_samples_per_batch=$BATCH" \
     "+visualizer.center_points=true" \
     "+visualizer.save_trajectory=false" \
     "+visualizer.save_procrustes_assembly=true" \
     "+visualizer.save_assembly_npz=true" \
     || { echo "sampling failed"; exit 1; }
 
-python scripts/own_place.py --run "$OUT" --pot-mm 65 --json "$OUT/own_place.json" \
+python scripts/own_place.py --run "$OUT" "${POTMM[@]}" --json "$OUT/own_place.json" \
     || { echo "own-place scoring failed (the draws are kept; score on CPU)"; exit 1; }
 echo "=== done $(date): $OUT ==="
