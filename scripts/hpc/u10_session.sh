@@ -19,12 +19,13 @@
 #                     --fail-on-frozen could not
 #   epoch ARM         one full pass over the 349 breakages, timed, with GPU memory peak
 #   train ARM [EP]    ticket 04: EP passes (default 20), choosing on own-place (solid)
+#   baseline ARM      the untouched model's score on the same choosing set (lr 0)
 #
 # Every step appends its ending to $TORA_ROOT/logs/job_status.log (docs/agents/slurm.md:
 # trust the disk, not the watch) and writes its full output to $TORA_ROOT/logs/u10_*.log.
 set -uo pipefail
 
-STEP="${1:?step: freeze|gate|smoke|leak|epoch|train}"
+STEP="${1:?step: freeze|gate|smoke|leak|epoch|train|baseline}"
 ARM="${2:-ceiling}"
 EPOCHS="${3:-20}"
 case "$ARM" in ceiling|generic) ;; *) echo "arm must be ceiling or generic"; exit 2 ;; esac
@@ -72,7 +73,7 @@ train() {  # train LOG_DIR HEAD_ARGS... -- EXTRA...
         model.encoder_ckpt="$CKPT" \
         model.flow_model_ckpt="$CKPT" \
         'model.extra_metrics=[own_place]' \
-        model.optimizer.lr=2e-5 \
+        model.optimizer.lr="${LR:-2e-5}" \
         ++trainer.check_val_every_n_epoch=1 \
         ++trainer.callbacks.0.monitor=val/overall/own_place_solid \
         ++trainer.callbacks.0.mode=max \
@@ -127,6 +128,18 @@ case "$STEP" in
     kill $GPU_WATCH 2>/dev/null
     echo "ONE PASS ($ARM): $(( $(date +%s) - t0 )) s wall incl. validation and startup;" \
          "GPU peak $(cat "$OUT.gpu_peak_mib" 2>/dev/null || echo '?') MiB" ;;
+
+  baseline)
+    # The untouched model's choosing score, the yardstick every pass is read against.
+    # Added after the ceiling run chose pass 0 and fell from 0.893 to 0.769 by pass 5.
+    # lr=0 with the adapter's B still at its zero start is the untouched model exactly
+    # (gate step: difference 0), and the adapter path keeps freeze_norm_stats on, which
+    # lora.enabled=false would not. One training batch at lr 0, then the full validation.
+    LR=0 train "$OUT" "${HEAD_FROZEN[@]}" trainer.max_epochs=1 ++trainer.limit_train_batches=1 \
+        || { echo "baseline validation failed"; exit 1; }
+    python scripts/diff_adapter_checkpoint.py --base "$CKPT" --trained "$OUT/last.ckpt" --strict \
+        || { echo "lr=0 run still moved weights"; exit 1; }
+    echo "BASELINE ($ARM): untouched model on this arm's choosing set, see val/overall/own_place_solid above" ;;
 
   train)
     train "$OUT" "${HEAD_FROZEN[@]}" trainer.max_epochs="$EPOCHS" || { echo "training failed"; exit 1; }
