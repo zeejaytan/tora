@@ -21,7 +21,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 5 and 6.
 
 **Blocked by:** CSC `u10-juglet-ceiling` 04 (the corpus), done 2026-09-21.
 
-**Status:** done except the witnessed look at the audit renders (2026-09-21)
+**Status:** done (2026-09-24)
 
 **Needs-eye:** the audit renders.
 
@@ -54,7 +54,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 5 and 6.
 - [x] TORA's own loader reads the file and admits every breakage in it (none silently
       dropped by its part-count limits). One loaded sample is rendered with its
       sherds as the network will see them.
-- [ ] Audit renders:
+- [x] Audit renders:
       - the outline beside the reassembly;
       - a 0.5 mm section of a sampled breakage, including the thinnest wall and a handle
         break.
@@ -117,8 +117,8 @@ sherds, generic 3–36 / 3–28). The sample size labels are 1.022× (ceiling) a
 assembled sample and the network's view (each sherd centred and turned, the largest held
 in place) both look right.
 
-**Audit renders** (`tora/artifacts/u10_02/`), looked at by the agent. **Still to be
-witnessed by the conservator:**
+**Audit renders** (`tora/artifacts/u10_02/`), looked at by the agent and **witnessed by the
+conservator 2026-09-24** ("they look great"):
 - `u10_look_juglet.png`: a ceiling training breakage beside the Juglet, on the same axes.
   Same size and the same family of form.
 - `u10_look_forms.png`: three ceiling vessels, plus one of each generic form (cup, bowl,
