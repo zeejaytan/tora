@@ -17,17 +17,27 @@ training file.
 - [x] The U10 training configuration sets the head frozen explicitly, not by default.
       The default is still to train it. (`scripts/hpc/u10_session.sh` passes
       `lora.train_head=false` on every U10 run; `config/train.yaml` still says true.)
-- [ ] Before training, the existing freeze test and the reversibility check pass.
-- [ ] A smoke train of a few steps, then a reload.
-- [ ] The weight diff fails on any frozen change. It also enforces the stricter rule:
+- [x] Before training, the existing freeze test and the reversibility check pass.
+      (Freeze test PASS; `verify_lora_reversible` ALL PASS: adapter off gives max
+      difference 0.000e+00, and so does a reload.)
+- [x] A smoke train of a few steps, then a reload. (8 batches on `u10_ceiling`, head
+      frozen. It reloaded through `sample.py` on one Juglet draw.)
+- [x] The weight diff fails on any frozen change. It also enforces the stricter rule:
       every tensor outside the adapter is identical to the untouched model's.
-- [ ] Proof that the gate catches a leak: a smoke run with the head deliberately left
-      trainable must fail it.
-- [ ] Inside the job, a failed gate stops everything after it.
+      (`STRICT: PASS -- only the 48 adapter tensors are new`. Encoder 0/492, backbone
+      0/171 and head 0/5 changed. The 998 teacher/projector tensors are excluded and
+      counted aloud, see below.)
+- [x] Proof that the gate catches a leak: a smoke run with the head deliberately left
+      trainable must fail it. (`STRICT: FAIL -- 5 tensors outside the adapter differ`
+      → `LEAK CHECK PASS`.)
+- [x] Inside the job, a failed gate stops everything after it. (Seen for real: the first
+      smoke's strict diff failed, and the leak and epoch steps did not run. The next log
+      is the rerun smoke.)
 - [ ] Every `sbatch` has a laptop-side poll, and the final `sacct` State/ExitCode is
-      recorded here.
-- [ ] Written back: U10's adapter-hygiene lines record that the gate works, with the
-      date.
+      recorded here. (31200575: `gpu-a100`, CANCELLED 0:0, never started. 31200602:
+      pending until the holder stops after ticket 04.)
+- [x] Written back: U10's adapter-hygiene lines record that the gate works, with the
+      date (2026-09-24).
 
 ## How it runs on Spartan (amended 2026-09-24)
 
@@ -99,3 +109,27 @@ batch job's. The session job carries the `job_status.log` exit trap.
 starting. `gpu_session.sh` now defaults to 8 CPUs / 64G and refuses more on the short
 partition (umbrella `a64a166`). Re-requested as **31200602** on `gpu-a100-short`, estimated
 start 16:20.
+
+**Step 3 in holder 31200602** (spartan-gpgpu127, granted 16:20 AEST, 4 h wall). Logs are in
+`TORA/logs/u10_<step>_<arm>_31200602_*.log`.
+- freeze PASS; reversibility ALL PASS (exact).
+- smoke ceiling: the first try failed the strict diff, for a reason in the ruler, not the
+  weights. The untouched checkpoint stores its alignment teacher as `alignment_teacher.*`
+  (499 tensors). A training run stores `teacher.*` (493) plus `projector.*`. By name,
+  those read as hundreds missing and hundreds new. They feed only the alignment loss,
+  after the pose prediction, so the strict mode now excludes them and prints how many
+  (tora `e37f619`). The rerun passed.
+- That failure also exposed a logging bug: the old exit trap wrote `exit 0` for the
+  failed step, because `$(date)` resets `$?`. Fixed here and in the umbrella
+  `docs/agents/slurm.md` template (`7071dd4`).
+- leak ceiling: head 5/5 changed, strict FAIL, i.e. `LEAK CHECK PASS`.
+- One full pass, head frozen, own place on the choosing set:
+
+  | arm | wall incl. validation | GPU peak | own place (solid) | own place (raw) | part acc |
+  |---|---|---|---|---|---|
+  | ceiling | 164 s | 13.3 GB | 0.895 | 0.897 | 0.935 |
+  | generic | 133 s | 13.3 GB | 0.955 | 0.956 | 0.970 |
+
+  Memory at 36 sherds × batch 8 is about a sixth of the A100's 80 GB. 20 passes come to
+  about 55 min per arm, so both of ticket 04's runs went straight into the same holder
+  (ceiling started 16:35).
