@@ -15,12 +15,12 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, module 7.
 - 02 (writer and audit);
 - 03 (the gate).
 
-**Status:** ready-for-agent (run plan amended 2026-09-24)
+**Status:** done 2026-09-25
 
 - [x] Both arms' training files are written, and the audit passes on each; the recipe
       hash matches CSC ticket 03. (Ticket 02, 2026-09-21: 0 failures on 885 breakages,
       hash 422081368edc…f424.)
-- [ ] Wear v3's recipe:
+- [x] Wear v3's recipe:
       - rank 128, alpha 256, dropout 0.1;
       - the four attention projections in all six blocks;
       - learning rate 2e-5;
@@ -30,14 +30,14 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, module 7.
       the 349: the data config sets `min_dataset_size` at or below 349. The loader's
       default (2000) would repeat the file about six times and call that one pass, and
       "the best is pass 0" would then mean something different from wear v3's.
-- [ ] Choosing uses the own-place count on the choosing vessels, never the count that
+- [x] Choosing uses the own-place count on the choosing vessels, never the count that
       allows swaps (conservator, 2026-09-14).
-- [ ] Every pass's choosing score is reported per arm, the kept pass is named, and the
+- [x] Every pass's choosing score is reported per arm, the kept pass is named, and the
       ticket says plainly if the best is pass 0 or 1. Wear v3 peaked at pass 0.
-- [ ] The ticket 03 gates pass on both trained adapters.
-- [ ] Every `sbatch` has a laptop-side poll. The final `sacct` State/ExitCode and the GPU
+- [x] The ticket 03 gates pass on both trained adapters.
+- [x] Every `sbatch` has a laptop-side poll. The final `sacct` State/ExitCode and the GPU
       hours are recorded here.
-- [ ] Written back: U10 gets a line with each arm's kept pass and choosing score, and the
+- [x] Written back: U10 gets a line with each arm's kept pass and choosing score, and the
       date.
 
 ## How it runs on Spartan (amended 2026-09-24)
@@ -126,3 +126,12 @@ What this does and does not show:
 
 Ticket 05 as written would compare the untouched model with two near-copies of it. Held
 for the conservator's decision before any Juglet run.
+
+**Holder 31200602:** sacct State CANCELLED+ (ended by `gpu_session.sh stop`, as designed),
+ExitCode 0:0, elapsed 2 h 22 min on one A100, so about **2.4 GPU-hours** for ticket 03's
+gate, both trainings and the baseline. Both training runs exited 0. Strict diff PASS on the
+kept passes and, in ticket 05, on each `last.ckpt`.
+
+**Written back 2026-09-25:** U10's *Stage 1 result* names the kept passes (ceiling pass 0,
+.893; generic pass 1, .949), the untouched scores (.897, .958) and the decline. The
+conservator then chose the last pass for ticket 05.

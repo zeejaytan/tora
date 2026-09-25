@@ -11,16 +11,16 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 8 and 9.
 
 **Blocked by:** 01 (the scorer), 04 (both adapters).
 
-**Status:** ready-for-agent (run plan amended 2026-09-24)
+**Status:** done 2026-09-25 except the Needs-eye witness (viewer pairs staged, conservator look pending)
 
 **Needs-eye:** the per-arm Juglet renders. The pictures decide; the table ranks.
 
-- [ ] Evaluation settings are the ones every earlier Juglet arm used, stated here.
-- [ ] 20 Juglet draws per arm. For each arm the ticket reports:
+- [x] Evaluation settings are the ones every earlier Juglet arm used, stated here.
+- [x] 20 Juglet draws per arm. For each arm the ticket reports:
       - the own-place median and spread;
       - the swap-allowed count beside it;
       - how far off the unseated sherds land (% of pot height).
-- [ ] The decision rule is applied by the scorer on the **solid sherds**, with the raw
+- [x] The decision rule is applied by the scorer on the **solid sherds**, with the raw
       output's reading reported beside it (conservator, 2026-09-14). If the two differ,
       the solid one stands, and the ticket says what the difference is. The reading is
       quoted verbatim:
@@ -29,17 +29,17 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 8 and 9.
       - the ceiling wins → stage 2;
       - generic helps as much as the ceiling → the gain came from the fine-tune (a C4
         answer).
-- [ ] Fractura: each of the eight pots is scored per pot for every arm, never pooled.
+- [x] Fractura: each of the eight pots is scored per pot for every arm, never pooled.
       Any pot where an adapter loses a sherd or more (median) is named. A ceiling that
       loses there is recorded but does not change the reading.
-- [ ] Renders: the Juglet's median and worst draws per arm, full vessel, in the pot's
+- [x] Renders: the Juglet's median and worst draws per arm, full vessel, in the pot's
       own frame.
-- [ ] The ticket states the weight: one pot, 20 draws, one training run per arm, and the
+- [x] The ticket states the weight: one pot, 20 draws, one training run per arm, and the
       label "ceiling: shown the answer's shape". It also names which of the three
       failure types it found.
-- [ ] Every `sbatch` has a laptop-side poll, and the final `sacct` State/ExitCode is
+- [x] Every `sbatch` has a laptop-side poll, and the final `sacct` State/ExitCode is
       recorded here.
-- [ ] Written back:
+- [x] Written back:
       - U10's boxes are ticked or struck, with the date;
       - on a loss, `tora/intent/O8` and `GARF/intent/G1` record that the break edges are
         what is left;
@@ -157,3 +157,23 @@ was supposed to show what handing over the shape can do. Instead it measured a f
 that damages placement. By the pre-registered rule "ceiling loses" stands. The claim that
 "shape is not what is missing" is stronger than this run can carry. To be settled before
 the write-back (refute-finding offered).
+
+**Settled 2026-09-25 (refute-finding, 5 skeptics: 0 refuted, 2 weakened, 3 stand).** The
+narrower reading stands, at a smaller weight than first worded. The fine-tune damaged
+placement on the Juglet (sherds 1 and 7), on galli_pot, and on its own choosing vessels.
+"In general" is not established: one training run per arm, and on real pots the harm is
+mainly galli_pot, because four pots were already full and one is anchor-only. Generic's
+Fractura figures were re-checked from its fetched `own_place.json` and match. Weight: one
+pot, 20 draws, one training run per arm, one sampling seed. Label: "ceiling: shown the
+answer's shape". Which of the three: the method genuinely failed, meaning *this fine-tune*.
+The ruler and the reference were checked and are sound.
+
+Written back: U10 (status, *Stage 1 result*, two boxes ticked, gate line), the umbrella
+README row, `tora/intent/O8` candidate 7 and `GARF/intent/G1` ("shape not ruled out"; the
+pre-registered "break edges are what is left" is **not** written, because its premise, a
+harmless fine-tune, failed). CSC C4 is not written, because generic did not match the ceiling;
+it trailed the untouched model.
+
+Viewer pairs for the Needs-eye look: `visual-qa/viewer/pairs/u10_juglet_{untouched,generic,ceiling}.json`,
+staged 2026-09-25. The untouched pair shows attempt 0 (3 of 9, the solid median). The
+`j05_untouched_median.png` debugging picture was picked on the raw count and shows 2.
