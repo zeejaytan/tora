@@ -155,6 +155,25 @@ places, not sherds thrown away.
 Ladder clouds saved (`eval_runs/u10_ladder_pooled_t08_31296425`); scored with worn and
 noise together.
 
+**Pooled worn (job 31298231, COMPLETED 0:0, 1:18:28).** global_step 1750, epoch 9 (10
+passes × 175; 0.6% fewer steps than fresh). Strict diff PASS (only the 48 adapter
+tensors new). Freshval own place (solid): overall **.943**, u10_generic .974,
+u10_ceiling .918 — below pooled fresh (.952), above untouched (.911). Guard passes.
+
+Juglet, 20 draws, solid (raw beside): own place median **2** of 9 (range 1–6; raw 3),
+swap-allowed 4, not in own place 21.4% of pot size (≈13.9 mm). Home per sherd out of 20:
+`20, 4, 4, 4, 2, 3, 3, 16, 0`. Sherd 1 home 4/20.
+
+**Reading that fires:** "worn within 1 sherd of fresh, and sherd 1 still lost" (2 vs 2;
+sherd 1 4/20, rule needs 10+). This wear, at this dose, does not undo the adapter's
+Juglet cost; the perfect-fit hypothesis is not supported. The sherd-1 loss stays
+unexplained. Worn does not beat untouched (2 vs 3). Provisional until noise and the
+ladder are in, and the median attempts are looked at.
+
+Fractura, solid median of 20 (untouched / pooled fresh / worn): blue_pot 5 / 3 / **5**;
+galli_pot 8 / 7 / 7; narrow_bottle1 2 / 2 / 3; plate 4 / 5 / 5; the other four unchanged
+(3, 1, 4, 3). Worn recovers blue_pot's swap; no pot is lost against fresh.
+
 ## Acceptance
 
 - [x] Worn and noise files built. The share of break-face vertices identical to a
@@ -182,7 +201,7 @@ noise together.
       the first reading fires).
 - [ ] Every `sbatch` has a laptop poll; sacct State/ExitCode recorded here.
       Builds 31296315, 31296316: COMPLETED 0:0. Training + eval: pooled 31296425, worn
-      31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0.
+      31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0. Worn 31298231: COMPLETED 0:0.
 
 ## Cost (estimate)
 
