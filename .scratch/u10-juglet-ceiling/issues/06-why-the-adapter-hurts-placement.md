@@ -12,7 +12,7 @@ recipe; see U10 *Stage 1 result*)
 
 **Blocked by:** 04 (the trained adapters and their logs).
 
-**Status:** ready-for-agent
+**Status:** done (2026-09-25)
 
 **Needs-eye:** none. This is a diagnosis on synthetic practice vessels, not a reassembly
 claim. The lead renders one practice vessel (untouched vs the original pass 19 vs the
@@ -99,17 +99,78 @@ training forgot; that is what A and B test. Weight: one draw per breakage, one a
 the adapter loaded 24 non-zero blocks, so this was the trained adapter and not the
 untouched model twice.
 
+**Arms A and B, same holder, both steps exit 0.** Own place (solid) on the 103 practice
+breakages (5 vessels), one draw per breakage per pass. Untouched: .897.
+
+| pass | 0 | 2 | 4 | 6 | 8 | 10 | 12 | 14 | 16 | 18 | 19 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| ticket 04 (alignment on) | .893 | .870 | .769 | .803 | .816 | .815 | .825 | .822 | .809 | .815 | .804 |
+| A: alignment off | .889 | .915 | .923 | .919 | .921 | .916 | .908 | .934 | .938 | .950 | .938 |
+| B: alignment off, head trained | .904 | .905 | .917 | .913 | .915 | .924 | .923 | .935 | .935 | .935 | .935 |
+
+Rotation error at pass 19: ticket 04 21.0°, A 9.7°, B 9.3° (untouched about 12°).
+Placement loss (`flow_loss`) in A: from about 0.005 at the start to 0.0006–0.002 in the
+last passes, where ticket 04's did not trend.
+
+Checks: A's alignment term logged 0.204 on the first batch and 0.000 on all 269 later
+readings. A's strict diff PASSES (only the 48 adapter tensors differ). B's fails on
+exactly the 5 pose-head tensors (`flow_model.final_mlp.{0,2,4}`), as expected, and on
+nothing else.
+
+Holder 31280929: CANCELLED+ (ended by `gpu_session.sh stop`), ExitCode 0:0, 1 h 26 min.
+
+**Follow-up job 31287146** (`scripts/hpc/u10_diag06.slurm`): COMPLETED, 0:0, 8 min.
+- **A's adapter on the same `everyday` subset: .921 own place, 10.0° rotation error**,
+  against untouched .920 / 10.2°. With alignment off, the forgetting arm C found is gone.
+- **Look (lead's debugging render, not a witness):** 11 practice breakages (every 10th),
+  one draw each, montages at `artifacts/u10/r06/montage_{a,b}.png`. Each run renders the
+  pot in its own random orientation (the adapter wrapping draws random numbers first), so
+  each prediction is read against **its own run's** correct picture, not across runs;
+  the scores are unaffected (the loaders don't shuffle, so every run scores the same breakages). Ticket 04's adapter is visibly wrong
+  on most of them: s1 neck sunk into the body, s2 and s9 sherds flung off the pot, s6 rim
+  floating, s8 shoulder sherds turned. Arm A matches its correct picture on 9 of 11. On
+  s2 the rim sits high, and s4 is wrong on one side (the untouched model is also off on
+  s4). The pictures show A back at the untouched model's level. They do **not** show the
+  4-point gain; at 11 breakages they can't.
+
+## Reading (against the rules above)
+
+- **A stays at .87 or above at every pass from 4 to 19** (lowest .908), so **the
+  alignment term is the main cause.** Ticket 04's training spent its effort matching
+  Uni3D's view of the new shapes, and that moved the adapter away from placing sherds.
+- **C crosses the 3-point line** (.920 → .877): ticket 04's adapter forgot general skill.
+  A's adapter does not (.921), so the forgetting came from the alignment term too, not
+  from the narrow corpus as such. Suspect 2 is explained by suspect 1.
+- **B beats untouched by 2 points or more after pass 1** (.917 at pass 4, .935 at pass
+  19), and so does A (.938 at pass 19). **A recipe exists that improves on the untouched
+  model on held-out vessels of the trained type**, by about 4 more sherds seated per 100.
+- **Training the head adds nothing visible** (B .935 vs A .938 at pass 19, curves within
+  noise). Suspect 3 is not supported.
+
+**Which of the three:** the method failed, where "the method" is ticket 04's recipe
+(alignment on during fine-tuning), not TORA and not adapters. The measure is sound: A's
+strict diff passes, and the alignment term was confirmed at 0. The reference is sound:
+synthetic vessels with a known answer.
+
+**Weight:** one training run per arm, one seed, 5 practice vessels (103 breakages), one
+draw per breakage per pass. The +4 points is about twice the pass-to-pass noise, so it is
+a lead, not a measured gain. The forgetting result rests on 496 breakages but one draw
+each. Nothing here touches the Juglet.
+
+**What it means for U10:** stage 1 lost to a recipe fault, not to shape. A Juglet
+rerun of stage 1 with alignment off (both adapters retrained) is now a fair test of
+U10's question. Running it is the conservator's call, and it goes in a new ticket.
+
 ## Acceptance
 
 - [x] Arm C scored first (minutes, no training). Forgetting confirmed, see Results.
-- [ ] Arms A and B trained. For each, every pass's choosing score is reported beside
-      ticket 04's original ceiling curve, plus the flow and alignment losses per pass.
-- [ ] Each arm's reading is quoted against the rules above, with the weight: one run per
-      arm, 5 practice vessels, one draw per vessel per pass.
-- [ ] Which of the three kinds of failure it is, named.
-- [ ] Every `sbatch` has a laptop-side poll. The final `sacct` State/ExitCode and the GPU
-      hours are recorded here.
-- [ ] Written back: one line in U10's *Stage 1 result* saying which suspect held, dated.
+- [x] Arms A and B trained. Each is reported pass by pass beside ticket 04's curve. The
+      table shows every other pass; the flow and alignment losses are summarised under Checks.
+- [x] Each arm's reading is quoted against the rules above, with the weight.
+- [x] Which of the three kinds of failure it is, named: the method, meaning ticket 04's recipe.
+- [x] Every `sbatch` had a laptop-side poll. Holder 31280929 CANCELLED+ 0:0 (1 h 26 min),
+      job 31287146 COMPLETED 0:0 (8 min): about 1.6 A100-hours.
+- [x] Written back to U10 *Stage 1 result*, 2026-09-25.
 
 ## How it runs on Spartan
 
