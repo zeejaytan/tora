@@ -1,0 +1,29 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+# 64, not the Juglet's 20: U10 breakages run 3-36 sherds, and 20 would silently
+# drop every breakage above it (ticket 02, loader check).
+max_parts: 64
+min_points_per_part: 20
+# The largest sherd held in place, as bbad_everyday (the untouched model's data)
+# and wear v3 were trained. Reason in ticket 02, "Anchor".
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# U10 ticket 08, arm "pooled fresh": the generic and ceiling vessels together, as built
+# (u10_generic.hdf5 + u10_ceiling.hdf5): 698 training breakages, val is both files'
+# choosing vessels. The conservator's call (2026-09-25): "it's just more pot to teach
+# the model". Also the fresh validation set every ticket-08 arm is scored on.
+dataset_names: ["u10_generic", "u10_ceiling"]
+up_axis: {
+  "u10_generic": "z",
+  "u10_ceiling": "z",
+}
+
+batch_size: 8
+num_workers: 8
+persistent_workers: true
+# 0 = no repetition (tickets 03/04).
+min_dataset_size: 0
+limit_val_samples: 0

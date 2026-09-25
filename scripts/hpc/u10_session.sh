@@ -31,10 +31,12 @@
 # trust the disk, not the watch) and writes its full output to $TORA_ROOT/logs/u10_*.log.
 set -uo pipefail
 
-STEP="${1:?step: freeze|gate|smoke|leak|epoch|train|baseline|forget|render|noalign|noalign_head}"
+STEP="${1:?step: freeze|gate|smoke|leak|epoch|train|baseline|forget|render|noalign|noalign_head|freshval}"
 ARM="${2:-ceiling}"
 EPOCHS="${3:-20}"
-case "$ARM" in ceiling|generic) ;; *) echo "arm must be ceiling or generic"; exit 2 ;; esac
+# Ticket 08 adds pooled (generic + ceiling), worn and noise (write_u10_worn.py).
+case "$ARM" in ceiling|generic|pooled|worn|noise) ;;
+  *) echo "arm must be ceiling, generic, pooled, worn or noise"; exit 2 ;; esac
 
 TORA_ROOT=/data/gpfs/projects/punim2657/TORA
 DATA_ROOT=$TORA_ROOT/dataset
@@ -64,7 +66,9 @@ export WANDB_MODE=offline
 cd "$TORA_ROOT/repo"
 echo "=== $TAG on $(hostname) at $(date), repo $(git rev-parse --short HEAD) ==="
 
-for f in "$DATA_ROOT/u10_$ARM.hdf5" "$CKPT"; do
+if [ "$ARM" = pooled ]; then FILES=("$DATA_ROOT/u10_generic.hdf5" "$DATA_ROOT/u10_ceiling.hdf5")
+else FILES=("$DATA_ROOT/u10_$ARM.hdf5"); fi
+for f in "${FILES[@]}" "$CKPT"; do
     [ -f "$f" ] || { echo "missing: $f"; exit 1; }
 done
 
@@ -204,6 +208,21 @@ case "$STEP" in
     python scripts/diff_adapter_checkpoint.py --base "$CKPT" --trained "$OUT/last.ckpt" --strict
     echo "$STEP ($ARM) diff exit $? (noalign expects 0, noalign_head expects non-zero)"
     echo "TRAINED $STEP ($ARM): $OUT" ;;
+
+  freshval)
+    # Ticket 08's guard: one fresh yardstick for every arm. Worn and noise validate on
+    # their own worn copies while training, so each arm's last.ckpt (ADAPTER=) -- or the
+    # untouched model, ADAPTER unset -- is scored again on u10_pooled's val set.
+    FV=(data=main/u10_pooled data_root="$DATA_ROOT" data.batch_size=8 data.num_workers=8
+        'model.extra_metrics=[own_place]' mode=validate)
+    if [ -n "${ADAPTER:-}" ]; then
+        python sample.py ckpt_path="$ADAPTER" "${LORA[@]}" "${HEAD_FROZEN[@]}" lora.active=true \
+            "${FV[@]}" log_dir="$OUT" || { echo "freshval failed"; exit 1; }
+    else
+        python sample.py ckpt_path="$CKPT" lora.enabled=false "${FV[@]}" log_dir="$OUT" \
+            || { echo "freshval (untouched) failed"; exit 1; }
+    fi
+    echo "FRESHVAL ($ARM, ${ADAPTER:-untouched}): see VALIDATE val/overall/own_place_solid above" ;;
 
   *) echo "unknown step $STEP"; exit 2 ;;
 esac

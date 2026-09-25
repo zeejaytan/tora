@@ -1,0 +1,22 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 64
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# U10 ticket 08, arm "pooled worn": every u10_pooled breakage twice, light and moderate
+# break-face recession + dish chips, no fresh copy (scripts/write_u10_worn.py --mode worn).
+# Same vessels and split as u10_pooled. 10 passes here = 20 passes of u10_pooled in steps.
+dataset_names: ["u10_worn"]
+up_axis: {
+  "u10_worn": "z",
+}
+
+batch_size: 8
+num_workers: 8
+persistent_workers: true
+min_dataset_size: 0
+limit_val_samples: 0

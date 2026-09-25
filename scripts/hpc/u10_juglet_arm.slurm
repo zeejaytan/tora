@@ -51,7 +51,9 @@ case "$ARM" in
   untouched) C=$CKPT; ARGS=(lora.enabled=false) ;;
   generic)   C=$TORA_ROOT/output/u10_train_generic_31200602_171624/last.ckpt; ARGS=("${LORA[@]}" lora.active=true) ;;
   ceiling)   C=$TORA_ROOT/output/u10_train_ceiling_31200602_163555/last.ckpt; ARGS=("${LORA[@]}" lora.active=true) ;;
-  *) echo "arm must be untouched, generic or ceiling"; exit 2 ;;
+  # Ticket 08's arms have no default file: ADAPTER= is required (checked below).
+  pooled|worn|noise) C=${ADAPTER:?ADAPTER= is required for arm $ARM}; ARGS=("${LORA[@]}" lora.active=true) ;;
+  *) echo "arm must be untouched, generic, ceiling, pooled, worn or noise"; exit 2 ;;
 esac
 # Ticket 07: ADAPTER= another adapter checkpoint for this arm (head frozen), LABEL= a
 # tag for its output folder (e.g. noalign), so ticket 05's runs are never overwritten.
