@@ -84,6 +84,7 @@ train() {  # train LOG_DIR HEAD_ARGS... -- EXTRA...
         model.flow_model_ckpt="$CKPT" \
         'model.extra_metrics=[own_place]' \
         model.optimizer.lr="${LR:-2e-5}" \
+        seed="${SEED:-42}" \
         ++trainer.check_val_every_n_epoch=1 \
         ++trainer.callbacks.0.monitor=val/overall/own_place_solid \
         ++trainer.callbacks.0.mode=max \

@@ -12,6 +12,7 @@
 #   ARM=pooled sbatch scripts/hpc/u10_train08.slurm    # fresh, 20 passes, also scores untouched
 #   ARM=worn   sbatch scripts/hpc/u10_train08.slurm    # 10 passes over two copies = same steps
 #   ARM=noise  sbatch scripts/hpc/u10_train08.slurm
+#   SEED=7 ARM=noise ...   # replication from another random start; outputs tagged t08s7
 #   1. train: ticket 07's recipe (u10_session.sh noalign: alignment off, head frozen)
 #   2. freshval: last.ckpt on u10_pooled's val set, the one yardstick for every arm
 #   3. Juglet and the eight unworn Fractura pots, 20 draws (u10_juglet_arm.slurm)
@@ -25,6 +26,11 @@ trap 'rc=$?; echo "$(date -u +%FT%TZ) job ${SLURM_JOB_ID:-nojob} step u10_train0
 : "${ARM:?ARM=pooled|worn|noise}"
 case "$ARM" in pooled) EP=20 ;; worn|noise) EP=10 ;; *) echo "ARM must be pooled, worn or noise"; exit 2 ;; esac
 H=$TORA_ROOT/repo/scripts/hpc
+# Seed 42 is the first run's (train.yaml default); any other seed gets its own tag so
+# the first runs' eval folders are never overwritten.
+SEED=${SEED:-42}; export SEED
+T=t08; [ "$SEED" = 42 ] || T=t08s$SEED
+echo "seed $SEED, tag $T"
 DATA_ROOT=$TORA_ROOT/dataset
 
 bash "$H/u10_session.sh" noalign "$ARM" "$EP" || { echo "$ARM training failed"; exit 1; }
@@ -43,7 +49,7 @@ fail=0
 ADAPTER=$AD bash "$H/u10_session.sh" freshval "$ARM" || fail=1
 [ "$ARM" = pooled ] && { bash "$H/u10_session.sh" freshval pooled || fail=1; }  # untouched
 for SET in juglet fractura; do
-    SET=$SET ARM=$ARM ADAPTER=$AD LABEL=t08 bash "$H/u10_juglet_arm.slurm" || fail=1
+    SET=$SET ARM=$ARM ADAPTER=$AD LABEL=$T bash "$H/u10_juglet_arm.slurm" || fail=1
 done
 
 module purge
@@ -57,12 +63,12 @@ python sample.py ckpt_path="$AD" data_root="$DATA_ROOT" \
     lora.enabled=true lora.r=128 lora.alpha=256 lora.dropout=0.1 lora.last_n_blocks=6 \
     lora.train_head=false lora.active=true \
     model.n_generations=20 \
-    log_dir="$TORA_ROOT/eval_runs/u10_ladder_${ARM}_t08_${SLURM_JOB_ID}" \
+    log_dir="$TORA_ROOT/eval_runs/u10_ladder_${ARM}_${T}_${SLURM_JOB_ID}" \
     "+visualizer._target_=tora.visualizer.FlowVisualizationCallback" \
     "+visualizer.renderer=none" \
     "+visualizer.center_points=true" \
     "+visualizer.save_trajectory=false" \
     "+visualizer.save_procrustes_assembly=true" \
     "+visualizer.save_assembly_npz=true" || fail=1
-echo "t08 $ARM done, any step failed: $fail"
+echo "$T $ARM done, any step failed: $fail"
 exit $fail
