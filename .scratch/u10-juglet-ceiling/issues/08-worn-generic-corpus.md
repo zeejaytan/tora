@@ -127,10 +127,23 @@ read.
 
 ## Acceptance
 
-- [ ] Worn and noise files built. The share of break-face vertices identical to a
+- [x] Worn and noise files built. The share of break-face vertices identical to a
       neighbour's falls from ≈1 to 0. Break and contact gaps (surface ruler) reported, the
       Juglet beside. Loader keeps every object. Not trusted until a built join is rendered.
-- [x] Rendered before training: one join, fresh / worn, 5 mm window (prototype, 2026-09-25). Noise and one join from the built file still to render.
+      (2026-09-25: worn job 31296315 COMPLETED 0:0, 30:12; noise job 31296316 COMPLETED 0:0,
+      43:12. 885 breakages per level, none dropped, none still touching. Loader admits
+      train 1396, val 374, 3-36 sherds. Size label 0.4993 worn, 0.5037 noise, Juglet 0.5115.
+      Break gap, median of per-breakage p50, % diagonal: worn light 0.288, moderate 0.509;
+      noise light 0.058, moderate 0.099. Contact p50: worn 0.535 / 0.599, noise 0.454 /
+      0.446. Juglet contact p10/p50/p90 0.033 / 0.259 / 1.334. Worn skin moves p99 0.15%,
+      i.e. chips only; noise skin 0. Noise's break gap is a fifth of worn's at equal RMS
+      because random jitter crosses the faces into each other, where recession opens
+      them: noise is "rough faces, same displacement", not "a gap". Files:
+      `TORA/work/u10_worn_{worn_31296315,noise_31296316}/`, linked into `dataset/`.)
+- [x] Rendered before training: one join, fresh / worn, 5 mm window (prototype, 2026-09-25).
+      Built files, same join (generic_train_00 fractured_3, sherds 6/7, moderate):
+      `artifacts/u10/r08/built_{worn,noise}_6_7.png`. Worn is identical to the prototype;
+      noise is a jagged, interpenetrating face with the walls untouched.
 - [ ] Three adapters (pooled fresh, worn, noise) trained. Alignment logs 0. Strict diff passes. Curves reported.
 - [ ] Juglet: 20 draws per arm, own place, sherd-home counts, readings applied.
 - [ ] Ladder per pot and level, sign tests, readings applied.
@@ -138,6 +151,8 @@ read.
 - [ ] Weight stated. Which of the three kinds named. Written back to O7 (and U10/O8 if
       the first reading fires).
 - [ ] Every `sbatch` has a laptop poll; sacct State/ExitCode recorded here.
+      Builds 31296315, 31296316: COMPLETED 0:0. Training + eval: pooled 31296425, worn
+      31298231, noise 31298232 (running / queued 2026-09-25).
 
 ## Cost (estimate)
 
