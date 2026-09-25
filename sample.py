@@ -89,6 +89,15 @@ def main(cfg: DictConfig):
     """Entry point for evaluating the model on validation set."""
 
     model, datamodule, trainer = setup(cfg)
+    # `mode=validate` scores a saved checkpoint (adapter included) through the
+    # validation path, which is the only one that computes the extra metrics
+    # (own_place). train.py cannot load an adapter, so this is how a trained
+    # adapter is scored on a set it was not chosen on (U10 ticket 06).
+    if cfg.get("mode", "test") == "validate":
+        results = trainer.validate(model=model, datamodule=datamodule, verbose=False)
+        for key, value in sorted(results[0].items()):
+            print(f"VALIDATE {key} {value:.4f}")
+        return
     eval_results = trainer.test(
         model=model,
         datamodule=datamodule,

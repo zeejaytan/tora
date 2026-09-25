@@ -21,11 +21,17 @@
 #   train ARM [EP]    ticket 04: EP passes (default 20), choosing on own-place (solid)
 #   baseline ARM      the untouched model's score on the same choosing set (lr 0)
 #
+# Ticket 06 (why the adapter hurts placement):
+#   forget            untouched vs ticket 04's ceiling last.ckpt on Breaking Bad
+#                     everyday validation (every n-th breakage, fixed), own place
+#   noalign ARM [EP]  ticket 04's recipe with the alignment term off (repa_stop=0)
+#   noalign_head ARM [EP]  the same, with the pose head trained too (GARF-like)
+#
 # Every step appends its ending to $TORA_ROOT/logs/job_status.log (docs/agents/slurm.md:
 # trust the disk, not the watch) and writes its full output to $TORA_ROOT/logs/u10_*.log.
 set -uo pipefail
 
-STEP="${1:?step: freeze|gate|smoke|leak|epoch|train|baseline}"
+STEP="${1:?step: freeze|gate|smoke|leak|epoch|train|baseline|forget|noalign|noalign_head}"
 ARM="${2:-ceiling}"
 EPOCHS="${3:-20}"
 case "$ARM" in ceiling|generic) ;; *) echo "arm must be ceiling or generic"; exit 2 ;; esac
@@ -148,6 +154,34 @@ case "$STEP" in
     python scripts/diff_adapter_checkpoint.py --base "$CKPT" --trained "$BEST" --strict \
         || { echo "STRICT diff failed on the chosen checkpoint"; exit 1; }
     echo "TRAINED ($ARM): chosen $BEST" ;;
+
+  forget)
+    # Suspect 2: did training on 20 juglets wear away skill on ordinary objects?
+    # Same fixed subset for both (limit_val_samples takes every n-th breakage).
+    EVERY=(data=main/bbad_everyday data_root="$DATA_ROOT" data.batch_size=32 data.num_workers=8
+           data.limit_val_samples="${EVERYDAY_N:-480}" 'model.extra_metrics=[own_place]' mode=validate)
+    CEIL=$TORA_ROOT/output/u10_train_ceiling_31200602_163555/last.ckpt
+    [ -f "$DATA_ROOT/everyday.hdf5" ] && [ -f "$CEIL" ] || { echo "missing everyday or $CEIL"; exit 1; }
+    echo "--- untouched ---"
+    python sample.py ckpt_path="$CKPT" lora.enabled=false "${EVERY[@]}" log_dir="$OUT/untouched" \
+        || { echo "untouched validation failed"; exit 1; }
+    echo "--- ceiling pass 19 ---"
+    python sample.py ckpt_path="$CEIL" "${LORA[@]}" "${HEAD_FROZEN[@]}" lora.active=true \
+        "${EVERY[@]}" log_dir="$OUT/ceiling" \
+        || { echo "ceiling validation failed"; exit 1; }
+    echo "FORGET done: compare VALIDATE val/overall/own_place_solid above" ;;
+
+  noalign|noalign_head)
+    # Suspect 1 (and 3): ticket 04's recipe scored on placement alone. repa_stop=0
+    # switches alignment off after the first batch (on_train_batch_end).
+    if [ "$STEP" = noalign ]; then HEAD=("${HEAD_FROZEN[@]}"); else HEAD=("${HEAD_TRAINS[@]}"); fi
+    train "$OUT" "${HEAD[@]}" model.repa_stop=0 trainer.max_epochs="$EPOCHS" \
+        || { echo "training failed"; exit 1; }
+    # Head frozen: only the adapter may move. Head trained: the diff must fail, and
+    # its listing is what records which tensors moved.
+    python scripts/diff_adapter_checkpoint.py --base "$CKPT" --trained "$OUT/last.ckpt" --strict
+    echo "$STEP ($ARM) diff exit $? (noalign expects 0, noalign_head expects non-zero)"
+    echo "TRAINED $STEP ($ARM): $OUT" ;;
 
   *) echo "unknown step $STEP"; exit 2 ;;
 esac

@@ -26,6 +26,10 @@ data:
 # Log directory
 log_dir: ./demo/sample
 
+# test = the usual draws; validate = score through the validation path, the only
+# one with the extra metrics (own_place). See sample.py.
+mode: test
+
 # Checkpoint path
 ckpt_path: null          # when null, the checkpoint will be downloaded from Hugging Face
 
