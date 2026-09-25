@@ -475,7 +475,8 @@ declared unclosable.
   - **Weight:** one pot, one seed. The neck + base control itself came out 33 against 45
     in job 30919372 on the same seed, so the 9% -> 32% rise above is really 9-13% ->
     24-32%: still real, but smaller than first stated. A gain under ~10 sherds cannot be
-    ruled out; a large one can.
+    ruled out; a large one can. Nothing was staged for the conservator's eye; that look was
+    reserved for a positive result.
   - **What it rules out for U16:** making TORA move sherds as solid pieces is not the
     route. Rejecting inside-out sherds during sampling is still untested. What is left is the reference sherds a
     person seats, a better-trained model, or a different method.

@@ -16,8 +16,8 @@ change. Job: `scripts/hpc/juglet_rigid_sampling.slurm`.
 
 **Status:** done
 
-**Needs-eye:** the best attempt of the rigid neck + base arm, staged in visual-qa, only if
-the rigid arm clears the bar below.
+**Eye check:** not needed. It was conditional on the rigid arm clearing the bar below; it did not
+(refuted), so nothing was staged for the conservator.
 
 ## Why
 
