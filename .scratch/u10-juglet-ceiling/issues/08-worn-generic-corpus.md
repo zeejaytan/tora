@@ -125,6 +125,36 @@ Guard: each new arm's practice-vessel curve is reported beside pooled fresh's, t
 untouched .958. An arm that falls below untouched is named before its Juglet number is
 read.
 
+## Results so far
+
+**Pooled fresh (job 31296425, COMPLETED 0:0, 1:20:51).** last.ckpt global_step 1760,
+epoch 19 (20 passes × 88 steps, as planned).
+
+Freshval, u10_pooled val set, own place (solid):
+
+| Model | overall | u10_generic | u10_ceiling |
+|---|---|---|---|
+| untouched (same job) | .911 | .939 | .888 |
+| pooled fresh | **.952** | .976 | .932 |
+
+Guard passes: pooled fresh is above untouched on its own kind of pot.
+
+Juglet, 20 draws, solid (raw beside): own place median **2** of 9 (range 1–5; raw 3),
+swap-allowed 4 (raw 5), not in own place 22.3% of pot size from home (≈14.5 mm at 65 mm).
+Home count per sherd out of 20: `20, 6, 0, 8, 1, 2, 2, 12, 0`. Same as ticket 07's
+generic (2) and ceiling (2.5), one below untouched (3). Sherd 1 is again the cost:
+untouched seats it 20/20, this arm 6/20.
+
+Fractura, solid median of 20 (untouched / t07 generic / pooled fresh): blue_pot 5 / 5 /
+**3**; galli_pot 8 / 7.5 / **7**; narrow_bottle1 2 / 3 / 2; narrow_bottle2 3 / 3 / 3;
+narrow_bottle3 1 / 1 / 1; narrow_bottle4 4 / 4 / 4; pink_bowl 3 / 3 / 3; plate 4 / 4 /
+**5**. Named: blue_pot −2, galli_pot −1, plate +1. Blue_pot is two-valued: every draw
+is 5 or 3 (11 of 20 are 3), and swap-allowed stays 5, so the loss is two sherds trading
+places, not sherds thrown away.
+
+Ladder clouds saved (`eval_runs/u10_ladder_pooled_t08_31296425`); scored with worn and
+noise together.
+
 ## Acceptance
 
 - [x] Worn and noise files built. The share of break-face vertices identical to a
@@ -152,7 +182,7 @@ read.
       the first reading fires).
 - [ ] Every `sbatch` has a laptop poll; sacct State/ExitCode recorded here.
       Builds 31296315, 31296316: COMPLETED 0:0. Training + eval: pooled 31296425, worn
-      31298231, noise 31298232 (running / queued 2026-09-25).
+      31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0.
 
 ## Cost (estimate)
 
