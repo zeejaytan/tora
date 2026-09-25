@@ -212,6 +212,33 @@ Fractura (untouched / fresh / worn / noise): blue_pot 5/3/5/5; galli_pot 8/7/7/7
 narrow_bottle1 2/2/3/3.5; plate 4/5/5/**6**; other four unchanged. Noise loses nothing
 against fresh or worn.
 
+**Erosion ladder** (scored by CPU job 31301455, COMPLETED; `own_place.py` on each arm's
+20 draws; `artifacts/u10/t08/ladder_{pooled,worn,noise}.json`). Solid own-place median
+per pot and level, fresh / worn / noise (e000 = unworn, e100 = heaviest):
+
+| Pot (sherds) | e000 | e025 | e050 | e075 | e100 |
+|---|---|---|---|---|---|
+| blue_pot (5) | 5/5/5 | 5/5/5 | 4/5/4 | 5/5/5 | 2.5/3/3 |
+| galli_pot (10) | 8/8/7 | 8/8.5/9 | 7/8/8 | 8/8/8 | 4/**2**/**5** |
+| narrow_bottle1 (12) | 3/5/3 | 4/3/3 | 3/3/3 | 1.5/2/2 | 1/2/2 |
+| narrow_bottle2 (3) | 3/3/3 | 3/3/3 | 3/3/3 | 3/3/3 | 2/2/3 |
+| narrow_bottle3 (4) | 2/1/1 | 1/2/2.5 | 1/1/1 | 1/1/2.5 | 1/1/2 |
+| narrow_bottle4 (4) | 4/4/4 | 4/4/4 | 4/4/4 | 4/4/4 | 4/4/4 |
+| pink_bowl (3) | 3/3/3 | 3/3/3 | 2/2/2 | 2/2/2 | 1/2/2 |
+| plate (6) | 5/5/6 | 5/5/5.5 | 5/5/5 | 3/2/**5** | 2/1/3 |
+
+Sign tests over the 40 pot-levels (ties dropped), and over the 32 worn levels only:
+- worn vs fresh: 9 wins, 5 losses (p = .42); worn levels 8–4. **Not a wear-shaped
+  benefit.** O7's box stays unmet.
+- worn vs noise: 3–10 (p = .09); worn levels 1–9. Noise beats worn.
+- noise vs fresh: 15–3 (p = .008); worn levels **14–1**. Noise's gains sit on the
+  heavier levels (plate e075 3→5, galli e100 4→5).
+
+The ladder's wear is GARF's mollifier, not either training operator, so this is a second
+instrument that agrees with the Juglet: roughened faces help, receded faces do not. Same
+caveat: every cell of an arm is the same one trained adapter. The untouched model's
+ladder (ticket 11) was scored with a different ruler and is not put beside this.
+
 ## Acceptance
 
 - [x] Worn and noise files built. The share of break-face vertices identical to a
