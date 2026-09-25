@@ -82,9 +82,26 @@ Untouched on the ceiling practice vessels: **.897**. Pass-to-pass noise: about 2
 - **Nothing beats untouched** → adapters trained on this corpus do not improve TORA even
   in-distribution. Record that in U10 and stop this line.
 
+## Results
+
+**Arm C (forgetting), 2026-09-25, holder 31280929, step exit 0.** 496 Breaking Bad
+`everyday` validation breakages (2–33 pieces), one draw each, the same fixed subset for
+both models (`limit_val_samples=480`, which takes every n-th breakage):
+
+| | own place (solid) | own place (raw) | rotation error |
+|---|---|---|---|
+| untouched | .920 | .921 | 10.2° |
+| ceiling pass 19 (ticket 04 `last.ckpt`) | .877 | .877 | 16.3° |
+
+A fall of 4.3 points, which crosses the 3-point line: **the adapter damaged general
+skill, not only skill on these shapes.** Suspect 2 holds. It does not yet say *why*
+training forgot; that is what A and B test. Weight: one draw per breakage, one adapter;
+the adapter loaded 24 non-zero blocks, so this was the trained adapter and not the
+untouched model twice.
+
 ## Acceptance
 
-- [ ] Arm C scored first (minutes, no training).
+- [x] Arm C scored first (minutes, no training). Forgetting confirmed, see Results.
 - [ ] Arms A and B trained. For each, every pass's choosing score is reported beside
       ticket 04's original ceiling curve, plus the flow and alignment losses per pass.
 - [ ] Each arm's reading is quoted against the rules above, with the weight: one run per

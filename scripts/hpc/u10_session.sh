@@ -31,7 +31,7 @@
 # trust the disk, not the watch) and writes its full output to $TORA_ROOT/logs/u10_*.log.
 set -uo pipefail
 
-STEP="${1:?step: freeze|gate|smoke|leak|epoch|train|baseline|forget|noalign|noalign_head}"
+STEP="${1:?step: freeze|gate|smoke|leak|epoch|train|baseline|forget|render|noalign|noalign_head}"
 ARM="${2:-ceiling}"
 EPOCHS="${3:-20}"
 case "$ARM" in ceiling|generic) ;; *) echo "arm must be ceiling or generic"; exit 2 ;; esac
@@ -160,16 +160,38 @@ case "$STEP" in
     # Same fixed subset for both (limit_val_samples takes every n-th breakage).
     EVERY=(data=main/bbad_everyday data_root="$DATA_ROOT" data.batch_size=32 data.num_workers=8
            data.limit_val_samples="${EVERYDAY_N:-480}" 'model.extra_metrics=[own_place]' mode=validate)
-    CEIL=$TORA_ROOT/output/u10_train_ceiling_31200602_163555/last.ckpt
+    # ADAPTER= another adapter checkpoint (head frozen); SKIP_UNTOUCHED=1 when the
+    # untouched score on this subset is already recorded (ticket 06: .920).
+    CEIL=${ADAPTER:-$TORA_ROOT/output/u10_train_ceiling_31200602_163555/last.ckpt}
     [ -f "$DATA_ROOT/everyday.hdf5" ] && [ -f "$CEIL" ] || { echo "missing everyday or $CEIL"; exit 1; }
-    echo "--- untouched ---"
-    python sample.py ckpt_path="$CKPT" lora.enabled=false "${EVERY[@]}" log_dir="$OUT/untouched" \
-        || { echo "untouched validation failed"; exit 1; }
-    echo "--- ceiling pass 19 ---"
+    if [ -z "${SKIP_UNTOUCHED:-}" ]; then
+        echo "--- untouched ---"
+        python sample.py ckpt_path="$CKPT" lora.enabled=false "${EVERY[@]}" log_dir="$OUT/untouched" \
+            || { echo "untouched validation failed"; exit 1; }
+    fi
+    echo "--- adapter $CEIL ---"
     python sample.py ckpt_path="$CEIL" "${LORA[@]}" "${HEAD_FROZEN[@]}" lora.active=true \
         "${EVERY[@]}" log_dir="$OUT/ceiling" \
         || { echo "ceiling validation failed"; exit 1; }
     echo "FORGET done: compare VALIDATE val/overall/own_place_solid above" ;;
+
+  render)
+    # The lead's debugging look (ticket 06): every n-th practice breakage, one draw,
+    # untouched / ticket 04's ceiling / ADAPTER, same seed, mitsuba 512.
+    VIS=(data=main/u10_$ARM data_root="$DATA_ROOT" data.batch_size=1 data.num_workers=8
+         data.limit_val_samples="${RENDER_N:-10}" model.n_generations=1
+         "+visualizer._target_=tora.visualizer.FlowVisualizationCallback" "+visualizer.renderer=mitsuba"
+         "+visualizer.image_size=512" "+visualizer.max_samples_per_batch=1" "+visualizer.center_points=true"
+         "+visualizer.save_trajectory=false" "+visualizer.save_procrustes_assembly=true")
+    [ "$ARM" = ceiling ] || { echo "render compares against the ceiling run only"; exit 2; }
+    ORIG=$TORA_ROOT/output/u10_train_ceiling_31200602_163555/last.ckpt
+    python sample.py ckpt_path="$CKPT" lora.enabled=false "${VIS[@]}" log_dir="$OUT/untouched" \
+        || { echo "untouched render failed"; exit 1; }
+    python sample.py ckpt_path="$ORIG" "${LORA[@]}" "${HEAD_FROZEN[@]}" lora.active=true "${VIS[@]}" \
+        log_dir="$OUT/original" || { echo "original render failed"; exit 1; }
+    python sample.py ckpt_path="${ADAPTER:?ADAPTER=checkpoint}" "${LORA[@]}" "${HEAD_FROZEN[@]}" \
+        lora.active=true "${VIS[@]}" log_dir="$OUT/adapter" || { echo "adapter render failed"; exit 1; }
+    echo "RENDER done: $OUT/{untouched,original,adapter}/visualizations" ;;
 
   noalign|noalign_head)
     # Suspect 1 (and 3): ticket 04's recipe scored on placement alone. repa_stop=0
