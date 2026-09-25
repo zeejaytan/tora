@@ -239,6 +239,13 @@ instrument that agrees with the Juglet: roughened faces help, receded faces do n
 caveat: every cell of an arm is the same one trained adapter. The untouched model's
 ladder (ticket 11) was scored with a different ruler and is not put beside this.
 
+**Replication, before anything goes to `intent/`** (conservator, 2026-09-25): worn and
+noise retrained from seed 7 (the first runs used train.yaml's 42), same recipe and steps,
+evaluated the same way; outputs tagged `t08s7`. Jobs worn 31307630, noise 31307631
+(repo 36d3780). The noise finding goes to O7/U10 only if noise again beats worn on the
+Juglet and the ladder. Fresh has one run too; retrain it if noise's lead holds, since
+fresh's single run could be a low draw.
+
 ## Acceptance
 
 - [x] Worn and noise files built. The share of break-face vertices identical to a
@@ -267,7 +274,8 @@ ladder (ticket 11) was scored with a different ruler and is not put beside this.
 - [ ] Every `sbatch` has a laptop poll; sacct State/ExitCode recorded here.
       Builds 31296315, 31296316: COMPLETED 0:0. Training + eval: pooled 31296425, worn
       31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0. Worn 31298231: COMPLETED 0:0. Noise 31298232: COMPLETED 0:0. Ladder scoring
-      (CPU) 31301455.
+      (CPU) 31301455. Seed-7 replication: worn 31307630, noise 31307631 (submitted
+      2026-09-25, polled).
 
 ## Cost (estimate)
 
