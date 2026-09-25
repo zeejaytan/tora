@@ -455,11 +455,30 @@ declared unclosable.
     the measurement was broken (home count blind to it); all earlier Juglet home counts
     overstate.
   - **Next, and what would change this:** a strict home inside `own_place.py`, so other
-    analyses stop inheriting the blind spot; then the constraint inside TORA's sampling
-    (reject or resample inside-out sherds) rather than after it.
+    analyses stop inheriting the blind spot. Solid-only sampling was tried (ticket 15,
+    below) and did not help; rejecting inside-out sherds during sampling is untested.
 
   Seen in visual-qa (conservator's look pending): pair `insideout_rulepick`, correct Juglet
   beside the rule-picked attempt 0.
+
+- **Stopping TORA from ever mirroring or bending a sherd does not help (2026-09-25,
+  `.scratch/juglet-cause/issues/15`, job 31207476, `COMPLETED|0:0`).** A test-only option
+  (`model.rigid_from_t`) makes every sampling step head for the sherds moved as solid
+  pieces, so TORA keeps its trained shape knowledge but can only turn and slide. Checked:
+  no sherd mirrored, every sherd an exact solid copy. Strict home, 20 attempts per arm:
+  neck 20 -> 22 of 160; neck + base 33 -> 35 of 140 (solid from halfway: 37). All inside
+  the +-10 band the ticket called refuted. Inside-out placements barely fall (60 -> 47):
+  TORA turns sherds over with ordinary turns just as readily, so mirroring was one route to
+  an inside-out sherd, not why sherds are misplaced.
+  - **Which of the three:** the method genuinely failed. TORA's knowledge of where the
+    Juglet's sherds go is the limit, not the moves it is allowed.
+  - **Weight:** one pot, one seed. The neck + base control itself came out 33 against 45
+    in job 30919372 on the same seed, so the 9% -> 32% rise above is really 9-13% ->
+    24-32%: still real, but smaller than first stated. A gain under ~10 sherds cannot be
+    ruled out; a large one can.
+  - **What it rules out for U16:** making TORA move sherds as solid pieces is not the
+    route. Rejecting inside-out sherds during sampling is still untested. What is left is the reference sherds a
+    person seats, a better-trained model, or a different method.
 
 ## Source
 
