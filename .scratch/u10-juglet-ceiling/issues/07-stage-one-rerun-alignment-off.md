@@ -55,18 +55,19 @@ Fractura: any pot where an adapter loses or gains a sherd or more (median) is na
 
 ## Acceptance
 
-- [ ] Generic trained with alignment off; its alignment term logs 0 after the first
-      batch; strict diff passes; its practice-vessel curve reported beside the untouched
-      .958 and ticket 04's generic curve.
-- [ ] 20 Juglet draws per adapter arm: own-place median and range, swap-allowed, distance
+- [x] Generic trained with alignment off; its alignment term logs 0; strict diff passes;
+      its practice-vessel curve reported beside untouched .958 and ticket 04's .912.
+- [x] 20 Juglet draws per adapter arm: own-place median and range, swap-allowed, distance
       of unseated sherds (% of pot size and mm).
-- [ ] The rule applied by `own_place.py --decide`, quoted verbatim.
-- [ ] Fractura per pot for both arms.
-- [ ] Lead's debugging renders looked at; viewer pairs staged for the conservator.
-- [ ] Weight stated: one pot, 20 draws, one training run per arm, one sampling seed.
+- [x] The rule applied by `own_place.py --decide`, quoted verbatim.
+- [x] Fractura per pot for both arms.
+- [ ] Lead's debugging renders looked at (done); viewer pairs staged for the conservator,
+      and the conservator's look (pending).
+- [x] Weight stated: one pot, 20 draws, one training run per arm, one sampling seed.
       Which of the three kinds named.
-- [ ] Every `sbatch` has a laptop-side poll; sacct State/ExitCode recorded here.
-- [ ] Written back to U10 (and O8, G1, C4 as the reading says), dated.
+- [x] Every `sbatch` has a laptop-side poll; sacct State/ExitCode recorded here.
+- [ ] Written back to U10, dated (done, provisional); O8 and G1 after the look and
+      refute-finding; C4 not needed.
 
 ## How it runs on Spartan
 
@@ -76,3 +77,95 @@ arms (about 10 min), each through `u10_juglet_arm.slurm` run as a plain script w
 `ADAPTER=` and `LABEL=noalign`. Every step is a known-working path from tickets 04–06, so
 no held allocation is needed for debugging. Scoring is CPU, inside the same job as
 before.
+
+Submitted 2026-09-25: **job 31290347** (tora `c5e14ee`), laptop poll. Final sacct:
+**COMPLETED 0:0, 42 min 37 s** (about 0.7 A100-hours). All four arm steps exited 0.
+
+## Results (2026-09-25)
+
+**Generic training, alignment off.** Alignment term 0.000 at all 17 logged readings;
+strict diff passes (only the adapter moved). Own place (solid) on its 5 practice vessels,
+untouched .958:
+
+| pass | 0 | 2 | 4 | 6 | 8 | 10 | 12 | 14 | 16 | 18 | 19 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| ticket 04 generic (alignment on) | | | | | | | | | | | .912 |
+| generic, alignment off | .953 | .965 | .957 | .959 | .956 | .955 | .949 | .971 | .970 | .971 | .974 |
+
+Rotation error at pass 19: 3.8°. Like the ceiling in ticket 06, the recipe no longer
+damages placement on vessels of its own type. Ceiling alignment off (ticket 06 arm A):
+.897 → .938.
+
+**Juglet, 20 draws per arm, solid sherds (raw beside):**
+
+| Arm | own place, median (range) | swap-allowed | not in own place, from home |
+|---|---|---|---|
+| untouched (ticket 05, 31215861) | 3 of 9 (2–5); raw 3 | 4.5 | 18.5% of pot size (12.1 mm) |
+| generic, alignment off | **2** of 9 (1–4); raw 3 | 5 | 20.9% (13.6 mm) |
+| ceiling, alignment off | **2.5** of 9 (1–7); raw 3 | 5 | 27.0% (17.6 mm) |
+
+How often each sherd is home, out of 20 (sherd 0 is the held anchor):
+
+| sherd | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| untouched | 20 | **20** | 3 | 2 | 0 | 4 | 0 | 17 | 0 |
+| generic | 20 | **2** | 3 | 7 | 1 | 2 | 2 | 7 | 3 |
+| ceiling | 20 | **0** | 5 | 10 | 2 | 2 | 4 | 11 | 0 |
+
+The scorer's reading (`own_place.py --decide`), quoted verbatim:
+> own-place medians: untouched 3, generic 2, ceiling 2.5. Ceiling minus generic = +0.5
+> sherd(s); the rule needs +1.
+> CEILING LOSES: shape is not what the Juglet is missing, even when handed over. Close
+> U10 (the method genuinely failed, for this lever), skip stage 2, and write back to
+> tora/intent/O8 and GARF/intent/G1 that the break edges are what is left.
+
+On the raw output all three medians are 3 (ceiling minus generic 0); same reading.
+
+**Fractura, per pot, solid sherds, median of 20** (untouched from ticket 05):
+
+| Pot | sherds | untouched | generic | ceiling |
+|---|---|---|---|---|
+| blue_pot | 5 | 5 | 5 | 5 |
+| galli_pot | 10 | 8 | 7.5 | **7** |
+| narrow_bottle1 | 12 | 2 | **3** | **3** |
+| narrow_bottle2 | 3 | 3 | 3 | 3 |
+| narrow_bottle3 | 4 | 1 | 1 | 1 |
+| narrow_bottle4 | 4 | 4 | 4 | 4 |
+| pink_bowl | 3 | 3 | 3 | 3 |
+| plate | 6 | 4 | 4 | 4 |
+
+Named: ceiling −1 on galli_pot; both +1 on narrow_bottle1. The galli_pot collapse of
+ticket 05 (8 → 4.5 / 2) is gone.
+
+**Look (lead, debugging view, `artifacts/u10/r07/montage07.png`).** Mitsuba renders of
+both arms, typical, best and worst draws, beside the correct reassembly. Each is a whole
+pot at the right size; nothing collapsed. Both adapters go wrong in the lower body and
+base: the base sherd flips outward in generic d3/d5 and ceiling d1/d2. The ceiling's best
+draw (d0, 7 of 9) is close to correct except two small lower sherds. Viewer pairs for the
+eye: `u10_juglet_{generic,ceiling}_noalign`.
+
+## Reading (against the rules above)
+
+- **Ceiling fails to beat generic by 1** (+0.5 solid, 0 raw). By the rule, handing TORA
+  the Juglet's type shape does not seat more of its sherds, now with a fine-tune that
+  does not damage placement on vessels of its own type.
+- **Either adapter loses to untouched on the Juglet:** generic by 1 sherd (3 → 2), ceiling
+  by 0.5. Both lose the same sherd: sherd 1, home in 20/20 untouched draws, 2/20 generic,
+  0/20 ceiling. The ceiling gains sherds 3 and 7 part of the time. A recipe that is
+  harmless on its own vessels still costs the Juglet one sherd, whichever shapes it
+  learned. That is a different finding from ticket 05's.
+- Generic does not match the ceiling *and* beat untouched, so no C4 line.
+
+**Which of the three:** the method genuinely failed, for this lever. The measure is the
+same scorer and settings as ticket 05, the strict diff passes, the alignment term is 0,
+and the renders are whole pots at scale. The reference is `juglet_gt`, the conservator's
+hand reassembly; its one open doubt (sherd 7, ≤3.5 mm) cannot move a median by a sherd.
+
+**Weight:** one pot, 20 draws per arm, one training run per arm, one sampling seed. The
++0.5 gap is inside the draw-to-draw spread (ceiling ranges 1–7). "Shape is not what the
+Juglet is missing" is the rule's wording and stronger than one pot can carry. What this
+run does show is that giving TORA the right shape family, with a sound recipe, did not
+seat more of this pot's sherds.
+
+**Not yet written back to O8 / G1:** the pre-registered "break edges are what is left"
+line waits for the conservator's look and a refute-finding pass.
