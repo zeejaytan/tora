@@ -265,3 +265,13 @@ PYTHONPATH=scripts python scripts/compare_lorav3_arms.py --runs artifacts/lorav3
 # the render, per sherd, all five draws, both rulers
 PYTHONPATH=scripts python scripts/render_lorav3_juglet_arms.py --runs artifacts/lorav3_29880370/runs
 ```
+
+
+---
+
+**Addendum 2026-09-25.** This run trained with TORA's alignment term on (`model.repa_stop`
+unset in `finetune_lora_vessels_v3.slurm`). Ticket `u10-juglet-ceiling/06` later showed that
+term alone makes a LoRA adapter lose placement, with the same best-at-pass-0 signature seen
+here. With it off, the same recipe gains. So "the method genuinely did not help" holds for
+this recipe only; it is not a verdict on worn or shape-variety training. The fair retest is
+`u10-juglet-ceiling/08`.

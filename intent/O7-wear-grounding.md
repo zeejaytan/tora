@@ -387,6 +387,14 @@ instead of our 8 real ceramic pots — and delivered it as a **switchable LoRA a
 (2.69% of the weights) rather than a full fine-tune, precisely so that the do-no-harm arm
 would be guaranteed by construction rather than bought with replay data.
 
+**Confounded by the training recipe (found 2026-09-25, tora `u10-juglet-ceiling/06`).**
+Wear v3 trained with TORA's alignment term on (`model.repa_stop` unset) and with the pose
+head free (`lora.train_head=true`). Ticket 06 showed the alignment term alone makes a LoRA
+adapter lose placement on its own vessels. The signature is the one wear v3 showed: best
+at pass 0, falling after. Switching it off turned the same loss into a gain (.897 → .938).
+So the losses below are a real result about *that recipe*, not a clean test of whether
+worn training helps. Wear v2 also trained with alignment on.
+
 **Read per object, never pooled.** On the adapter's own held-out vessel shapes (107 objects,
 3 draws each), switching the adapter **on** seats fewer sherds than the untouched model on
 **49** objects against **30** better (sign test **p = 0.042**); against the same trained file
@@ -552,7 +560,9 @@ general. The bar moved sideways, not down.
       with a control arm — eight Fractura pots at five abrasion levels, six of which the
       baseline assembles unworn — it lost again, 14 worse to 4 better, p = 0.031. The
       cruder-augmentation comparison this box also asks for has still never been run, so
-      the box is unmet on both halves. Still open
+      the box is unmet on both halves. Both attempts used the alignment-on recipe that
+      ticket 06 later showed damages placement, so neither is a fair test of the box
+      (2026-09-25). A fair one is tora `u10-juglet-ceiling/08`. Still open
 - [ ] **BOUNDED-RANGE — the parameters are defensible without being measured.** Fabric,
       temper and wall-thickness distributions pulled from the archaeometric literature
       (Khashuri Natsargora, Tsaghkasar, the Kars corpus), wear parameters shown to lie

@@ -210,3 +210,13 @@ python scripts/audit_ceramarm_seating.py  --runs artifacts/ceramarm_<JOBID>
 python scripts/render_ceramarm_ladder.py  --pot blue_pot  --arm baseline
 python scripts/render_ceramarm_ladder.py  --pot pink_bowl --arm adapter_off
 ```
+
+
+---
+
+**Addendum 2026-09-25.** This run trained with TORA's alignment term on (`model.repa_stop`
+unset in `finetune_lora_vessels_v3.slurm`). Ticket `u10-juglet-ceiling/06` later showed that
+term alone makes a LoRA adapter lose placement, with the same best-at-pass-0 signature seen
+here. With it off, the same recipe gains. So "the method genuinely did not help" holds for
+this recipe only; it is not a verdict on worn or shape-variety training. The fair retest is
+`u10-juglet-ceiling/08`.

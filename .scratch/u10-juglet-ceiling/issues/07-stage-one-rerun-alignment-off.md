@@ -11,7 +11,19 @@ sherds than generic vessel training does?
 
 **Blocked by:** 06 (the recipe and the ceiling adapter).
 
-**Status:** in progress (conservator said start, 2026-09-25)
+**Status:** results in (2026-09-25); waiting on the conservator's look and refute-finding
+
+**The result, plainly (2026-09-25).** With the alignment term off, fine-tuning no longer
+damages TORA's placement in general. Both adapters improve on their own practice vessels
+(ceiling .897 → .938, generic .958 → .974), neither forgets, and the ticket-05 collapse on
+Fractura's galli_pot is gone. On the Juglet the adapters still do not help. Each costs
+about one sherd against untouched, and it is the same sherd, sherd 1: home in all 20
+untouched draws, 2 of 20 generic, 0 of 20 ceiling. Giving TORA the right shape family
+(the ceiling) does not buy that sherd back. Working hypothesis, not tested here: every
+training file is a synthetic break whose joins fit perfectly by construction
+(`coincident_share` ≈ 1, ticket 02), while the Juglet is a real handmade pot with worn,
+imperfect joins. The adapter learns to rely more on a perfect fit than the untouched model
+did. Test: ticket 08 (the same corpus, worn). Weight: one pot, one training run per arm.
 
 **Needs-eye:** the Juglet's median attempt per arm, staged in visual-qa beside the
 correct reassembly, the same way as ticket 05's `u10_juglet_*` pairs. The pictures decide;
