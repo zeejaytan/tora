@@ -174,6 +174,44 @@ Fractura, solid median of 20 (untouched / pooled fresh / worn): blue_pot 5 / 3 /
 galli_pot 8 / 7 / 7; narrow_bottle1 2 / 2 / 3; plate 4 / 5 / 5; the other four unchanged
 (3, 1, 4, 3). Worn recovers blue_pot's swap; no pot is lost against fresh.
 
+**Pooled noise (job 31298232, COMPLETED 0:0, 1:21:34).** global_step 1750, epoch 9.
+Strict diff PASS. Freshval own place (solid): overall **.935**, u10_generic .959,
+u10_ceiling .916. Lowest of the three arms, above untouched (.911). Guard passes.
+
+Juglet, 20 draws, solid (raw beside): own place median **4** of 9 (range 2–7; raw 4),
+swap-allowed 6, not in own place 17.7% of pot size (≈11.5 mm). Home per sherd out of 20:
+`20, 17, 5, 14, 1, 8, 7, 13, 1`. Sherd 1 home 17/20 (untouched 20, fresh 6, worn 4).
+
+Per-draw own place, sorted:
+
+| Arm | 20 draws (solid) | mean |
+|---|---|---|
+| untouched (31215861) | 2 2 3 3 3 3 3 3 3 3 3 3 3 4 4 4 4 4 4 5 | 3.3 |
+| pooled fresh | 1 1 2 2 2 2 2 2 2 2 2 3 3 3 3 3 3 4 4 5 | 2.55 |
+| pooled worn | 1 1 2 2 2 2 2 2 2 2 2 2 3 3 3 4 4 5 6 6 | 2.8 |
+| pooled noise | 2 2 2 2 3 3 3 4 4 4 4 4 5 5 6 6 6 7 7 7 | 4.3 |
+
+Mann-Whitney over draws (two-sided): noise vs fresh p = .001, vs worn p = .005, vs
+untouched p = .07. These are draws from ONE trained adapter per arm; they say nothing
+about how much a second training run of the same arm would differ.
+
+Looked at (`artifacts/u10/t08/j08_{pooled,worn,noise}_median.png`, own-place render,
+middle attempt): noise's middle attempt is one closed pot inside the true outline, its
+errors lower-body look-alikes seated in each other's places (7>2, 6>4, 2>3); fresh's
+middle attempt has sherds 3 and 8 standing outside the pot.
+
+**Readings.** Worn: "within 1 of fresh, sherd 1 still lost" (above). Noise: not
+pre-registered as written — the rule anticipated noise *matching* worn, and noise beats
+both. Nearest honest reading: whatever helps here is not wear-shaped; rough,
+non-matching break faces help, directional recession does not. O7's box (wear-shaped
+benefit) stays unmet. Noise is the first fine-tune here that does not lose sherd 1,
+and its Juglet median is one above untouched — which would fire "beats untouched by 1
+or more" if it were the worn arm; named here, weight one pot and one training run.
+
+Fractura (untouched / fresh / worn / noise): blue_pot 5/3/5/5; galli_pot 8/7/7/7.5;
+narrow_bottle1 2/2/3/3.5; plate 4/5/5/**6**; other four unchanged. Noise loses nothing
+against fresh or worn.
+
 ## Acceptance
 
 - [x] Worn and noise files built. The share of break-face vertices identical to a
@@ -201,7 +239,8 @@ galli_pot 8 / 7 / 7; narrow_bottle1 2 / 2 / 3; plate 4 / 5 / 5; the other four u
       the first reading fires).
 - [ ] Every `sbatch` has a laptop poll; sacct State/ExitCode recorded here.
       Builds 31296315, 31296316: COMPLETED 0:0. Training + eval: pooled 31296425, worn
-      31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0. Worn 31298231: COMPLETED 0:0.
+      31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0. Worn 31298231: COMPLETED 0:0. Noise 31298232: COMPLETED 0:0. Ladder scoring
+      (CPU) 31301455.
 
 ## Cost (estimate)
 
