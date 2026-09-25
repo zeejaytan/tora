@@ -53,6 +53,13 @@ case "$ARM" in
   ceiling)   C=$TORA_ROOT/output/u10_train_ceiling_31200602_163555/last.ckpt; ARGS=("${LORA[@]}" lora.active=true) ;;
   *) echo "arm must be untouched, generic or ceiling"; exit 2 ;;
 esac
+# Ticket 07: ADAPTER= another adapter checkpoint for this arm (head frozen), LABEL= a
+# tag for its output folder (e.g. noalign), so ticket 05's runs are never overwritten.
+if [ -n "${ADAPTER:-}" ]; then
+    [ "$ARM" != untouched ] || { echo "ADAPTER needs an adapter arm"; exit 2; }
+    C=$ADAPTER
+fi
+LABEL="${LABEL:-}"
 
 module purge
 module load Anaconda3/2024.02-1 CUDA/12.4.1 cuDNN/9.6.0.74-CUDA-12.4.1
@@ -76,7 +83,7 @@ if [ "$ARM" != untouched ]; then
         || { echo "STRICT diff failed on $C -- not evaluating"; exit 1; }
 fi
 
-OUT=$LOG_ROOT/u10_${SET}_${ARM}_${SLURM_JOB_ID}
+OUT=$LOG_ROOT/u10_${SET}_${ARM}${LABEL:+_$LABEL}_${SLURM_JOB_ID}
 python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
     data="$DATA" data.batch_size="$BATCH" \
     "${ARGS[@]}" \
