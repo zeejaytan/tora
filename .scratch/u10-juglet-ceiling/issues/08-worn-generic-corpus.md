@@ -279,6 +279,11 @@ What stands: on the Juglet, roughened break faces beat both receded faces and fr
 across two training runs each; on the ladder, noise beats fresh across two runs. What does
 not stand: noise beating worn on the ladder. Fresh still has one run.
 
+Fresh (pooled) retrained from seed 7, conservator 2026-09-26: job 31331447 (repo 4eecf4d).
+Rule, written before it runs: if fresh s7 scores about 2 on the Juglet again, "rough
+beats fresh" stands; if it reaches noise's 4–4.5, the gain from roughening is withdrawn and
+only "worn faces hurt" remains.
+
 ## Acceptance
 
 - [x] Worn and noise files built. The share of break-face vertices identical to a
@@ -308,7 +313,8 @@ not stand: noise beating worn on the ladder. Fresh still has one run.
       Builds 31296315, 31296316: COMPLETED 0:0. Training + eval: pooled 31296425, worn
       31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0. Worn 31298231: COMPLETED 0:0. Noise 31298232: COMPLETED 0:0. Ladder scoring
       (CPU) 31301455. Seed-7 replication: worn 31307630, noise 31307631 (submitted
-      2026-09-25, polled).
+      2026-09-25, polled): both COMPLETED 0:0; ladder scoring 31331261 COMPLETED 0:0.
+      Fresh seed 7: 31331447 (submitted 2026-09-26, polled).
 
 ## Cost (estimate)
 
