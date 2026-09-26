@@ -35,8 +35,9 @@ STEP="${1:?step: freeze|gate|smoke|leak|epoch|train|baseline|forget|render|noali
 ARM="${2:-ceiling}"
 EPOCHS="${3:-20}"
 # Ticket 08 adds pooled (generic + ceiling), worn and noise (write_u10_worn.py).
-case "$ARM" in ceiling|generic|pooled|worn|noise) ;;
-  *) echo "arm must be ceiling, generic, pooled, worn or noise"; exit 2 ;; esac
+# Ticket 09's dose sweep adds worn_dPPP / noise_dPPP (one level each, u10_<arm>.hdf5).
+case "$ARM" in ceiling|generic|pooled|worn|noise|worn_d[0-9][0-9][0-9]|noise_d[0-9][0-9][0-9]) ;;
+  *) echo "arm must be ceiling, generic, pooled, worn, noise, worn_dPPP or noise_dPPP"; exit 2 ;; esac
 
 TORA_ROOT=/data/gpfs/projects/punim2657/TORA
 DATA_ROOT=$TORA_ROOT/dataset

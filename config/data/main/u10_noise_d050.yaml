@@ -1,0 +1,22 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 64
+min_points_per_part: 20
+anchor_free: false
+multi_anchor: false
+
+data_root: ${data_root}
+# U10 ticket 09 dose sweep: every u10_pooled breakage once, noise at 50% of the light
+# operator (scripts/write_u10_worn.py --mode noise --scale-pct 50). Same vessels and
+# split as u10_pooled; 20 passes here = 20 passes of u10_pooled in steps.
+dataset_names: ["u10_noise_d050"]
+up_axis: {
+  "u10_noise_d050": "z",
+}
+
+batch_size: 8
+num_workers: 8
+persistent_workers: true
+min_dataset_size: 0
+limit_val_samples: 0

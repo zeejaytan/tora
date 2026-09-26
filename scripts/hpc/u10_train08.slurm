@@ -12,6 +12,7 @@
 #   ARM=pooled sbatch scripts/hpc/u10_train08.slurm    # fresh, 20 passes, also scores untouched
 #   ARM=worn   sbatch scripts/hpc/u10_train08.slurm    # 10 passes over two copies = same steps
 #   ARM=noise  sbatch scripts/hpc/u10_train08.slurm
+#   ARM=noise_d050 ...  # ticket 09 dose sweep: one level, 20 passes over one copy = same steps
 #   SEED=7 ARM=noise ...   # replication from another random start; outputs tagged t08s7
 #   1. train: ticket 07's recipe (u10_session.sh noalign: alignment off, head frozen)
 #   2. freshval: last.ckpt on u10_pooled's val set, the one yardstick for every arm
@@ -23,8 +24,11 @@
 set -uo pipefail
 TORA_ROOT=/data/gpfs/projects/punim2657/TORA
 trap 'rc=$?; echo "$(date -u +%FT%TZ) job ${SLURM_JOB_ID:-nojob} step u10_train08 ${ARM:-?} exit $rc" >> "$TORA_ROOT/logs/job_status.log"' EXIT
-: "${ARM:?ARM=pooled|worn|noise}"
-case "$ARM" in pooled) EP=20 ;; worn|noise) EP=10 ;; *) echo "ARM must be pooled, worn or noise"; exit 2 ;; esac
+: "${ARM:?ARM=pooled|worn|noise|worn_dPPP|noise_dPPP}"
+case "$ARM" in
+  pooled|worn_d[0-9][0-9][0-9]|noise_d[0-9][0-9][0-9]) EP=20 ;;
+  worn|noise) EP=10 ;;
+  *) echo "ARM must be pooled, worn, noise, worn_dPPP or noise_dPPP"; exit 2 ;; esac
 H=$TORA_ROOT/repo/scripts/hpc
 # Seed 42 is the first run's (train.yaml default); any other seed gets its own tag so
 # the first runs' eval folders are never overwritten.

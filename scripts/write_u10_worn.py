@@ -38,6 +38,12 @@ of the break vertices, and two gaps as % of the object's bounding-box diagonal (
 
     python scripts/write_u10_worn.py --src <dir with u10_{generic,ceiling}.hdf5>         --csc <CSC u10 corpus dir> --mode worn --out <dir> [--workers 32] [--limit N]
     python scripts/write_u10_worn.py --measure <file.hdf5> --dataset juglet_gt
+
+DOSE SWEEP (ticket 09). `--scale-pct P` writes ONE level instead of the two: the whole light
+operator scaled by P/100 -- recession 0.15% x P/100 and chip radius 0.22% x P/100, still 2
+chips -- so every level is the same wear shape at a different strength (fixed light chips
+would outweigh a quarter-strength recession). Noise stays RMS-matched to worn at that level.
+Dataset and file are named u10_<mode>_d<PPP>, e.g. u10_noise_d050.
 """
 import argparse
 import json
@@ -204,7 +210,7 @@ def jitter(fresh, vflags, target_rms, rng):
 
 
 def work(job):
-    key, pieces, mode, seed, cut, npz, k = job
+    key, pieces, mode, seed, cut, npz, k, levels = job
     rng = np.random.default_rng(seed)
     fflags, vflags = load_flags(npz, k, pieces)
     masks = [(b, b.astype(float)) for b in vflags]
@@ -213,7 +219,7 @@ def work(job):
            "break_share": float(np.mean(np.concatenate(vflags))),
            "gap_fresh": contact_gap(pieces, cut), "break_gap_fresh": break_gap(pieces, vflags),
            "variants": []}
-    for name, dose, n_chip, chip_sz in LEVELS:
+    for name, dose, n_chip, chip_sz in levels:
         worn = recede_break(pieces, fflags, vflags, dose)
         worn = recede_and_chip(worn, recession_frac=0.0, chip_count=n_chip,
                                chip_frac=chip_sz, seed=int(rng.integers(1 << 30)),
@@ -257,7 +263,7 @@ def csc_index(csc, vessel, fracture, cache={}):
     return str(csc / f"{vessel}_sherds.npz"), cache[vessel][fracture]
 
 
-def jobs(src, csc, mode, limit, cut):
+def jobs(src, csc, mode, limit, cut, levels):
     for s in SOURCES:
         with h5py.File(src / f"{s}.hdf5", "r") as f:
             split = {sp: [n.decode() for n in f["data_split"][s][sp][:]]
@@ -270,7 +276,7 @@ def jobs(src, csc, mode, limit, cut):
                 sp = "train" if full in split["train"] else "val"
                 npz, k = csc_index(csc, attrs["vessel"], attrs["fracture"])
                 seed = zlib.crc32(f"{s}/{tag}".encode())  # hash() of str varies per run
-                yield (f"{s}/{tag}", read_obj(g), mode, seed, cut, npz, k), \
+                yield (f"{s}/{tag}", read_obj(g), mode, seed, cut, npz, k, levels), \
                     (s, tag, sp, attrs)
 
 
@@ -283,6 +289,8 @@ def main():
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--limit", type=int, default=0, help="per source file, for a dry run")
     ap.add_argument("--gap-cut", type=float, default=0.02, help="fraction of diagonal")
+    ap.add_argument("--scale-pct", type=int, default=0,
+                    help="dose sweep: one level, the light operator x P/100 (see docstring)")
     ap.add_argument("--measure")
     ap.add_argument("--dataset")
     a = ap.parse_args()
@@ -292,14 +300,20 @@ def main():
     src, out = Path(a.src), Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     ds = f"u10_{a.mode}"
+    levels = LEVELS
+    if a.scale_pct:
+        k = a.scale_pct / 100.0
+        name, dose, n_chip, chip_sz = LEVELS[0]
+        levels = [(f"d{a.scale_pct:03d}", dose * k, n_chip, chip_sz * k)]
+        ds = f"u10_{a.mode}_d{a.scale_pct:03d}"
     path = out / f"{ds}.hdf5"
-    pairs = list(jobs(src, Path(a.csc), a.mode, a.limit, a.gap_cut))
+    pairs = list(jobs(src, Path(a.csc), a.mode, a.limit, a.gap_cut, levels))
     meta = {p[0][0]: p[1] for p in pairs}
     members = {"train": [], "val": [], "test": []}
     manifest, dropped = {}, 0
     vlen = h5py.special_dtype(vlen=bytes)
     with h5py.File(path, "w") as fo, Pool(a.workers) as pool:
-        fo.attrs.update(mode=a.mode, levels=json.dumps(LEVELS), sources=json.dumps(SOURCES),
+        fo.attrs.update(mode=a.mode, levels=json.dumps(levels), sources=json.dumps(SOURCES),
                         gap_cut=a.gap_cut, ticket="tora u10-juglet-ceiling/08")
         dg = fo.create_group(ds)
         for res in pool.imap_unordered(work, (p[0] for p in pairs), chunksize=1):
