@@ -13,7 +13,7 @@ on an erosion operator it was not trained on). Reports back to U10's "what that 
 
 **Blocked by:** 08 (the operators, the recipe and the fresh baselines it reuses).
 
-**Status:** building (2026-09-26). Conservator chose all ten arms.
+**Status:** replicating the peak (2026-09-27). Conservator chose all ten arms.
 
 **Needs-eye:** before training, one built join per level (both operators) in the same 5 mm
 section window as 08 (`artifacts/u10/r08/`), paired with each build's measured break gap.
@@ -71,8 +71,8 @@ replicated.
 - [x] One join per level rendered in the 5 mm window and looked at before any training
       (`artifacts/u10/r09/sections_{6_7,0_1}.png`)
 - [x] Built files linked into `dataset/` only after the render
-- [ ] Ten training + eval jobs COMPLETED 0:0, strict diff PASS, sacct recorded here
-- [ ] Ladder scored; table per level, both operators; readings above applied as written
+- [x] Ten training + eval jobs COMPLETED 0:0, strict diff PASS, sacct recorded here
+- [x] Ladder scored; table per level, both operators; readings above applied as written
 - [ ] Peak level (if any) replicated from seed 7
 
 ## Builds (2026-09-26)
@@ -98,6 +98,105 @@ line (they are break points, so the skin column does not see them). Read rough 2
 "shredded", not "rougher".
 
 Training + eval submitted 2026-09-26: worn 31343491-95, noise 31343496-500 (polled).
+
+## Results (2026-09-27)
+
+All ten COMPLETED 0:0 (1:17-1:28), global_step 1760, "Fresh run with random seed 42",
+strict diff PASS, no failed step.
+
+**Juglet**, solid own-place over 20 draws (fresh = pooled s42 + s7, 40 draws, median 2, mean
+2.67; Mann-Whitney two-sided vs fresh), with freshval (untouched .911):
+
+| level | worn median (mean) | p | worn freshval | rough median (mean) | p | rough freshval |
+|---|---|---|---|---|---|---|
+| ¼× | 2 (1.70) | .001, **worse** | .946 | 3.5 (3.45) | .06 | .948 |
+| ½× | 2 (2.25) | .17 | .947 | 3.5 (3.35) | .05 | .942 |
+| 1× | 2 (2.10) | .09 | .948 | **4 (4.10)** | .0003 | .943 |
+| 2× | 3 (3.00) | .46 | .948 | 3.5 (3.90) | .01 | .927 |
+| 4× | 3.5 (3.30) | .05 | .942 | 2 (2.50) | .46 | **.907** |
+
+Rough: a plateau from ¼× to 2× (3.5-4, no neighbour differs by ≥ 1 sherd), then a collapse
+at 4× back to fresh. 1× (= 08's light) is the top and reproduces 08's noise (4). Worn: rises
+with strength, ¼× below fresh, 2×-4× at 3-3.5; never significantly above fresh.
+
+Renders `artifacts/u10/t09/j09_{arm}_median.png` (own-place, median attempt), looked at:
+rough 1× closed pot, 0/1/3/6 home, 2 and 7 seated in neighbours' places, 4 and 5 off; rough
+4× has a pot-shaped silhouette filled with the wrong sherds (6>4, 5>3, 4>5, 2>8; only 0 and 7
+home) — the evaluator's count says 6, own place says 2; worn 4× top half home, lower half
+unseated and riding high over the true base, the same failure as fresh in 08.
+
+**Guard.** Rough 4× freshval .907 < untouched .911: **damaging**, as pre-registered. Rough 2×
+freshval .927 is lowered but above the line. Fractura (solid median of 20, vs fresh s42 / s7):
+plate falls 5→4 under worn ½×, worn 1× and rough 4×; fresh's two runs themselves differ by 2
+on blue_pot and narrow_bottle3, so a 1-sherd Fractura loss is inside run-to-run spread, but
+by the rule as written those three arms trip the guard. Nothing else lost.
+
+| pot | fresh s42/s7 | worn ¼ ½ 1 2 4 | rough ¼ ½ 1 2 4 |
+|---|---|---|---|
+| blue_pot (5) | 3/5 | 5 5 5 5 5 | 5 5 5 5 5 |
+| galli_pot (10) | 7/8 | 7 7 7.5 7 7 | 8 7.5 8 8 8 |
+| narrow_bottle1 (12) | 2/3 | 4.5 3 3 3.5 3 | 4 4 3 2 2 |
+| narrow_bottle3 (4) | 1/3 | 2 1 1 1 1.5 | 1 1 2.5 2 2 |
+| plate (6) | 5/5 | 5 4 4 5 5 | 5 5 5 5 4 |
+
+(narrow_bottle2, narrow_bottle4, pink_bowl: every arm scores the maximum.)
+
+**Erosion ladder** (scored by CPU job 31360212 COMPLETED 0:0, 11:06; its glob missed
+31343500, so rough 4× scored by 31360373). Sign tests over 40 pot-levels (ties dropped), vs
+fresh s42 | fresh s7; the 32 eroded levels (e025-e100) in brackets:
+
+| arm | vs fresh s42 | vs fresh s7 |
+|---|---|---|
+| worn ¼× | 8-4 p=.39 [7-3 .34] | 9-4 .27 [8-4 .39] |
+| worn ½× | 9-7 .80 [9-6 .61] | 9-6 .61 [8-5 .58] |
+| worn 1× | 7-7 1 [7-5 .77] | 7-8 1 [7-7 1] |
+| worn 2× | 9-4 .27 [8-3 .23] | 11-7 .48 [10-6 .45] |
+| worn 4× | 8-3 .23 [8-3 .23] | 10-6 .45 [9-5 .42] |
+| rough ¼× | 14-6 .12 [11-5 .21] | 12-5 .14 [10-5 .30] |
+| rough ½× | 8-5 .58 [7-4 .55] | 7-7 1 [6-6 1] |
+| rough 1× | **16-5 .027 [14-3 .013]** | **17-6 .035 [16-4 .012]** |
+| rough 2× | 15-6 .078 [**14-3 .013**] | 15-7 .13 [**15-4 .019**] |
+| rough 4× | **13-3 .021 [12-2 .013]** | 14-5 .064 [**13-3 .021**] |
+
+Cross-check, mean own-place over the 8 pots at each ladder level:
+
+| | e000 | e025 | e050 | e075 | e100 |
+|---|---|---|---|---|---|
+| fresh s42 / s7 | 4.12 / 4.12 | 4.12 / 4.19 | 3.62 / 3.56 | 3.44 / 3.44 | 2.19 / 2.19 |
+| worn ¼× … 4× | 3.88-4.19 | 4.00-4.38 | 3.69-4.00 | 3.25-3.69 | 2.00-2.62 |
+| rough ¼× / ½× | 4.56 / 4.12 | 4.19 / 3.88 | 4.19 / 4.00 | 3.62 / 3.56 | 2.25 / 2.50 |
+| rough 1× / 2× | 4.12 / 3.81 | 4.00 / 4.12 | 4.44 / 3.94 | 3.75 / 3.81 | **3.44 / 3.38** |
+| rough 4× | 4.12 | 4.00 | 4.00 | 3.88 | 3.00 |
+
+Rough 1×-4× gain about 0.8-1.2 sherds per pot at the heaviest ladder erosion and nothing on
+unworn pots; lighter rough and every worn level gain little anywhere. Heavier test erosion
+prefers the stronger (1×-4×) rough training. Rough ½× (8-5) scoring below ¼× (14-6) is not
+a plausible dose effect; read it as the ladder's run-to-run spread (08: two runs of one arm
+disagreed 6-9), i.e. neighbouring levels on the ladder are not distinguishable either.
+
+## Readings applied (2026-09-27)
+
+- **Worn no better than fresh at every level** (ladder: no level p < .2 against either
+  fresh run; Juglet: ¼× significantly worse, 2×-4× at 3-3.5 not significant). → Worn does
+  not help at any strength tried. **"08's worn was too heavy" is refuted**: lighter wear did
+  worse on the Juglet, not better, and no worse or better on the ladder.
+- **Rough: rises, then falls** — but the fall is on different instruments. Ladder: ¼×-½×
+  not significant, 1×-4× significant against at least one fresh run (1× against both).
+  Juglet: plateau ¼×-2×, collapse at 4× (2, = fresh; the render shows a pot-shaped
+  silhouette built from the wrong sherds). Guard: 4× damaging (freshval .907). **Peak: 1×**
+  — the only level significant on the ladder against both fresh runs, top on the Juglet
+  (4.1 mean), and clear of the guard.
+- **Not flat**: ¼× and ½× do not win the ladder, so "any roughening at all" is not the
+  reading; strength matters, with a usable window around 1×-2× and damage at 4×.
+- **Cross-check**: the gain sits at the heaviest ladder erosion (e100: 3.0-3.4 vs 2.2) and
+  is nil on unworn pots — the effect is about the break surface.
+- **Guard**: rough 4× damaging (freshval). Plate 5→4 under worn ½×, worn 1×, rough 4× trips
+  the Fractura line as written; inside run-to-run spread, recorded, not acted on.
+
+Weight: one run per level, one real pot, 8 simulated-wear pots. **Replication, as
+pre-registered** (peak and both neighbours from seed 7): rough ½× 31360432, 1× 31360433,
+2× 31360434 (repo d544f1f; outputs tagged `t08s7`, polled). Nothing goes to `intent/`
+before these are in.
 
 ## Cost
 
