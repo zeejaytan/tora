@@ -246,6 +246,39 @@ evaluated the same way; outputs tagged `t08s7`. Jobs worn 31307630, noise 313076
 Juglet and the ladder. Fresh has one run too; retrain it if noise's lead holds, since
 fresh's single run could be a low draw.
 
+*Result (2026-09-26; both COMPLETED 0:0, 1:19 each, global_step 1750, strict diff PASS,
+train log "Fresh run with random seed 7"; ladder scored by CPU job 31331261 COMPLETED 0:0).*
+
+| | freshval | Juglet solid median (range) | sherd 1 home | Juglet vs worn s7 |
+|---|---|---|---|---|
+| worn s42 | .943 | 2 (1–6) | 4/20 | p = .29 |
+| worn s7 | .945 | 2 (1–6) | 2/20 | — |
+| noise s42 | .935 | 4 (2–7) | 17/20 | p = .0006 |
+| noise s7 | .929 | **4.5** (2–7) | 17/20 | **p = .0001** |
+
+Noise s7 vs fresh p = .0001; noise s7 vs noise s42 p = .82; worn s7 vs worn s42 p = .29.
+**The Juglet result replicates**: the two noise runs are indistinguishable from each other and
+both beat both worn runs. Renders `artifacts/u10/t08/j08_{noise,worn}s7_median.png`
+(ranked on raw): noise s7 is a closed pot, 6 of 9 home, errors confined to the lower-left
+wall (3, 4 off; 8 in 2's place); worn s7 has the lower half unseated and sherd 8 outside
+the pot beside the handle. Same picture as seed 42.
+
+Fractura: nothing lost by either; plate noise s7 5/6 (s42 6/6), worn s7 4/6 (s42 5/6).
+
+Ladder, seed 7 (sign tests over 40 pot-levels; worn levels only in brackets):
+- noise s7 vs fresh: 13–3, p = .02 (11–3, p = .06). **Replicates** in direction and size.
+- noise s7 vs worn s7: 10–6, p = .45 (8–4, p = .39). **Does not replicate** at
+  significance (s42 was 3–10 the other way round, i.e. noise ahead, p = .09).
+- worn s7 vs fresh: 10–6, p = .45. As before, no wear-shaped benefit.
+- run-to-run: noise s7 vs s42 6–9; worn s7 vs s42 6–7. On the ladder, two runs of the
+  same arm disagree about as often as noise and worn do.
+
+**Against the rule written before the rerun**: noise again beats worn on the Juglet (yes,
+strongly) and on the ladder (direction yes, significance no). So the rule is half met.
+What stands: on the Juglet, roughened break faces beat both receded faces and fresh faces,
+across two training runs each; on the ladder, noise beats fresh across two runs. What does
+not stand: noise beating worn on the ladder. Fresh still has one run.
+
 ## Acceptance
 
 - [x] Worn and noise files built. The share of break-face vertices identical to a
