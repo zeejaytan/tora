@@ -66,12 +66,38 @@ replicated.
 
 ## Acceptance
 
-- [ ] Ten builds COMPLETED 0:0, manifest per build: break gap p50, skin max, dropped count
-- [ ] One join per level rendered in the 5 mm window and looked at before any training
-- [ ] Built files linked into `dataset/` only after the render
+- [x] Ten builds COMPLETED 0:0, manifest per build: break gap p50, skin max, dropped count
+      (2026-09-26: worn 31343118-22, noise 31343123-27, 20-27 min each; table below)
+- [x] One join per level rendered in the 5 mm window and looked at before any training
+      (`artifacts/u10/r09/sections_{6_7,0_1}.png`)
+- [x] Built files linked into `dataset/` only after the render
 - [ ] Ten training + eval jobs COMPLETED 0:0, strict diff PASS, sacct recorded here
 - [ ] Ladder scored; table per level, both operators; readings above applied as written
 - [ ] Peak level (if any) replicated from seed 7
+
+## Builds (2026-09-26)
+
+885 breakages per set (698 train / 187 val), none dropped, none still touching. RMS is the
+break-face points' average move; gap is the median break gap; skin is how far any wall
+point moved (median over breakages / worst), all % of the diagonal.
+
+| level | worn rms | worn gap | worn skin | rough rms | rough gap | rough skin |
+|---|---|---|---|---|---|---|
+| ¼× | 0.0375 | 0.074 | 0 / 0.032 | 0.0375 | 0.018 | 0 / 0 |
+| ½× | 0.075 | 0.147 | 0 / 0.068 | 0.075 | 0.033 | 0 / 0 |
+| 1× | 0.150 | 0.288 | 0 / 0.144 | 0.150 | 0.058 | 0 / 0 |
+| 2× | 0.300 | 0.509 | 0.185 / 0.292 | 0.300 | 0.099 | 0 / 0 |
+| 4× | 0.602 | 0.798 | 0.462 / 0.698 | 0.602 | 0.164 | 0 / 0 |
+
+1× reproduces 08's light (worn gap 0.288, rough 0.058). Looked at, join 6/7 and 0/1:
+worn opens the join steadily, from barely visible at ¼× to about 1 mm at 4×; from 2× the
+larger chips also cut the corners where break meets wall, which is the non-zero skin
+column. Rough roughens the break face; at 2× and 4× it is no longer a plausible surface:
+the two faces spike through each other by about 0.5 mm and rim points poke past the wall
+line (they are break points, so the skin column does not see them). Read rough 2×-4× as
+"shredded", not "rougher".
+
+Training + eval submitted 2026-09-26: worn 31343491-95, noise 31343496-500 (polled).
 
 ## Cost
 
