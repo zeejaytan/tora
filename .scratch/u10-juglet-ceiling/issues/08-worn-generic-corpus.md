@@ -284,6 +284,25 @@ Rule, written before it runs: if fresh s7 scores about 2 on the Juglet again, "r
 beats fresh" stands; if it reaches noise's 4–4.5, the gain from roughening is withdrawn and
 only "worn faces hurt" remains.
 
+*Result (2026-09-26): COMPLETED 0:0, 1:22, global_step 1760, "Fresh run with random seed
+7", strict diff PASS, overrides `data=main/u10_pooled` = `u10_generic` + `u10_ceiling`
+(files dated 21 Sep, before the worn/noise builds). Ladder scored by 31337645 COMPLETED 0:0.*
+Freshval .954 (s42 .952). Juglet solid median **2.5** (1–5), sherd 1 home 9/20; vs fresh
+s42 p = .69; noise s42 vs it p = .008, noise s7 vs it p = .001. Render
+`artifacts/u10/t08/j08_pooleds7_median.png`: as s42, the lower half unseated and riding
+high, sherd 4 outside the wall. Fractura: loses nothing (narrow_bottle3 3/4, s42 1/4).
+Ladder: fresh s7 vs s42 7–7; noise s42 vs fresh s7 14–2 (p = .004); noise s7 vs fresh
+s7 10–2 (p = .04); worn vs fresh s7 8–8 and 10–6.
+
+**Decision rule applied: fresh stays at about 2, so "rough beats fresh" stands.** Pooling
+the two runs per arm (40 Juglet draws each): fresh median 2, worn 2, noise 4; noise vs
+fresh p = 3e-6, fresh vs worn p = .44. Every arm now has two training runs, and the runs
+of each arm agree with each other on both instruments. What stands: roughened break
+faces place about two more Juglet sherds than fresh or receded faces (4 vs 2 of 9), and
+place better on the simulated-wear ladder than fresh (four of four run pairings in
+the same direction, three significant). Receded faces are no better than fresh. Not
+established: rough beats worn on the ladder. Weight: one real pot; two runs per arm.
+
 ## Acceptance
 
 - [x] Worn and noise files built. The share of break-face vertices identical to a
