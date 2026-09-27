@@ -13,7 +13,7 @@ on an erosion operator it was not trained on). Reports back to U10's "what that 
 
 **Blocked by:** 08 (the operators, the recipe and the fresh baselines it reuses).
 
-**Status:** replicating the peak (2026-09-27). Conservator chose all ten arms.
+**Status:** replicated (2026-09-27); awaiting refute-finding and the conservator's look. Conservator chose all ten arms.
 
 **Needs-eye:** before training, one built join per level (both operators) in the same 5 mm
 section window as 08 (`artifacts/u10/r08/`), paired with each build's measured break gap.
@@ -73,7 +73,7 @@ replicated.
 - [x] Built files linked into `dataset/` only after the render
 - [x] Ten training + eval jobs COMPLETED 0:0, strict diff PASS, sacct recorded here
 - [x] Ladder scored; table per level, both operators; readings above applied as written
-- [ ] Peak level (if any) replicated from seed 7
+- [x] Peak level (if any) replicated from seed 7 (2026-09-27: 1×, with ½× and 2×)
 
 ## Builds (2026-09-26)
 
@@ -197,6 +197,33 @@ Weight: one run per level, one real pot, 8 simulated-wear pots. **Replication, a
 pre-registered** (peak and both neighbours from seed 7): rough ½× 31360432, 1× 31360433,
 2× 31360434 (repo d544f1f; outputs tagged `t08s7`, polled). Nothing goes to `intent/`
 before these are in.
+
+## Replication, seed 7 (2026-09-27)
+
+Rough ½× 31360432, 1× 31360433, 2× 31360434: all COMPLETED 0:0 (1:21-1:24), "Fresh run with
+random seed 7", STRICT PASS, any step failed 0. Ladder scored by 31366948 COMPLETED 0:0.
+
+| rough | freshval s42 / s7 | Juglet mean s42 / s7 (s7 vs s42) | both runs vs fresh (40 v 40) | ladder s7 vs fresh s42 \| s7 | ladder s7 vs s42 |
+|---|---|---|---|---|---|
+| ½× | .942 / .941 | 3.35 / 4.10 (p=.15) | 3.73, p=.001 | 11-5 .21 \| 12-8 .50 | 9-7 |
+| 1× | .943 / .937 | 4.10 / 3.90 (p=.57) | 4.00, p=.00009 | **16-3 .004 \| 16-3 .004** | 6-9 |
+| 2× | .927 / .923 | 3.90 / 4.70 (p=.15) | 4.30, p=.00003 | **14-4 .031** \| 11-3 .057 | 8-9 |
+
+Fractura: nothing lost by any s7 run beyond fresh's own spread (plate ½× s7 4/6, the rest
+5/6). Renders `artifacts/u10/t09/j09_noise_d{050,100,200}s7_median.png`, looked at: 2× s7
+median has 0/1/2/3/7 home and the lower half (4, 5, base 6) unseated and riding high, the
+base tilted out — the same failure place as every rough run since 08.
+
+**Reading.** Replicates. Rough 1× beats fresh on the ladder in all four run pairings (two
+rough × two fresh), p ≤ .035 each, and on the Juglet in both runs. 2× beats fresh on the
+Juglet in both runs and on the ladder in one pairing of two at p < .05 (the other .057),
+with the lowest freshval of the three. ½× helps the Juglet but not the ladder, in either
+run. On the Juglet the three are a plateau (no pair of levels differs by ≥ 1 sherd); the
+ladder separates them. **The strength to use is rough 1×**: recession-matched RMS 0.15% of
+pot diagonal, about 0.1 mm on a Juglet-sized pot. Worn is retired at every strength tried.
+
+Next, per the rule: refute-finding before anything is written to O7 / U10; Juglet median
+attempt of rough 1× staged in visual-qa for the conservator.
 
 ## Cost
 
