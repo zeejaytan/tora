@@ -91,8 +91,8 @@ point moved (median over breakages / worst), all % of the diagonal.
 
 1× reproduces 08's light (worn gap 0.288, rough 0.058). Looked at, join 6/7 and 0/1:
 worn opens the join steadily, from barely visible at ¼× to about 1 mm at 4×; from 2× the
-larger chips also cut the corners where break meets wall, which is the non-zero skin
-column. Rough roughens the break face; at 2× and 4× it is no longer a plausible surface:
+larger chips also nick the rim where break meets wall, which is the non-zero skin
+column (the corner bevels themselves are recession — see the worn follow-up). Rough roughens the break face; at 2× and 4× it is no longer a plausible surface:
 the two faces spike through each other by about 0.5 mm and rim points poke past the wall
 line (they are break points, so the skin column does not see them). Read rough 2×-4× as
 "shredded", not "rougher".
@@ -252,6 +252,27 @@ Readings:
   recorded, not adopted.
 - No-chips 4× within 0.5 sherd of 4× with chips → it is the gap, not the notches (and the
   reverse if it falls to the ¼×–1× level).
+
+**Builds (2026-09-27).** Both COMPLETED 0:0 (8× 34 min, no-chips 24 min). 885 breakages,
+698/187, none dropped, none still touching.
+
+| set | rms | gap | skin (median / worst) |
+|---|---|---|---|
+| worn 4× (for reference) | 0.602 | 0.798 | 0.462 / 0.698 |
+| worn 4× no chips | 0.600 | 0.796 | 0 / 0 |
+| worn 8× | 1.205 | 1.350 | 0.855 / 1.597 |
+
+Looked at (`artifacts/u10/r09/sectionsF_{6_7,0_1}.png`, same joins and 5 mm window as the
+sweep): 8× opens the join to about 1.5 mm with deeper corners; no-chips 4× is
+indistinguishable from 4× at both joins. The chips at 4× are small: on the reference
+breakage 8–82 of several thousand vertices per sherd move, at most 0.5 mm
+(`chip_s6.png`: a scoop where break meets wall). So the corner bevels seen at 2×–4× in the
+sweep sections come from recession, not chips — the "Builds" paragraph above overstated
+the chips' part; the skin column is where they show. The no-chips arm therefore asks
+whether sub-millimetre notches on a small share of the rim matter, not whether notching
+matters in general.
+
+Training submitted 2026-09-27: worn_d800 31375211, worn_d400nc 31375212 (repo 23747c7, polled).
 
 ## Cost
 
