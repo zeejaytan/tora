@@ -13,7 +13,7 @@ on an erosion operator it was not trained on). Reports back to U10's "what that 
 
 **Blocked by:** 08 (the operators, the recipe and the fresh baselines it reuses).
 
-**Status:** rough replicated (2026-09-27); worn follow-up running; awaiting refute-finding and the conservator's look. Conservator chose all ten arms.
+**Status:** rough replicated; worn follow-up done, worn retired (2026-09-27); awaiting refute-finding and the conservator's look. Conservator chose all ten arms.
 
 **Needs-eye:** before training, one built join per level (both operators) in the same 5 mm
 section window as 08 (`artifacts/u10/r08/`), paired with each build's measured break gap.
@@ -292,6 +292,37 @@ two-thirds below rough 1× (4.00, p=.09). The ladder is flat for 4× in both run
 ladder in its seed-7 run only (2 of 4 run pairings, against 4 of 4 for rough 1×). Provisional
 reading, pending 8× and no-chips: **worn helps this pot a little, not worn pottery in
 general**; recorded, not adopted.
+
+**Tests 2 and 3 (2026-09-27).** Worn 8× 31375211 and 4× no-chips 31375212: COMPLETED 0:0
+(1:23, 1:19), STRICT PASS, any step failed 0; freshval .928 (8×, lowest worn, still above
+untouched .911) and .944. Ladder scored by 31379160 COMPLETED 0:0.
+
+| worn | Juglet mean | vs fresh | vs worn 4× (40) | vs rough 1× (40) | ladder vs fresh s42 \| s7 | e100 mean |
+|---|---|---|---|---|---|---|
+| 4× (both runs) | 3.35 | .021 | – | .09 | 8-3 .23, 8-6 .79 \| 10-6 .45, 10-9 1 | 2.62 / 2.56 |
+| 4× no chips | 2.80 | .49 | .15 | .006 | 9-5 .42 \| 8-4 .39 | 2.31 |
+| 8× | 3.15 | .15 | .55 | .041 | 6-9 .61 \| 10-11 1 | 2.44 |
+
+Fractura: nothing lost beyond fresh's spread (plate 4/6 under 8×, 4.5/6 no-chips; 8× gains
+one on narrow_bottle1). Renders `j09_worn_{d800,d400nc}_median.png`, looked at: 8× has the top
+home and the lower half filled with the wrong sherds (6>4, 4>5; 3 and 8 off) — the
+pot-shaped-but-wrong look of rough 4×. No-chips is the one run whose median attempt seats
+the base (6) but loses 1, 7, 8 from the upper half; one attempt, not a finding.
+
+**Readings applied (final).**
+- Fluke: no — 4× held on seed 7.
+- Strong worn a real alternative: **no** — 8× does not rise past 4× (3.15), is below rough
+  1× on the Juglet (p=.04), and loses as often as it wins on the ladder.
+- Helps this pot, not wear in general: **yes** — worn 4× lifts the Juglet about two-thirds
+  of a sherd over fresh in two runs, while its ladder, and 8×'s, stays flat. Recorded, not
+  adopted.
+- Gap or notches: **inconclusive** — no-chips sits 0.55 sherd below 4× (p=.15), just past
+  the 0.5 line and well above the ¼×–1× level. The chips at 4× are too small (≤ 0.5 mm on a
+  few dozen vertices per sherd) for this to be a test of notching in general.
+
+**Worn is retired as a training recipe**: its best strength is two-thirds of a sherd behind
+rough 1× on the Juglet and never beats fresh on the ladder in 3 of 4 runs at 4×–8×. Rough 1×
+stands as the strength to use.
 
 ## Cost
 
