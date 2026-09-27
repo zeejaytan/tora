@@ -13,7 +13,7 @@ on an erosion operator it was not trained on). Reports back to U10's "what that 
 
 **Blocked by:** 08 (the operators, the recipe and the fresh baselines it reuses).
 
-**Status:** replicated (2026-09-27); awaiting refute-finding and the conservator's look. Conservator chose all ten arms.
+**Status:** rough replicated (2026-09-27); worn follow-up running; awaiting refute-finding and the conservator's look. Conservator chose all ten arms.
 
 **Needs-eye:** before training, one built join per level (both operators) in the same 5 mm
 section window as 08 (`artifacts/u10/r08/`), paired with each build's measured break gap.
@@ -220,10 +220,38 @@ Juglet in both runs and on the ladder in one pairing of two at p < .05 (the othe
 with the lowest freshval of the three. ½× helps the Juglet but not the ladder, in either
 run. On the Juglet the three are a plateau (no pair of levels differs by ≥ 1 sherd); the
 ladder separates them. **The strength to use is rough 1×**: recession-matched RMS 0.15% of
-pot diagonal, about 0.1 mm on a Juglet-sized pot. Worn is retired at every strength tried.
+pot diagonal, about 0.1 mm on a Juglet-sized pot. Worn helped at no strength tried; whether
+its rise with strength on the Juglet is real is the worn follow-up below.
 
 Next, per the rule: refute-finding before anything is written to O7 / U10; Juglet median
 attempt of rough 1× staged in visual-qa for the conservator.
+
+## Worn follow-up (2026-09-27, conservator: "do all 3")
+
+The worn Juglet mean rises with strength (¼× 1.70 → 4× 3.30 sherds; Spearman ρ .45 over
+100 draws, but only five training runs), while its ladder stays flat (heavy-erosion means
+3.16 / 2.81 / 2.69 / 2.88 / 2.97 vs fresh 2.81). Three tests, readings fixed before any result:
+
+| test | what | jobs |
+|---|---|---|
+| 1 | seed-7 repeats of worn 2× and 4× | train 31374722, 31374723 (repo f71294a) |
+| 2 | worn 8× (`u10_worn_d800`): training gap ≈ 1 mm on the Juglet, notches ≈ 1 mm | build 31374754 |
+| 3 | worn 4× recession only, no chips (`u10_worn_d400nc`): is it the gap or the notches? | build 31374755 |
+
+Builds are rendered at a join, in the 5 mm window, **before** they are linked into
+`dataset/` or trained on. For scale: the real Juglet gap is about 0.17 mm, and 4× already
+trains on about 0.5 mm.
+
+Readings:
+- Seed-7 4× falls back to about 2 sherds on the Juglet → the rise was one lucky run; worn
+  stays retired.
+- 4× holds (≥ 3 sherds) and 8× reaches rough 1×'s level (≈ 4 Juglet sherds **and** a ladder
+  win at p < .05 vs both fresh runs) → strong worn is a real alternative to rough, and
+  goes to refute-finding beside it.
+- Juglet rises but the ladder stays flat → it helps this pot, not worn pottery in general;
+  recorded, not adopted.
+- No-chips 4× within 0.5 sherd of 4× with chips → it is the gap, not the notches (and the
+  reverse if it falls to the ¼×–1× level).
 
 ## Cost
 
