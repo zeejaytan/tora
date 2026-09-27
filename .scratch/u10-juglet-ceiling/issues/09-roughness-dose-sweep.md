@@ -274,6 +274,25 @@ matters in general.
 
 Training submitted 2026-09-27: worn_d800 31375211, worn_d400nc 31375212 (repo 23747c7, polled).
 
+**Test 1, seed-7 repeats (2026-09-27).** Worn 2× 31374722 and 4× 31374723: COMPLETED 0:0
+(1:21, 1:20), STRICT PASS, freshval .949 / .940. Ladder scored by 31377064 COMPLETED 0:0.
+
+| worn | Juglet mean s42 / s7 | both vs fresh (40 v 40) | ladder s7 vs fresh s42 \| s7 | ladder s42 vs fresh s42 \| s7 |
+|---|---|---|---|---|
+| 2× | 3.00 / 3.65 | 3.33, p=.052 | **13-1 .002 \| 15-4 .019** | 9-4 .27 \| 11-7 .48 |
+| 4× | 3.30 / 3.40 | 3.35, p=.021 | 8-6 .79 \| 10-9 1 | 8-3 .23 \| 10-6 .45 |
+
+Heavy-erosion (e100) means: fresh 2.19 both runs; 2× 2.44 / 2.31; 4× 2.62 / 2.56. Renders
+`j09_worn_d{200,400}s7_median.png`, looked at: top (0, 7, 1) home, lower half (4, 5, base 6)
+unseated and riding high or tilted — the failure place of every run since 08.
+
+Applying the readings: 4× did **not** fall back (3.40 on seed 7), so the rise is not one
+lucky run. On the Juglet, worn 4× is about two-thirds of a sherd above fresh (p=.021) and
+two-thirds below rough 1× (4.00, p=.09). The ladder is flat for 4× in both runs; 2× wins the
+ladder in its seed-7 run only (2 of 4 run pairings, against 4 of 4 for rough 1×). Provisional
+reading, pending 8× and no-chips: **worn helps this pot a little, not worn pottery in
+general**; recorded, not adopted.
+
 ## Cost
 
 Builds: ten CPU jobs, about 15–30 min each on 32 CPUs. Training + eval: ten A100 jobs,
