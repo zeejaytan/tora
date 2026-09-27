@@ -12,6 +12,7 @@
 #   sbatch --export=ALL,MODE=worn  scripts/hpc/u10_worn_build.slurm
 #   sbatch --export=ALL,MODE=noise scripts/hpc/u10_worn_build.slurm
 #   sbatch --export=ALL,MODE=noise,SCALE=50 ...   # ticket 09 dose sweep: one level, u10_noise_d050
+#   sbatch --export=ALL,MODE=worn,SCALE=400,NOCHIPS=1 ...  # recession only: u10_worn_d400nc
 #   1. write_u10_worn.py: break-face recession (or RMS-matched jitter) + manifest.
 #   2. the Juglet through the same contact ruler, for the reference.
 #   3. check_u10_loader.py: TORA's loader keeps every object the split lists.
@@ -30,6 +31,7 @@ CSC=$ROOT/../CSC/work/u10_corpus_30888410
 DATA=$ROOT/dataset
 SCALE=${SCALE:-0}
 NAME=u10_${MODE}; [ "$SCALE" = 0 ] || NAME=$(printf 'u10_%s_d%03d' "$MODE" "$SCALE")
+NC=(); [ "${NOCHIPS:-0}" = 1 ] && { NC=(--no-chips); NAME=${NAME}nc; }
 echo "building $NAME"
 WORK=$ROOT/work/u10_worn_${MODE}_${SLURM_JOB_ID}
 mkdir -p "$WORK"
@@ -37,7 +39,7 @@ cd "$ROOT/repo" || exit 2
 git log -1 --format='repo %h %s'
 
 python scripts/write_u10_worn.py --src "$DATA" --csc "$CSC" --mode "$MODE" --out "$WORK" \
-    --scale-pct "$SCALE" --workers "${SLURM_CPUS_PER_TASK:-32}" || { echo "build failed"; exit 1; }
+    --scale-pct "$SCALE" "${NC[@]}" --workers "${SLURM_CPUS_PER_TASK:-32}" || { echo "build failed"; exit 1; }
 bad=0
 echo "=== juglet reference, same ruler"
 python scripts/write_u10_worn.py --measure "$DATA/juglet_gt.hdf5" --dataset juglet_gt \

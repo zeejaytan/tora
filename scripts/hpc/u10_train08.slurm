@@ -26,7 +26,7 @@ TORA_ROOT=/data/gpfs/projects/punim2657/TORA
 trap 'rc=$?; echo "$(date -u +%FT%TZ) job ${SLURM_JOB_ID:-nojob} step u10_train08 ${ARM:-?} exit $rc" >> "$TORA_ROOT/logs/job_status.log"' EXIT
 : "${ARM:?ARM=pooled|worn|noise|worn_dPPP|noise_dPPP}"
 case "$ARM" in
-  pooled|worn_d[0-9][0-9][0-9]|noise_d[0-9][0-9][0-9]) EP=20 ;;
+  pooled|worn_d[0-9][0-9][0-9]|worn_d[0-9][0-9][0-9]nc|noise_d[0-9][0-9][0-9]) EP=20 ;;
   worn|noise) EP=10 ;;
   *) echo "ARM must be pooled, worn, noise, worn_dPPP or noise_dPPP"; exit 2 ;; esac
 H=$TORA_ROOT/repo/scripts/hpc

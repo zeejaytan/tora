@@ -291,6 +291,8 @@ def main():
     ap.add_argument("--gap-cut", type=float, default=0.02, help="fraction of diagonal")
     ap.add_argument("--scale-pct", type=int, default=0,
                     help="dose sweep: one level, the light operator x P/100 (see docstring)")
+    ap.add_argument("--no-chips", action="store_true",
+                    help="with --scale-pct: recession only, no chips (dataset suffix 'nc')")
     ap.add_argument("--measure")
     ap.add_argument("--dataset")
     a = ap.parse_args()
@@ -304,8 +306,9 @@ def main():
     if a.scale_pct:
         k = a.scale_pct / 100.0
         name, dose, n_chip, chip_sz = LEVELS[0]
-        levels = [(f"d{a.scale_pct:03d}", dose * k, n_chip, chip_sz * k)]
-        ds = f"u10_{a.mode}_d{a.scale_pct:03d}"
+        nc = "nc" if a.no_chips else ""
+        levels = [(f"d{a.scale_pct:03d}{nc}", dose * k, 0 if nc else n_chip, chip_sz * k)]
+        ds = f"u10_{a.mode}_d{a.scale_pct:03d}{nc}"
     path = out / f"{ds}.hdf5"
     pairs = list(jobs(src, Path(a.csc), a.mode, a.limit, a.gap_cut, levels))
     meta = {p[0][0]: p[1] for p in pairs}
