@@ -15,7 +15,7 @@ back to U10's "what that leaves" line.
 
 **Blocked by:** 07 (the alignment-off recipe).
 
-**Status:** building (2026-09-25). Conservator chose the arms: pooled corpus, noise kept.
+**Status:** results in (2026-09-26), write-back to O7 pending: rough beats fresh and worn on the Juglet and fresh on the ladder, two runs per arm; strengths refined in 09. Write-back waits on refute-finding. Conservator chose the arms: pooled corpus, noise kept.
 
 **Needs-eye:** before training, one worn join from the corpus, before/after, in a section
 window that resolves 0.1 mm. After, the Juglet median attempt per new arm in visual-qa,
@@ -322,18 +322,23 @@ established: rough beats worn on the ladder. Weight: one real pot; two runs per 
       Built files, same join (generic_train_00 fractured_3, sherds 6/7, moderate):
       `artifacts/u10/r08/built_{worn,noise}_6_7.png`. Worn is identical to the prototype;
       noise is a jagged, interpenetrating face with the walls untouched.
-- [ ] Three adapters (pooled fresh, worn, noise) trained. Alignment logs 0. Strict diff passes. Curves reported.
-- [ ] Juglet: 20 draws per arm, own place, sherd-home counts, readings applied.
-- [ ] Ladder per pot and level, sign tests, readings applied.
-- [ ] Viewer pairs staged; conservator's look.
+- [x] Three adapters (pooled fresh, worn, noise) trained. Alignment logs 0. Strict diff passes.
+      (Two runs each, seeds 42 and 7; see Results.)
+- [x] Juglet: 20 draws per arm, own place, sherd-home counts, readings applied.
+- [x] Ladder per pot and level, sign tests, readings applied.
+- [ ] Viewer pairs staged; conservator's look. Staged: `u10_juglet_{fresh,noise}_t08`
+      (median attempts). Superseded by ticket 09's best-attempt pair for rough 1×, which the
+      conservator looked at on 2026-09-28. The t08 pairs themselves have no look or note.
 - [ ] Weight stated. Which of the three kinds named. Written back to O7 (and U10/O8 if
-      the first reading fires).
-- [ ] Every `sbatch` has a laptop poll; sacct State/ExitCode recorded here.
+      the first reading fires). Weight and kind are stated in ticket 09's plain summary.
+      The write-back waits for refute-finding, after ticket 09.
+- [x] Every `sbatch` has a laptop poll; sacct State/ExitCode recorded here.
       Builds 31296315, 31296316: COMPLETED 0:0. Training + eval: pooled 31296425, worn
       31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0. Worn 31298231: COMPLETED 0:0. Noise 31298232: COMPLETED 0:0. Ladder scoring
       (CPU) 31301455. Seed-7 replication: worn 31307630, noise 31307631 (submitted
       2026-09-25, polled): both COMPLETED 0:0; ladder scoring 31331261 COMPLETED 0:0.
-      Fresh seed 7: 31331447 (submitted 2026-09-26, polled).
+      Fresh seed 7: 31331447 (submitted 2026-09-26, polled): COMPLETED 0:0; ladder 31337645
+      COMPLETED 0:0.
 
 ## Cost (estimate)
 

@@ -13,7 +13,50 @@ on an erosion operator it was not trained on). Reports back to U10's "what that 
 
 **Blocked by:** 08 (the operators, the recipe and the fresh baselines it reuses).
 
-**Status:** rough replicated; worn follow-up done, worn retired (2026-09-27); re-read by best attempt (2026-09-28), readings unchanged; awaiting refute-finding and the conservator's look. Conservator chose all ten arms.
+**Status:** results in and looked at (2026-09-28), write-back to O7 / U10 pending. Rough replicated; worn retired; read by best attempt; the
+conservator has looked at the rough 1× best attempt (see "Witnessed look"). Left open:
+refute-finding, then the write-back to O7 / U10. Conservator chose all ten arms.
+
+## Result in plain words (2026-09-28)
+
+**What was tested.** TORA's placement stage was fine-tuned on training pots whose break
+faces had been altered, at one of five strengths each (¼× to 4×; 1× moves the break
+surface by about 0.1 mm on a pot the Juglet's size). Two kinds of alteration were tried:
+*rough* (break faces jittered, so matching faces no longer fit perfectly) and *worn*
+(break faces receded, as wear opens a join). Each was scored against the conservator's
+reassembly of the Juglet, the 8 unworn Fractura pots, and the same 8 pots under five
+levels of simulated erosion. Every figure is the best of 20 attempts, because the
+conservator picks the right attempt by eye.
+
+**What came out.**
+- **Rough at 1× is the setting to use.** Its best Juglet attempts put **7 or 8 of the 9
+  sherds in their own place** in all four training runs (fresh training: 5). The best
+  one, 8 of 9 with only sherd 8 out, is the one the conservator has looked at.
+- Rough 2× reaches 8 of 9 as well, but it lowers the model's accuracy on ordinary unworn
+  pots more. Rough 4× damages it: it builds a pot-shaped outline out of the wrong sherds.
+- **Worn helps no more than fresh training at any strength.** Its best Juglet attempts
+  level off at 6 of 9 from 1× upward, and 8× did not change that. Worn is retired as a
+  training recipe.
+- On the eroded test pots, rough 1× improves on fresh most at the heaviest erosion. On
+  unworn pots it changes nothing, so the benefit is about damaged break surfaces.
+
+**Which of the three.** This is a result about the method: changing how it is trained
+changes how many sherds it seats. The ruler is the own-place count, checked in ticket
+01. The reference is the conservator's reassembly, which is taken as correct.
+
+**Weight.** One real pot. Rough 1× rests on four training runs, the other arms on one or
+two. The erosion test is 8 pots under simulated wear from a different wear model. The
+improvement is consistent in direction on both instruments. It is not yet shown on a
+second real pot.
+
+**What it leaves.** Even the best attempt misses one sherd. In the typical attempt, the
+lower body (sherds 4, 5 and the base, 6) is still where placement fails, as in every run
+since ticket 08. Rough training narrows the Juglet gap; it does not close it.
+
+**What would change it.** Refute-finding overturning the replication. GARF, given the
+same training, showing no change (tested now in `GARF/.scratch/rough-worn-dose/issues/01`),
+which would point at a TORA-specific effect. A second real pot on which rough 1× loses
+sherds.
 
 **Needs-eye:** before training, one built join per level (both operators) in the same 5 mm
 section window as 08 (`artifacts/u10/r08/`), paired with each build's measured break gap.
@@ -351,6 +394,25 @@ attempts, no new jobs. Juglet, solid sherds home of 9, one number per training r
   no worn arm beats both fresh runs.
 - Renders: `artifacts/u10/t09b/jbest_*.png`. Pair `u10_juglet_rough1x_t09` repointed to
   the best attempt (31360433 attempt 8, 8/9, sherd 8 off). Script: `t09_best.py` (scratchpad).
+
+## Witnessed look (2026-09-28)
+
+The conservator looked at `u10_juglet_rough1x_t09` in visual-qa (their reassembly beside
+the rough 1× best attempt) and said so in chat: "i have seen the rough best attempt". They
+left no note in the viewer (no `annotations_manifest_u10_juglet_rough1x_t09.jsonl`) and gave
+no verdict on the "8 of 9 home, only sherd 8 out" reading, so the count stands as measured,
+not as confirmed by eye. Their next instruction was to repeat the sweep on GARF.
+
+Not staged: worn's best attempt. The Needs-eye line asked for the best level per
+operator, but worn was retired before the look. Stage it if the conservator wants the
+worn side seen.
+
+## Follow-ups
+
+- **GARF, same sweep, up to 8×** (conservator, 2026-09-28): `GARF/.scratch/rough-worn-dose/issues/01`,
+  same training files and read-out. Rough 8× (`u10_noise_d800`) is being built for it
+  (job 31449062). **TORA has no rough 8× arm.** Rough 4× already damaged TORA, so an 8× TORA
+  run is expected to be worse. Train it only if a side-by-side at 8× is wanted.
 
 ## Cost
 
