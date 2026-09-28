@@ -462,25 +462,35 @@ declared unclosable.
   Seen in visual-qa (conservator's look pending): pair `insideout_rulepick`, correct Juglet
   beside the rule-picked attempt 0.
 
-- **Stopping TORA from ever mirroring or bending a sherd does not help (2026-09-25,
-  `.scratch/juglet-cause/issues/15`, job 31207476, `COMPLETED|0:0`).** A test-only option
-  (`model.rigid_from_t`) makes every sampling step head for the sherds moved as solid
-  pieces, so TORA keeps its trained shape knowledge but can only turn and slide. Checked:
-  no sherd mirrored, every sherd an exact solid copy. Strict home, 20 attempts per arm:
-  neck 20 -> 22 of 160; neck + base 33 -> 35 of 140 (solid from halfway: 37). All inside
-  the +-10 band the ticket called refuted. Inside-out placements barely fall (60 -> 47):
-  TORA turns sherds over with ordinary turns just as readily, so mirroring was one route to
-  an inside-out sherd, not why sherds are misplaced.
-  - **Which of the three:** the method genuinely failed. TORA's knowledge of where the
-    Juglet's sherds go is the limit, not the moves it is allowed.
+- **Stopping TORA from ever mirroring or bending a sherd is sound, but does not raise
+  placement on average (2026-09-25, `.scratch/juglet-cause/issues/15`, job 31207476,
+  `COMPLETED|0:0`).** A test-only option (`model.rigid_from_t`) makes every sampling step
+  head for the sherds moved as solid pieces, so TORA keeps its trained shape knowledge but
+  can only turn and slide. Checked: no sherd mirrored, every sherd an exact solid copy.
+  Strict home, 20 attempts per arm: neck 20 -> 22 of 160; neck + base 33 -> 35 of 140
+  (solid from halfway: 37). All inside the +-10 band the ticket called refuted. Inside-out
+  placements barely fall (60 -> 47): TORA turns sherds over with ordinary turns just as
+  readily, so mirroring was one route to an inside-out sherd, not why sherds are misplaced.
+  - **Two results, kept apart.** The option is sound and cost nothing (every arm at or
+    above its control); its output is always buildable from the real sherds, so it is the
+    better default for runs a person looks at. The hypothesis -- that mirroring was what
+    held TORA back -- is refuted.
+  - **Best attempt:** neck + base solid-only reached **5 of 7** free sherds seated (1 of 20
+    attempts; only sherds 4 and 8 wrong), against 3 of 7 for its control (4 of 20) and 4
+    of 7 in job 30919372. The most complete Juglet attempt so far, but one attempt on one
+    seed: a lead, not a finding.
+  - **Which of the three:** the method genuinely failed -- TORA on the Juglet, not the
+    solid-only option. TORA's knowledge of where the Juglet's sherds go is the limit, not
+    the moves it is allowed.
   - **Weight:** one pot, one seed. The neck + base control itself came out 33 against 45
     in job 30919372 on the same seed, so the 9% -> 32% rise above is really 9-13% ->
     24-32%: still real, but smaller than first stated. A gain under ~10 sherds cannot be
     ruled out; a large one can. Nothing was staged for the conservator's eye; that look was
-    reserved for a positive result.
-  - **What it rules out for U16:** making TORA move sherds as solid pieces is not the
-    route. Rejecting inside-out sherds during sampling is still untested. What is left is the reference sherds a
-    person seats, a better-trained model, or a different method.
+    reserved for a clear rise.
+  - **For U16:** keep solid-only on, but do not expect it to fix the Juglet. Open: whether
+    it raises the best attempt (more seeds would settle it); rejecting inside-out sherds
+    during sampling is untested. Beyond that: reference sherds a person seats, a
+    better-trained model, or a different method.
 
 ## Source
 

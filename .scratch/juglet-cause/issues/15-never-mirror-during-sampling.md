@@ -74,7 +74,7 @@ Scored on solid sherds, strict home (`scripts/check_inside_out.py`).
 - [x] Strict home per sherd, five arms, table; inside-out and mirrored counts per arm
 - [x] Verdict against the predictions; which of the three; weight
 - [x] If supported: best rigid attempt staged in visual-qa -- not supported, not staged
-      (quick agent render only: best rigid attempt, sherds 2, 4, 8 visibly off)
+      (quick agent render only: best rigid attempt; 4 and 8 off, see Clarification)
 - [x] Written back to O8
 
 ## Result (2026-09-25)
@@ -106,14 +106,46 @@ mirror-then-inside-out path (ticket 13/14) was one route to an inside-out sherd,
 cause of misplacement. Not harmful either: forcing solid moves does not knock the model
 off course.
 
-**Which of the three:** the method genuinely failed. With the ruler checked (above), TORA's
-shape knowledge, restricted to solid moves, does not place the Juglet's sherds any better.
-What it knows about where sherds go is the limit, not the moves it may make.
+**Which of the three:** the method genuinely failed -- meaning TORA on the Juglet, not the
+solid-only option. With the ruler checked (above), TORA's shape knowledge, restricted to
+solid moves, does not place the Juglet's sherds any better on average. What it knows about
+where sherds go is the limit, not the moves it may make.
 
 **Weight:** one pot, one seed, 20 attempts per arm. The in-job control moved by 12 on the
 same seed between two jobs, so +2 to +4 is noise. A small real gain (under ~10) cannot be
 ruled out; a large one can. The best solid-only attempt seats 5 of 7, one attempt more
 than ever seen before, but it is 1 of 20 and within the spread.
+
+## Clarification (2026-09-28): the option is sound; the hypothesis is what failed
+
+Two different things were tested, and the first read-out blurred them.
+
+- **The solid-only option works and is safe to keep.** It did exactly what it was built to
+  do (instrument check above), and it cost nothing: every arm is at or above its control.
+  Its output is always something that could be built from the real sherds -- no bent or
+  mirrored sherd, so no score inflated by bending (the fault that faked "one attempt with
+  every sherd home" in `.scratch/anchor-choice/issues/02`). That alone makes it the better
+  default for any Juglet run a person will look at.
+- **The hypothesis failed:** that mirroring was what held TORA back, so that removing it
+  would place the sherds. On average it does not (+2 to +4, noise). TORA finds another way
+  to go wrong: it turns sherds over with an ordinary turn.
+
+**Best attempt (the conservator picks by eye, so this is the number that matters):**
+
+| arm | best attempt, free sherds seated | attempts reaching it |
+|---|---|---|
+| neck, control | 2 of 8 | 3 of 20 |
+| neck, solid-only | 2 of 8 | 6 of 20 |
+| neck + base, control | 3 of 7 | 4 of 20 |
+| neck + base, solid-only | **5 of 7** | 1 of 20 (attempt 8) |
+| neck + base, solid second half | 4 of 7 | 1 of 20 |
+
+Attempt 8 of neck + base solid-only is the most complete Juglet attempt seen so far: 7 of 9
+sherds correct (neck and base held, plus 1, 2, 3, 5, 7), only 4 (23.7% of pot size off) and
+8 (14.3%) wrong. Sherd 2 sits at 5.3% (about 3.4 mm), inside the 7.1% bar. The earlier
+note in this ticket that 2 was visibly off was wrong. **Weight:** one attempt in 20, one
+seed. Job 30919372's control reached 4 of 7 (2 of 20), so 5 against 3-4 is a lead, not a
+finding: repeating with more seeds would tell whether solid-only raises the best attempt.
 
 Render (agent's look only, not for the conservator):
 `<scratchpad>/r15_rigid_best.png`. Fetched outputs: `artifacts/rigid/<arm>/`.
