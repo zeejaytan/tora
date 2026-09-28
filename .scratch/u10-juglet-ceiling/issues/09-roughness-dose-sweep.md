@@ -410,8 +410,13 @@ worn side seen.
 ## Follow-ups
 
 - **GARF, same sweep, up to 8×** (conservator, 2026-09-28): `GARF/.scratch/rough-worn-dose/issues/01`,
-  same training files and read-out. Rough 8× (`u10_noise_d800`) is being built for it
-  (job 31449062). **TORA has no rough 8× arm.** Rough 4× already damaged TORA, so an 8× TORA
+  same training files and read-out. Rough 8× (`u10_noise_d800`) built for it: job 31449062
+  COMPLETED 0:0 (26 min), 698/187, none dropped or still touching, rms 1.205%, skin 0.
+  Looked at before linking (`artifacts/u10/r09/sectionsN8_{6_7,0_1}.png`, same joins and
+  5 mm window): the break face zig-zags about ±1 mm, as deep as the 2 mm wall is thick, and
+  spikes stand up to ~0.7 mm proud of both wall faces at join 6/7. That is the dose doing what
+  it says, but past any real sherd edge; it is the far endpoint, not a plausible surface.
+  Linked 2026-09-28. **TORA has no rough 8× arm.** Rough 4× already damaged TORA, so an 8× TORA
   run is expected to be worse. Train it only if a side-by-side at 8× is wanted.
 
 ## Cost
