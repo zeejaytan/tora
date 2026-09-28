@@ -13,7 +13,7 @@ on an erosion operator it was not trained on). Reports back to U10's "what that 
 
 **Blocked by:** 08 (the operators, the recipe and the fresh baselines it reuses).
 
-**Status:** rough replicated; worn follow-up done, worn retired (2026-09-27); awaiting refute-finding and the conservator's look. Conservator chose all ten arms.
+**Status:** rough replicated; worn follow-up done, worn retired (2026-09-27); re-read by best attempt (2026-09-28), readings unchanged; awaiting refute-finding and the conservator's look. Conservator chose all ten arms.
 
 **Needs-eye:** before training, one built join per level (both operators) in the same 5 mm
 section window as 08 (`artifacts/u10/r08/`), paired with each build's measured break gap.
@@ -323,6 +323,34 @@ the base (6) but loses 1, 7, 8 from the upper half; one attempt, not a finding.
 **Worn is retired as a training recipe**: its best strength is two-thirds of a sherd behind
 rough 1× on the Juglet and never beats fresh on the ladder in 3 of 4 runs at 4×–8×. Rough 1×
 stands as the strength to use.
+
+## Read by best attempt (2026-09-28, conservator: "not median, best attempt")
+
+The conservator picks the right attempt by eye, so the best of the 20 is what they get;
+median readings above are superseded as the headline (glossary *best-of-N*). Same saved
+attempts, no new jobs. Juglet, solid sherds home of 9, one number per training run:
+
+| Arm | Best of 20 (runs) | Attempts reaching it |
+|---|---|---|
+| fresh | 5, 5 | 1, 4 |
+| rough ¼× / ½× | 7 / 6, 7 | 1 / 2, 2 |
+| **rough 1×** | **7, 7, 7, 8** | 3, 1, 1, 1 |
+| rough 2× | 8, 8 | 1, 1 |
+| rough 4× | 6 | 1 |
+| worn ¼× / ½× | 3 / 5 | 2 / 1 |
+| worn 1× | 6, 6, 4 | 2, 1, 2 |
+| worn 2× | 6, 6 | 2, 3 |
+| worn 4× | 6, 7 | 1, 1 |
+| worn 4× no chips / 8× | 5 / 6 | 1 / 1 |
+
+- Worn plateaus at 6 from 1× up; best does not rise with strength. Retirement stands.
+- Rough 1× and 2× tie (7–8 vs 8, 8); 1× stays chosen.
+- Fractura best-of-20 is saturated on 6 of 8 pots and does not separate arms.
+- Ladder best-of-20 (40 cells, sign test vs fresh s42 | s7): rough 1× 10-1 p=.012 | 11-2
+  p=.022 (s42 run; the other three runs lean the same way, n.s.); rough ¼× 12-2 | 12-3;
+  no worn arm beats both fresh runs.
+- Renders: `artifacts/u10/t09b/jbest_*.png`. Pair `u10_juglet_rough1x_t09` repointed to
+  the best attempt (31360433 attempt 8, 8/9, sherd 8 off). Script: `t09_best.py` (scratchpad).
 
 ## Cost
 

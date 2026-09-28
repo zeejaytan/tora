@@ -108,8 +108,9 @@ def main() -> int:
              if a.pot_mm else "")
     anchor = raw[k].anchor
     cap = "\n".join(textwrap.fill(t, 120) for t in [
-        f"{name.split('/')[-1]}: attempt {k} of {len(raw)}, the middle one ranked on "
-        "sherds in their own place.",
+        f"{name.split('/')[-1]}: attempt {k} of {len(raw)}, "
+        + ("the middle one ranked on " if a.draw is None else "chosen with --draw; scored on ")
+        + "sherds in their own place.",
         "Green: in its own place. Amber: seated, but in another sherd's place "
         "('4>5' = sherd 4 sits where sherd 5 belongs). Red: not seated anywhere. "
         "Faint grey: the true pot.",
