@@ -46,7 +46,7 @@ at the reconstruction.
 
 | # | Question | Status | Blocked by |
 |---|---|---|---|
-| [O1](O1-wall-vs-sampling.md) | Can the network resolve a real pot wall at all? | open — **highest priority, ~1 day** | none |
+| [O1](O1-wall-vs-sampling.md) | Can the network resolve a real pot wall at all? | decided 2026-10-02 — Juglet at ~1 cell; spec floor of ~1 cell set by scale and point budget; check on first Caucasus meshes | none |
 | [O2](O2-valid-evaluation.md) | Is there any valid way to score this work? | open — **blocks O6 and all corpus work** | none |
 | ~~O3~~ ~~O4~~ ~~O5~~ | *moved to the CSC project 2026-09-03 — see below. Numbers retired, not reused.* | — | — |
 | [O6](O6-juglet-under-valid-reference.md) | Does the Juglet failure survive a valid reference? | open | **O2** |
