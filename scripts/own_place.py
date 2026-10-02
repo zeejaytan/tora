@@ -54,9 +54,10 @@ is then flagged rather than left to disagree silently.
 RIGHT WAY ROUND. Chamfer compares surfaces, not which point went where, so a sherd
 spun on its own face -- a roughly oval sherd turned half a turn about its outward
 normal -- still lies on its home surface and counts as own place. The papers' part
-accuracy has the same blind spot. On GARF's Juglet attempts 19 of 21 "9 of 9" had
-a sherd spun 140-180 degrees like that (GARF .scratch/rough-worn-dose/issues/05,
-06). So each sherd also gets `point_pct`, the median distance of its points from
+accuracy has the same blind spot. Of 21 GARF Juglet attempts scored "9 of 9", 14
+had a sherd turned 95-179 degrees like that (GARF .scratch/rough-worn-dose/issues/05,
+06). The 4.6 mm cut on `point_pct` is a choice: it is ~18 degrees of turn on a
+large sherd and ~50 on a small one. So each sherd also gets `point_pct`, the median distance of its points from
 their OWN home points (the cloud keeps point order: pred point k is gt point k
 moved), and `turn_deg`, the rotation that best maps home points onto placed ones.
 `oriented` counts sherds that are own place AND under SEAT_PCT on `point_pct`: in
