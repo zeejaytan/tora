@@ -9,21 +9,52 @@ bundles → ranker → report, run on Spartan. See `../spec.md`.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (2026-10-02): result below; Layer 1 alone does not reach the top 5
 
-- [ ] Converter turns one GARF evaluation run's rigid ("solid") attempts plus the Juglet's
+- [x] Converter turns one GARF evaluation run's rigid ("solid") attempts plus the Juglet's
       full-detail sherds into one bundle per attempt, each moved to a random position; the
       id-to-attempt map is a separate file only the report reads
-- [ ] Converter's own check: a genuine attempt re-posed and scored with `own_place.py`
+- [x] Converter's own check: a genuine attempt re-posed and scored with `own_place.py`
       comes back 9 own place, 9 right way round
-- [ ] Ranker Layer 1: axis fit and wall-profile deviation in mm (7 mm bins), inside-out
+- [x] Ranker Layer 1: axis fit and wall-profile deviation in mm (7 mm bins), inside-out
       sherds (reuse `check_inside_out.py`'s test); attempts failing either go to the bottom
-- [ ] Test: the same bundle under two random moves gives the same scores
-- [ ] Test: the ranker runs with reference files unreadable and its output is unchanged;
+- [x] Test: the same bundle under two random moves gives the same scores
+- [x] Test: the ranker runs with reference files unreadable and its output is unchanged;
       any attempt to open one fails the test
-- [ ] Pre-registration file (all cut-offs in mm and degrees) committed **before** the
+- [x] Pre-registration file (all cut-offs in mm and degrees) committed **before** the
       labelled run; the report prints its commit hash
-- [ ] Spartan CPU batch job ranks all 1,400 attempts; laptop-side poll; final sacct
+- [x] Spartan CPU batch job ranks all 1,400 attempts; laptop-side poll; final sacct
       State/ExitCode recorded here
-- [ ] Report: rank of each genuine attempt, whether one is in the top 5, random baseline
+- [x] Report: rank of each genuine attempt, whether one is in the top 5, random baseline
       (~0.7%), how many attempts Layer 1 drops, and where the 19 near-misses land
+
+## Result (job 32107634, 2026-10-02)
+
+`sacct`: **COMPLETED 0:0**, ended 2026-10-02T23:17:24. (First submit, 32105506, FAILED 1:0 at the
+fence gate before ranking: numpy loads from `~/.local` on Spartan; allow-list widened in
+the next commit.) Pre-registration e3f1b27. Outputs on Spartan
+`TORA/rank_u17/juglet_32107634/`; laptop copy `artifacts/rank_u17/juglet_32107634/`.
+
+- Gates on Spartan: converter 40/40 agree; moved 20 attempts, change 0.000 mm; fence
+  catches the dataset and id map, ranker runs fenced unchanged. Labels recomputed: 2
+  genuine, 19 near-miss, as expected.
+- Genuine attempts: **rank 142** (noise_d100 ds1 #19, deviation 1.65 mm) and **rank 299**
+  (worn_d400_s7 ds4 #11, 1.86 mm) of 1,400. **Not in the top 5** (random: 0.71%).
+- Layer 1 dropped 169 (12%): 163 for an inside-out sherd, 6 on profile. No 9/9-own-place
+  attempt was dropped. Every attempt's profile is under 5 mm (5th–95th pct 1.50–4.65 mm),
+  so the 7 mm SfS++ cut-off is loose on this handmade pot, as the spec predicted.
+- Rank tracks correctness weakly (Spearman −0.46 against own-place count): median rank
+  1,019 for 1-sherd attempts, 215–284 for 8–9.
+- 7 of 19 near-misses rank above the best genuine; one is rank 5. Expected: Layer 1
+  cannot see a sherd spun on its own face.
+- **Look (debug render, `ranks_1_142_1400.png`):** rank 1 (6 own place, 4 right way
+  round) scores best (1.0 mm) because sherds overlap, stacked in one height band on the
+  same wall curve, so the profile is very consistent. SfS++ pairs its profile test with
+  an overlap limit (50 mm²); this Layer 1 has none, so it **rewards overlap**. Rank 1,400
+  is a plain wreck (two sherds standing off the wall). The genuine attempt's own wall
+  spreads ~1.5 mm, the same as the scanned pot (ruler check 1.53 mm): among the top
+  half, ordering is within the pot's own unevenness.
+
+Reading: the ruler is sound (gates, labels, renders agree); this is the method (Layer 1
+as pre-registered) not being able to rank finely, not a broken measurement. It is a weak
+filter. Overlap belongs in Layer 2's per-join test (ticket 02), not as a retune here.
