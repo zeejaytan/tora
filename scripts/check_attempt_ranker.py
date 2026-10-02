@@ -104,7 +104,10 @@ def main() -> int:
 
         # --- fence: positive control ---
         # code, not data: the Python install (package metadata is .json/.txt) and scripts/
-        allow = [tmp / "a", tmp / "fenced.json", HERE, Path(sys.prefix), Path(sys.base_prefix)]
+        # (Spartan's numpy loads from ~/.local, the user site: job 32105506, 2026-10-02)
+        import site
+        allow = [tmp / "a", tmp / "fenced.json", HERE, Path(sys.prefix), Path(sys.base_prefix),
+                 Path(site.getusersitepackages()), *map(Path, site.getsitepackages())]
         for f in a.forbid:
             probe = tmp / "probe.py"
             probe.write_text(f"open({str(f)!r}, 'rb').close()\n")
