@@ -16,7 +16,10 @@ so the right answer is known before the scorer runs:
   7. the swap-allowed count equals readout.part_acc, the existing count;
   8. score_batch gives what score_draw gives;
   9. the anchor check notices an anchor off its home;
- 10. U10's decision rule reads the right way, including the +1 boundary.
+ 10. U10's decision rule reads the right way, including the +1 boundary;
+ 11. a sherd spun half a turn on its own face stays "own" (the blind spot) but is
+     not right way round, and reads ~180 degrees; a 5 degree turn is right way
+     round; both unchanged on the 7.3 times bigger pot.
 
 Run:  python scripts/test_own_place.py     (exits 1 on any failure)
 """
@@ -73,6 +76,23 @@ def exchanged(gt, ppp, i, j):
     pred = gt.copy()
     (a, b), (c, d) = sl[i], sl[j]
     pred[a:b], pred[c:d] = gt[c:d], gt[a:b]
+    return pred
+
+
+def spun(gt, ppp, s, deg):
+    """Sherd s turned by deg about the line from the pot's axis through the middle of
+    the sherd. At 180 the sherd lands exactly on its own home surface, every point in
+    the wrong place: what own place cannot see."""
+    a, b = part_slices(ppp)[s]
+    band, sector = divmod(s, 3)
+    phi = (sector + 0.5) * 2 * np.pi / 3
+    k = np.array([np.cos(phi), np.sin(phi), 0.0])
+    c = np.array([0.0, 0.0, (band + 0.5) * 0.6])
+    t = np.radians(deg)
+    kx = np.array([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]])
+    r = np.eye(3) + np.sin(t) * kx + (1 - np.cos(t)) * kx @ kx
+    pred = gt.copy()
+    pred[a:b] = (gt[a:b] - c) @ r.T + c
     return pred
 
 
@@ -151,6 +171,23 @@ def main() -> int:
     v = decide([4] * 20, [6] * 20, [6] * 20)
     check("rule: generic as good as ceiling, both beat untouched -> loses + C4 line",
           (v["reading"], v["c4"]) == ("ceiling_loses", True))
+
+    for scale in (1.0, 7.3):
+        d = score_draw(scale * gt, scale * spun(gt, ppp, 7, 180), ppp)
+        check(f"sherd 7 spun 180 on its own face, x{scale}: still own place 9 (blind spot)",
+              d.own == 9, f"own {d.own}, sherd 7 chamfer {d.home_pct[7]:.2f}%")
+        check("  ... right way round 8, only sherd 7 out, turn ~180",
+              d.oriented == 8 and d.point_pct[7] > SEAT_PCT
+              and all(d.point_pct[s] < 1e-9 for s in range(9) if s != 7)
+              and abs(d.turn_deg[7] - 180) < 1,
+              f"oriented {d.oriented}, point {d.point_pct[7]:.1f}%, turn {d.turn_deg[7]:.1f}")
+        d = score_draw(scale * gt, scale * spun(gt, ppp, 7, 5), ppp)
+        check(f"sherd 7 turned 5 degrees, x{scale}: right way round 9, turn 5",
+              (d.own, d.oriented) == (9, 9) and abs(d.turn_deg[7] - 5) < 0.1,
+              f"own {d.own}, oriented {d.oriented}, turn {d.turn_deg[7]:.2f}")
+    d = score_draw(gt, exchanged(gt, ppp, 4, 5), ppp)
+    check("two sherds exchanged: right way round 7 (never more than own)",
+          d.oriented == 7, f"oriented {d.oriented}")
 
     print(f"\n{len(FAILS)} failure(s)" if FAILS else "\nall checks pass")
     return 1 if FAILS else 0

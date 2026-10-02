@@ -51,6 +51,18 @@ home, the evaluator (anchor-free mode) first fits it back by ICP
 (`tora/eval/metrics.py`, align_anchor), which this scorer does not do; the object
 is then flagged rather than left to disagree silently.
 
+RIGHT WAY ROUND. Chamfer compares surfaces, not which point went where, so a sherd
+spun on its own face -- a roughly oval sherd turned half a turn about its outward
+normal -- still lies on its home surface and counts as own place. The papers' part
+accuracy has the same blind spot. On GARF's Juglet attempts 19 of 21 "9 of 9" had
+a sherd spun 140-180 degrees like that (GARF .scratch/rough-worn-dose/issues/05,
+06). So each sherd also gets `point_pct`, the median distance of its points from
+their OWN home points (the cloud keeps point order: pred point k is gt point k
+moved), and `turn_deg`, the rotation that best maps home points onto placed ones.
+`oriented` counts sherds that are own place AND under SEAT_PCT on `point_pct`: in
+their place and facing the right way. The turn is reported, not gated. Nothing
+above changes: `own` and `swap` are what they always were.
+
 PER EPOCH. `score_draw` and `score_batch` take plain arrays (or tensors) and
 nothing else, so ticket 04's choosing loop can call them on each validation
 object.
@@ -65,7 +77,7 @@ Usage:
 import argparse
 import json
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -126,6 +138,9 @@ class Draw:
     placed_in: list   # per sherd: the true sherd whose place it is seated in, or -1
     home_pct: list    # per sherd: how far from its OWN home, % of pot size
     anchor: int       # the largest sherd
+    oriented: int = 0  # own place AND facing the right way (point_pct < SEAT_PCT)
+    point_pct: list = field(default_factory=list)  # per sherd: median point-to-own-point, % of pot size
+    turn_deg: list = field(default_factory=list)   # per sherd: rotation from home, degrees
 
     @property
     def off_pct(self) -> list:
@@ -157,10 +172,24 @@ def score_draw(gt, pred, points_per_part) -> Draw:
     seated = {int(j): int(i) for i, j, h in zip(r, c, hit) if h}
     k = len(slices)
     status = ["own" if own[j] else "swapped" if j in seated else "off" for j in range(k)]
+    point = [100.0 * float(np.median(np.linalg.norm(pred[a:b] - gt[a:b], axis=1))) / unit
+             for a, b in slices]
     return Draw(n=k, own=int(own.sum()), swap=int(hit.sum()), status=status,
                 placed_in=[j if own[j] else seated.get(j, -1) for j in range(k)],
                 home_pct=[pct(cd[j, j]) for j in range(k)],
-                anchor=int(np.argmax([b - a for a, b in slices])))
+                anchor=int(np.argmax([b - a for a, b in slices])),
+                oriented=int(sum(own[j] and point[j] < SEAT_PCT for j in range(k))),
+                point_pct=point,
+                turn_deg=[turn_deg(gt[a:b], pred[a:b]) for a, b in slices])
+
+
+def turn_deg(home: np.ndarray, placed: np.ndarray) -> float:
+    """Angle of the rotation that best maps a sherd's home points onto its placed
+    points (Kabsch, no reflection), degrees. 0 = facing exactly as at home."""
+    u, _, vt = np.linalg.svd((home - home.mean(0)).T @ (placed - placed.mean(0)))
+    d = np.sign(np.linalg.det(vt.T @ u.T))
+    r = vt.T @ np.diag([1.0, 1.0, d]) @ u.T
+    return float(np.degrees(np.arccos(np.clip((np.trace(r) - 1) / 2, -1.0, 1.0))))
 
 
 def score_batch(pointclouds_gt, pointclouds_pred, points_per_part) -> list[Draw]:
@@ -198,6 +227,9 @@ def summary(draws: list[Draw]) -> dict:
         "draws": len(draws),
         "own": [d.own for d in draws],
         "swap": [d.swap for d in draws],
+        "oriented": [d.oriented for d in draws],
+        "oriented_median": median([d.oriented for d in draws]),
+        "full": sum(d.oriented == d.n for d in draws),
         "own_median": median([d.own for d in draws]),
         "swap_median": median([d.swap for d in draws]),
         "off_pct_median": median(off),
@@ -296,16 +328,21 @@ def print_object(name: str, scored: dict, pot_mm: float | None) -> None:
     for cloud, draws in scored.items():
         s = summary(draws)
         print(f"  {CLOUD_LABEL[cloud]}")
-        print("    draw   own  swap   not-own sherds, median % of pot size from home")
+        print("    draw   own  swap  right-way-round   not-own sherds, median % of pot "
+              "size from home")
         for k, d in enumerate(draws):
             off = median(d.off_pct)
-            print(f"    {k:>4}   {d.own:>3}   {d.swap:>3}   "
+            print(f"    {k:>4}   {d.own:>3}   {d.swap:>3}   {d.oriented:>3}   "
                   + (f"{off:5.1f}{mm(off, pot_mm)}" if d.off_pct else "  -"))
         q1, q3 = s["off_pct_quartiles"]
         print(f"    own place     median {s['own_median']:g} of {s['n']}   "
               f"{sorted(s['own'])}")
         print(f"    swap-allowed  median {s['swap_median']:g} of {s['n']}   "
               f"{sorted(s['swap'])}")
+        print(f"    right way round (own place, points within {SEAT_PCT:.1f}% of their own "
+              f"home points): best {max(s['oriented'])} of {s['n']} "
+              f"({sum(o == max(s['oriented']) for o in s['oriented'])} of {s['draws']} "
+              f"attempts); all {s['n']}: {s['full']} attempts")
         print(f"    not in own place: median {s['off_pct_median']:.1f}% of pot size from "
               f"home{mm(s['off_pct_median'], pot_mm)}, middle half {q1:.1f}-{q3:.1f}%, "
               f"over {s['off_sherd_draws']} sherd-draws")
