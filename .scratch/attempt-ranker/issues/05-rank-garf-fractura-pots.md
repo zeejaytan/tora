@@ -45,3 +45,8 @@ on more than one pot.
   - narrow_bottle4: sherds 1 and 3 flagged in every genuine attempt. Both run from belly
     over the shoulder into the neck (S-shaped); one sphere fitted to an S curve puts its
     centre outside the pot. narrow_bottle3 is the same kind of bottle.
+- Repair (conservator's option 1, 2026-10-03): `--profile outer` + inside-out reported
+  only; rule file Revision 2; commit bdd585e. A first try (`loo`, nearest point in the
+  (r, h) plane, both surfaces) failed its synthetic check and was never run.
+- 32160629 `u17_calibrate.slurm` (Revision 2) — submitted, polled. Outputs
+  `TORA/rank_u17/calib_32160629/` (calib.json, plate.png, narrow_bottle4.png).
