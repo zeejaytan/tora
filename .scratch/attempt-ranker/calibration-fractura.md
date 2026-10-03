@@ -45,3 +45,25 @@ gap, share passing Layer 1 and share flagged unfixable under the new cut-offs; n
 vs genuine worst-gap AUC; best genuine rank, Layer 1 alone vs Layers 1+2. These pots are
 easy (random top 5 already finds a genuine attempt 97.7–100% of the time), so ranks here
 say nothing about U17.
+
+## Revision 2 (after jobs 32157454 and 32159300) — committed before the rerun
+
+Run 32157454 set a 23.42% profile cut-off from plate alone. Render 32159300 showed both
+faults were **broken measurements, not wrong placements** (ticket 05 log): the height
+bands fail on a flat floor, and the sphere-based inside-out rule misreads flat floor
+sherds and S-shaped neck sherds. Conservator chose to repair Layer 1 and recalibrate on
+the same 5 pots (2026-10-03). Changed, and fixed before the rerun:
+
+- **Profile measure: `--profile outer`** (`rank_attempts.py` docstring). Only the outer
+  surface; each sherd's offset at right angles to the other sherds' outer outline, as SfS++
+  checks its profile curve (one surface, orthogonal distance to a local line; SfS++ supp.
+  Alg. 3). Points beyond the others' reach (sideways > **2% of pot**) are not judged.
+  Attempt deviation = worst judged sherd. The bins above no longer apply.
+  Synthetic check before the run (plate and bottle, 6 mm wall): correct attempts 0.04–0.16
+  mm; one sherd lifted 15 mm, upside down or inside out 7–20 mm; pushed out 5 mm 1.7–3.2
+  mm. Blind to: a rim sherd stood on end (it then touches nobody's outline: reported as
+  *unjudged*), a flat disc turned over (same shape), sliding along a straight wall.
+- **Inside-out rule: reported, does not fail an attempt** (`--io-gate off`).
+- Rules 1 and 2 unchanged (99th percentile of genuine, largest over the 5 pots). Rule 3
+  now also reports the share of genuine attempts with an unjudged sherd; reported, not
+  tuned, not used in the pass.

@@ -30,6 +30,20 @@ Usage: python scripts/rank_attempts.py --bundles DIR --out ranks.json [--workers
 --bin-pct / --profile-pct give the bin and the pass cut-off in % of pot size (longest box
 side, --pot-mm) instead of mm; for pots with no real size (Fractura). The Juglet values
 7 mm on a 65 mm pot are 10.77%.
+
+--profile outer (ticket 05, after job 32159300): the height bands fail on flat floors (one
+band spans centre to rim, so a centre sherd "misses" the rim's radius). As SfS++ checks its
+profile curve (one surface, orthogonal distance to a locally fitted line; supp. Alg. 3),
+each sherd's OUTER surface, in the (distance from axis, height) half-plane, is compared
+with the OTHER sherds' outer surface: per point, the offset along the others' local
+profile normal (mean of the OUTER_K nearest). Points that run past the others' reach
+(sideways distance > COVER_PCT of pot) are not judged; a sherd with fewer than MIN_COVER
+judged points is not judged at all. Sherd deviation = median offset; attempt
+deviation = worst judged sherd; unjudged sherds are listed (a sherd that touches the
+others' outline nowhere, e.g. a rim sherd stood on end). Outer = the 2D normal points away from a cavity point
+(on the axis, median height), as SfS++ splits inner from outer surfaces.
+--io-gate off: inside-out sherds are still reported but do not fail the attempt (the
+sphere rule misreads S-shaped neck sherds and flat floor sherds, job 32159300).
 """
 import argparse
 import json
@@ -40,6 +54,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy.optimize import minimize
+from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_inside_out import rule_flag  # noqa: E402
@@ -54,6 +69,13 @@ AXIS_TRIM = 0.8     # fraction of normal lines kept (break faces, handle)
 N_DIRS = 1500
 AXIS_STARTS = 10    # best grid directions polished
 IO_PTS = 3000
+OUTER_PTS = 3000    # --profile outer: points per sherd in the half-plane comparison
+OUTER_K = 8         # neighbours that set the others' local profile line
+OUTER_NMIN = 0.7    # in-plane share of a normal (drops side break faces)
+COVER_MM = 2.0      # sideways reach beyond the others (set from --cover-pct)
+MIN_COVER = 20      # judged outer points a sherd needs to be judged itself
+PROFILE = "bands"
+IO_GATE = True
 
 _SH = None
 
@@ -185,6 +207,8 @@ def layer1(placed):
     h_all = (P - c) @ d
     if (((h_all - h_all.mean()) ** 3).mean()) < 0:   # one end, whatever the frame
         d, h_all = -d, -h_all
+    if PROFILE == "outer":
+        return _finish(placed, d, c, axis_rms, *outer_profile(placed, d, c, np.median(h_all)))
     lo = h_all.min()
     cells = {}                                 # (sherd, bin) -> outer radius
     for j, (p, _) in enumerate(placed):
@@ -202,6 +226,54 @@ def layer1(placed):
     dev = {key: abs(v - smooth[key[1]]) for key, v in cells.items()}
     per_sherd = [max([dv for (j, _), dv in dev.items() if j == s], default=0.0)
                  for s in range(len(placed))]
+    profile_mm = float(np.percentile(list(dev.values()), DEV_PCT)) if dev else float("nan")
+    return _finish(placed, d, c, axis_rms, profile_mm, per_sherd)
+
+
+def outer_points(placed, d, c, h_mid):
+    """Each sherd's outer-surface points and profile normals in the (r, h) half-plane."""
+    pts, nrm = [], []
+    for p, n in placed:
+        stp = max(1, len(p) // OUTER_PTS)
+        s, n = p[::stp] - c, n[::stp]
+        h = s @ d
+        rad = s - np.outer(h, d)
+        r = np.linalg.norm(rad, axis=1)
+        u = rad / (r[:, None] + 1e-12)
+        n2 = np.c_[np.einsum("ij,ij->i", n, u), n @ d]
+        m = np.linalg.norm(n2, axis=1)
+        x = np.c_[r, h]
+        keep = (m > OUTER_NMIN) & (np.einsum("ij,ij->i", n2, x - [0.0, h_mid]) > 0)
+        pts.append(x[keep])
+        nrm.append(n2[keep] / m[keep, None])
+    return pts, nrm
+
+
+def outer_profile(placed, d, c, h_mid):
+    """Each sherd's outer surface against the others' outer surface, (r, h) plane, mm."""
+    pts, nrm = outer_points(placed, d, c, h_mid)
+    per_sherd = []
+    for j in range(len(pts)):
+        if len(pts[j]) < MIN_PTS:
+            per_sherd.append(float("nan"))
+            continue
+        Y = np.concatenate([x for k, x in enumerate(pts) if k != j])
+        NY = np.concatenate([x for k, x in enumerate(nrm) if k != j])
+        idx = cKDTree(Y).query(pts[j], k=OUTER_K)[1]
+        y, ny = Y[idx].mean(1), NY[idx].mean(1)
+        ny /= np.linalg.norm(ny, axis=1, keepdims=True) + 1e-12
+        v = pts[j] - y
+        off = np.abs(np.einsum("ij,ij->i", v, ny))
+        side = np.abs(v[:, 0] * ny[:, 1] - v[:, 1] * ny[:, 0])
+        cov = side <= COVER_MM
+        per_sherd.append(float(np.median(off[cov])) if cov.sum() >= MIN_COVER
+                         else float("nan"))
+    judged = [x for x in per_sherd if np.isfinite(x)]
+    return (max(judged) if judged else float("nan")), per_sherd
+
+
+def _finish(placed, d, c, axis_rms, profile_mm, per_sherd):
+    P = np.concatenate([p for p, _ in placed])
     centre = P.mean(0)
     io = []
     for j, (p, _) in enumerate(placed):
@@ -209,12 +281,12 @@ def layer1(placed):
         f = rule_flag(p[::stp], centre)
         if f:
             io.append(j)
-    profile_mm = float(np.percentile(list(dev.values()), DEV_PCT)) if dev else float("nan")
-    ok = bool(profile_mm <= PROFILE_MM and not io)
-    least = io[0] if io else int(np.argmax(per_sherd))
+    ok = bool(profile_mm <= PROFILE_MM and not (IO_GATE and io))   # NaN fails
+    least = io[0] if io and IO_GATE else int(np.nanargmax(per_sherd))
     return dict(profile_mm=round(profile_mm, 3), axis_rms_mm=round(axis_rms, 3),
                 inside_out=io, layer1_pass=ok, least_sure=least,
-                sherd_dev_mm=[round(x, 2) for x in per_sherd])
+                unjudged=[j for j, x in enumerate(per_sherd) if not np.isfinite(x)],
+                sherd_dev_mm=[round(x, 2) if np.isfinite(x) else None for x in per_sherd])
 
 
 def score_bundle(path):
@@ -235,8 +307,12 @@ def main() -> int:
     ap.add_argument("--pot-mm", type=float, help="pot size in mm, for the %% cut-offs")
     ap.add_argument("--bin-pct", type=float)
     ap.add_argument("--profile-pct", type=float)
+    ap.add_argument("--profile", choices=("bands", "outer"), default="bands")
+    ap.add_argument("--cover-pct", type=float, help="--profile outer: sideways reach, %% of pot")
+    ap.add_argument("--io-gate", choices=("on", "off"), default="on")
     a = ap.parse_args()
-    global BIN_MM, PROFILE_MM
+    global BIN_MM, PROFILE_MM, PROFILE, IO_GATE, COVER_MM
+    PROFILE, IO_GATE = a.profile, a.io_gate == "on"
     if a.bin_pct is not None or a.profile_pct is not None:
         if a.pot_mm is None:
             sys.exit("--bin-pct/--profile-pct need --pot-mm")
@@ -244,6 +320,10 @@ def main() -> int:
             BIN_MM = a.bin_pct * a.pot_mm / 100
         if a.profile_pct is not None:
             PROFILE_MM = a.profile_pct * a.pot_mm / 100
+    if a.cover_pct is not None:
+        if a.pot_mm is None:
+            sys.exit("--cover-pct needs --pot-mm")
+        COVER_MM = a.cover_pct * a.pot_mm / 100
     paths = sorted((a.bundles / "bundles").glob("*.npz"))
     if a.workers > 1:
         with Pool(a.workers, initializer=_init, initargs=(str(a.bundles),)) as pool:
@@ -251,13 +331,16 @@ def main() -> int:
     else:
         _init(str(a.bundles))
         rows = [score_bundle(p) for p in paths]
-    rows.sort(key=lambda r: (not r["layer1_pass"], r["profile_mm"]))
+    rows.sort(key=lambda r: (not r["layer1_pass"],
+                             r["profile_mm"] if np.isfinite(r["profile_mm"]) else np.inf))
     for i, r in enumerate(rows, 1):
         r["rank"] = i
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text(json.dumps(dict(
         layer="1", cutoffs=dict(BIN_MM=BIN_MM, PROFILE_MM=PROFILE_MM,
-                                OUTER_PCT=OUTER_PCT, DEV_PCT=DEV_PCT, pot_mm=a.pot_mm),
+                                OUTER_PCT=OUTER_PCT, DEV_PCT=DEV_PCT, pot_mm=a.pot_mm,
+                                profile=PROFILE, COVER_MM=COVER_MM, OUTER_K=OUTER_K,
+                                MIN_COVER=MIN_COVER, io_gate=IO_GATE),
         attempts=rows), indent=1))
     n_pass = sum(r["layer1_pass"] for r in rows)
     print(f"{len(rows)} attempts ranked, {n_pass} pass Layer 1 -> {a.out}")

@@ -18,6 +18,8 @@ R=/data/gpfs/projects/punim2657/TORA/rank_u17
 B=$R/l2_32147567
 O=$R/calib_${SLURM_JOB_ID}; mkdir -p "$O"
 POTS=(blue_pot narrow_bottle2 narrow_bottle4 pink_bowl plate)
+# Revision 2 of the rule file: outer-surface profile, inside-out reported only
+L1=(--profile outer --cover-pct 2 --io-gate off)
 for p in "${POTS[@]}"; do
     echo "### $p"
     mkdir -p "$O/$p"
@@ -25,8 +27,12 @@ for p in "${POTS[@]}"; do
     ln -sf "$B/${p}_l2.json" "$O/${p}_l2.json"
     # provisional pass cut-off (Juglet 7 mm on 65 mm); the calibration reads raw deviation
     python scripts/rank_attempts.py --bundles "$B/$p/bundles" --out "$O/$p/ranks.json" \
-        --pot-mm 100 --bin-pct 10.77 --profile-pct 10.77
+        --pot-mm 100 --bin-pct 10.77 --profile-pct 10.77 "${L1[@]}"
 done
 python scripts/u17_calibrate.py --root "$O" --labels "$R/fractura_labels_32111374.json" \
     --pots "${POTS[@]}" --pot-mm 100 --rule .scratch/attempt-ranker/calibration-fractura.md \
-    --out "$O/calib.json"
+    --out "$O/calib.json" --io-gate off
+# look at what the new measure compares (render rule), on the two pots that broke it
+for p in plate narrow_bottle4; do
+    python scripts/l1_look.py --root "$O" --bundles "$B/$p/bundles"         --labels "$R/fractura_labels_32111374.json" --pot "$p" --pot-mm 100 --bin-pct 10.77         --profile outer --cover-pct 2 --out "$O/$p.png"
+done

@@ -7,7 +7,9 @@ with the smoothed profile; (2) a side view with the fitted axis; flagged sherds 
 outline.
 
 Usage: python scripts/l1_look.py --root CALIB_DIR --bundles DIR --labels labels.json \\
-    --pot plate --pot-mm 100 --bin-pct 10.77 --out look.png
+    --pot plate --pot-mm 100 --bin-pct 10.77 --out look.png [--profile outer --cover-pct 2]
+
+With --profile outer, panel 1 draws only the outer-surface points the measure compares.
 """
 import argparse
 import json
@@ -31,8 +33,11 @@ for k in ("root", "bundles", "labels", "out"):
 ap.add_argument("--pot", required=True)
 ap.add_argument("--pot-mm", type=float, required=True)
 ap.add_argument("--bin-pct", type=float, required=True)
+ap.add_argument("--profile", choices=("bands", "outer"), default="bands")
+ap.add_argument("--cover-pct", type=float, default=2.0)
 a = ap.parse_args()
 RA.BIN_MM = a.bin_pct * a.pot_mm / 100
+RA.PROFILE, RA.IO_GATE, RA.COVER_MM = a.profile, False, a.cover_pct * a.pot_mm / 100
 
 rk = {r["id"]: r for r in json.loads((a.root / a.pot / "ranks.json").read_text())["attempts"]}
 idmap = json.loads((a.root / a.pot / "key" / "idmap.json").read_text())
@@ -44,7 +49,9 @@ flags = Counter(j for aid in gen for j in rk[aid]["inside_out"])
 print(f"{a.pot}: {len(gen)} genuine attempts; flagged inside out, per sherd: {dict(flags)}")
 dev = [rk[aid]["sherd_dev_mm"] for aid in gen]
 print("per-sherd profile deviation, median over genuine (% of pot):",
-      [round(100 * float(np.median([d[j] for d in dev])) / a.pot_mm, 2) for j in range(len(dev[0]))])
+      [round(100 * float(np.median([x for d in dev if (x := d[j]) is not None] or [np.nan]))
+             / a.pot_mm, 2) for j in range(len(dev[0]))])
+print("unjudged, per sherd:", dict(Counter(j for aid in gen for j in rk[aid].get("unjudged", []))))
 
 aid = sorted(gen, key=lambda i: rk[i]["profile_mm"])[len(gen) // 2]
 RA._init(str(a.bundles))
@@ -55,7 +62,11 @@ P = np.concatenate([p for p, _ in placed])
 N = np.concatenate([n for _, n in placed])
 step = max(1, len(P) // RA.AXIS_PTS)
 d, c, rms = RA.fit_axis(P[::step], N[::step])
+hh = (P - c) @ d
+if (((hh - hh.mean()) ** 3).mean()) < 0:
+    d = -d
 res = RA.layer1(placed)
+outer = RA.outer_points(placed, d, c, np.median((P - c) @ d))[0] if a.profile == "outer" else None
 print(f"drawn attempt: profile {100 * res['profile_mm'] / a.pot_mm:.2f}% of pot, "
       f"inside out {res['inside_out']}, axis rms {res['axis_rms_mm']:.2f} mm")
 centre = P.mean(0)
@@ -67,7 +78,12 @@ for j, (p, _) in enumerate(placed):
     h = (s - c) @ d
     r = np.linalg.norm((s - c) - np.outer(h, d), axis=1)
     col = f"C{j}"
-    ax[0].scatter(r, h, s=1, c=col, label=f"sherd {j}" + (" (flagged)" if j in res["inside_out"] else ""))
+    lab0 = f"sherd {j}" + (" (flagged)" if j in res["inside_out"] else "")
+    if outer is not None:
+        lab0 += f": {res['sherd_dev_mm'][j]} mm"
+        ax[0].scatter(outer[j][:, 0], outer[j][:, 1], s=1, c=col, label=lab0)
+    else:
+        ax[0].scatter(r, h, s=1, c=col, label=lab0)
     ax[1].scatter((s - c) @ e1, h, s=1, c=col)
     ax[2].scatter((s - c) @ e1, (s - c) @ e2, s=1, c=col)
     cd, ok = curvature(p[:: max(1, len(p) // 3000)])
