@@ -34,3 +34,14 @@ on more than one pot.
   - Layer 2 on these pots (development only): near-miss vs genuine worst gap AUC
     blue_pot 0.90, pink_bowl 0.94, plate 0.66. Best genuine rank L1 → L1+2: plate
     25 → 1, narrow_bottle4 3 → 1, others 1 → 1.
+- 32159300 `l1_look.slurm` — COMPLETED 0:0. `artifacts/rank_u17/l1look_32159300/`. Both
+  are **broken measurements**, not wrong placements (axis and wall profile are right in
+  both pictures: every sherd lies on one clean profile curve).
+  - plate: deviation comes from the two floor sherds (4: 30.7%, 5: 24.3% median; rim
+    sherds 3–4%). Layer 1 takes one outer radius per height band; on a flat floor one
+    band spans centre to rim, so a centre sherd "misses" the rim radius by the floor's
+    width. Inside-out flag on sherd 5 (404/741): a nearly flat floor sherd, curvature
+    direction arbitrary.
+  - narrow_bottle4: sherds 1 and 3 flagged in every genuine attempt. Both run from belly
+    over the shoulder into the neck (S-shaped); one sphere fitted to an S curve puts its
+    centre outside the pot. narrow_bottle3 is the same kind of bottle.
