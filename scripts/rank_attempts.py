@@ -25,6 +25,11 @@ Cut-offs are pre-registered in .scratch/attempt-ranker/preregistration.md; chang
 them there, before a labelled run, or not at all.
 
 Usage: python scripts/rank_attempts.py --bundles DIR --out ranks.json [--workers N]
+       [--pot-mm 100 --bin-pct P --profile-pct P]
+
+--bin-pct / --profile-pct give the bin and the pass cut-off in % of pot size (longest box
+side, --pot-mm) instead of mm; for pots with no real size (Fractura). The Juglet values
+7 mm on a 65 mm pot are 10.77%.
 """
 import argparse
 import json
@@ -227,7 +232,18 @@ def main() -> int:
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--workers", type=int,
                     default=int(os.environ.get("SLURM_CPUS_PER_TASK", "1")))
+    ap.add_argument("--pot-mm", type=float, help="pot size in mm, for the %% cut-offs")
+    ap.add_argument("--bin-pct", type=float)
+    ap.add_argument("--profile-pct", type=float)
     a = ap.parse_args()
+    global BIN_MM, PROFILE_MM
+    if a.bin_pct is not None or a.profile_pct is not None:
+        if a.pot_mm is None:
+            sys.exit("--bin-pct/--profile-pct need --pot-mm")
+        if a.bin_pct is not None:
+            BIN_MM = a.bin_pct * a.pot_mm / 100
+        if a.profile_pct is not None:
+            PROFILE_MM = a.profile_pct * a.pot_mm / 100
     paths = sorted((a.bundles / "bundles").glob("*.npz"))
     if a.workers > 1:
         with Pool(a.workers, initializer=_init, initargs=(str(a.bundles),)) as pool:
@@ -241,7 +257,7 @@ def main() -> int:
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text(json.dumps(dict(
         layer="1", cutoffs=dict(BIN_MM=BIN_MM, PROFILE_MM=PROFILE_MM,
-                                OUTER_PCT=OUTER_PCT, DEV_PCT=DEV_PCT),
+                                OUTER_PCT=OUTER_PCT, DEV_PCT=DEV_PCT, pot_mm=a.pot_mm),
         attempts=rows), indent=1))
     n_pass = sum(r["layer1_pass"] for r in rows)
     print(f"{len(rows)} attempts ranked, {n_pass} pass Layer 1 -> {a.out}")
