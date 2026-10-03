@@ -103,11 +103,13 @@ def main() -> int:
     for j, ((v, f), (c, nrot)) in enumerate(zip(scans, neutral)):
         sh[f"v{j}"] = ((v - c) @ nrot.T * mm).astype(np.float32)
         sh[f"f{j}"] = f.astype(np.int32)
-    np.savez_compressed(a.out / "sherds.npz", k=len(scans), units="mm", **sh)
+    np.savez_compressed(a.out / "sherds.npz", k=len(scans), units="mm", pot_mm=a.pot_mm, **sh)
 
     idmap, checks = {}, []
     for run in runs:
         d = np.load(run, allow_pickle=True)
+        if "name" in d.files and str(d["name"]) != a.object:
+            sys.exit(f"{run} holds {d['name']}, not {a.object}")
         gt = d["pts_gt"].astype(float)
         sl = list(part_slices(d["points_per_part"]))
         if len(sl) != len(scans):
