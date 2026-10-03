@@ -60,8 +60,8 @@ def short(run):
 class Bench:
     """Measures hand-made bundles with l2_measure, sherds as in the real bundles."""
 
-    def __init__(self, bundles: Path):
-        L._init(str(bundles), None)
+    def __init__(self, bundles: Path, pot_mm):
+        L._init(str(bundles), pot_mm)
         z = np.load(bundles / "sherds.npz")
         self.v = [z[f"v{j}"].astype(float) for j in range(int(z["k"]))]
         self.tmp = Path(tempfile.mkdtemp())
@@ -95,6 +95,7 @@ def main() -> int:
     for k in ("bundles", "l2", "ranks", "key", "report", "hdf5", "prereg", "out"):
         ap.add_argument(f"--{k}", required=True, type=Path)
     ap.add_argument("--object", required=True)
+    ap.add_argument("--pot-mm", type=float, default=None, help="if sherds.npz has no pot_mm")
     a = ap.parse_args()
     commit = prereg_commit(a.prereg)
 
@@ -132,7 +133,7 @@ def main() -> int:
     chance3 = float(np.mean([len(p["wrong"]) / len(p["gaps"]) for p in per_near]))
 
     # read-out 2: synthetic spins of the genuine; small-move control on the genuine
-    B = Bench(a.bundles)
+    B = Bench(a.bundles, a.pot_mm)
     rng = np.random.default_rng(29)
     spun_g, unspun_g, syn_worst, gen_shift = [], [], [], []
     for aid, _ in gen:

@@ -18,5 +18,5 @@ J=$R/juglet_32107634
 O=$R/l2report_${SLURM_JOB_ID}; mkdir -p "$O"
 python scripts/l2_report.py --bundles "$J/bundles" --l2 "$R/l2_32147567/juglet_l2.json" \
     --ranks "$J/ranks.json" --key "$J/key/idmap.json" --report "$J/report.json" \
-    --hdf5 /data/gpfs/projects/punim2657/TORA/dataset/juglet_gt.hdf5 --object juglet_gt/Juglet-000 \
+    --hdf5 /data/gpfs/projects/punim2657/TORA/dataset/juglet_gt.hdf5 --object juglet_gt/Juglet-000 --pot-mm 65 \
     --prereg .scratch/attempt-ranker/preregistration-l2.md --out "$O/l2_report.json"
