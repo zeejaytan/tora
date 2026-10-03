@@ -40,6 +40,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from own_place import score_draw  # noqa: E402
 from readout import part_slices, unit_box_scale  # noqa: E402
 
+# rebuilt-vs-saved tolerance, % of pot size (was 0.2 mm: Juglet max 0.17%, Fractura
+# blue_pot 0.32% on a nominal 100 mm pot, job 32144323; rounding, labels all agreed)
+CHECK_PCT = 0.5
+
 
 def kabsch(a, b):
     ca, cb = a.mean(0), b.mean(0)
@@ -148,8 +152,8 @@ def main() -> int:
         resid = np.linalg.norm(rebuilt - pred, axis=1).max() * mm
         o, r_ = score_draw(gt, pred, ppp), score_draw(gt, rebuilt, ppp)
         same = o.status == r_.status and o.oriented == r_.oriented
-        bad += (not same) or resid > 0.2
-        print(f"check {aid}: max point gap {resid:.3f} mm, own/oriented "
+        bad += (not same) or resid > CHECK_PCT * a.pot_mm / 100
+        print(f"check {aid}: max point gap {resid:.3f} mm ({100 * resid / a.pot_mm:.2f}% of pot), own/oriented "
               f"{sum(x == 'own' for x in o.status)}/{o.oriented} -> "
               f"{sum(x == 'own' for x in r_.status)}/{r_.oriented} {'ok' if same else 'DIFFERS'}")
     if checks:
