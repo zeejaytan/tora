@@ -216,3 +216,28 @@ What this ticket adds:
 matching (the body joins are found) and not the reference. **Weight:** one pot, two methods,
 many attempts from a few dozen presentations each.
 
+
+## Follow-up: which sherds does rough or worn training help? (2026-10-05, from step 1's per-run counts)
+
+Percentage of attempts with each sherd home the right way round. GARF arms are compared
+on the same presentations (ds1-10, ds123), for each seed separately. Neck-side sherds are
+1, 3 and 7; the body is 4, 5 and 6.
+
+| arm | 1 | 3 | 7 | 4 | 5 | 6 | 8 | 2 |
+|---|---|---|---|---|---|---|---|---|
+| TORA fresh (1,040) | 27 | 9 | 19 | 0.2 | 0.1 | 0.4 | 4 | 1 |
+| TORA rough 08 (1,040) | 54 | 23 | 39 | 1 | 2 | 3 | 4 | 2 |
+| TORA rough 09 d100 (1,040) | 52 | 20 | 37 | 0.2 | 2 | 2 | 5 | 1 |
+| GARF fresh s42 / s7 | 11 / 21 | 8 / 13 | 19 / 24 | 2 / 3 | 2 / 2 | 2 / 2 | 5 / 6 | 4 / 3 |
+| GARF rough d100 s42 / s7 | 36 / 40 | 21 / 25 | 36 / 33 | 7 / 7 | 12 / 12 | 13 / 14 | 13 / 10 | 6 / 6 |
+| GARF worn d400 s42 / s7 | 24 / 36 | 17 / 28 | 21 / 29 | 4 / 6 | 10 / 19 | 9 / 17 | 19 / 24 | 2 / 2 |
+
+- Both methods: rough or worn training about doubles the neck-side sherds (1, 3, 7).
+- GARF only: it also lifts the body (5, 6: about 2% to 10-19%) and sherd 8 (worn most,
+  to 19-24%). On TORA the body stays at 0-3%.
+- Neither helps sherd 2. But in GARF's single original presentation (the runs without
+  `_ds`, 20-60 attempts each) sherd 2 comes home in 50-57% of rough/worn attempts (14%
+  fresh) while sherd 7 drops to 0%. Which sherds succeed depends on the presentation
+  as much as on the training.
+- Weight: one pot. On GARF, one training run per arm (per G1 ticket 04). The figures are
+  sherds at home, not join-by-join fits.
