@@ -19,6 +19,9 @@ must keep them apart:
    answer key places it wrongly. The conservator's `juglet_gt` already has known faults
    (sherd 7 off by 5-11 degrees; joins overlapping 0.2-0.5 mm, G1). This is checked first,
    because it would void the other two.
+   **Conservator, 2026-10-05: "the sherd I placed is correct in gt."** The placement of
+   sherd 2 in `juglet_gt` stands on the conservator's word. The join gap/overlap
+   measurement below still runs, as a check on the joins and not on the placement.
 2. **The measurement is hard on sherd 2.** For example, sherd 2 could be nearly symmetric,
    so a half turn barely changes its outline, and the scoring call depends on fine
    detail.
@@ -29,13 +32,13 @@ must keep them apart:
 **Answers:** O8 (also feeds `GARF/intent/G1`: a named, measurable property of one sherd is
 the kind of mechanism G1's "Done when" asks for)
 **Blocked by:** None (can start immediately). All inputs are saved; no new sampling runs.
-**Status:** ready-for-agent
+**Status:** ready-for-human (step 1 hit its stop condition; the conservator decides whether to re-scope)
 **Needs-eye:** sherd 2 at home in `juglet_gt`, with its joins to its neighbours, staged
 in visual-qa as a single look (`single:`) with sherd 2 coloured. The conservator says
 whether it sits where they put it and whether its break edges meet. A visual-qa desc
 under `visual-qa/viewer/pairs/` is written when the laptop is on.
 
-- [ ] **Is it really sherd 2?** For every sherd, count how often it is wrong (not the
+- [x] **Is it really sherd 2?** For every sherd, count how often it is wrong (not the
       right way round) across all 3,120 ticket-10 attempts (six jobs 32274395-400, solid
       cloud, `own_place.json`), and across GARF's 1,400 saved attempts with GARF's
       right-way-round scoring. Report per sherd and per model. Stop if sherd 2 is not
@@ -59,3 +62,40 @@ under `visual-qa/viewer/pairs/` is written when the laptop is on.
 
 All computation runs on Spartan, in the held CPU allocation if one is up (workspace rule
 6). The laptop only stages the look.
+
+## Result so far (2026-10-05)
+
+**Step 1 stopped the ticket as written: sherd 2 is not the worst sherd.** Counted over every
+saved attempt, it is one of five sherds that almost never go home the right way round, on
+both methods. Sherd 0 is the anchor and never fails.
+
+| sherd | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| TORA, % of 3,120 attempts not right way round | 56 | 99 | 82 | 99 | 99 | 98 | 68 | 96 |
+| GARF, % of 2,140 attempts not right way round | 81 | 92 | 85 | 96 | 94 | 92 | 81 | 88 |
+
+Worst first: TORA 4, 5, 2, 6, 8, 3, 7, 1; GARF 4, 5, 6, 2, 8, 3, 7, 1. GARF's count
+covers 2,140 saved attempts, not the 1,400 named above: the script took every `rwlora_eval`
+run on `juglet_gt` except the `_ns`/`_rs` arms (107 rescored from saved clouds because
+their `own_place.json` predates `point_pct`). The split is the same on both methods:
+sherds 1, 7 and 3 sometimes go home; sherds 2, 4, 5, 6 and 8 almost never do. Sherd 2
+stood out in the four best TORA attempts because, in those few attempts, the other four
+happened to land. That was selection from a handful, which is why the ticket called it a lead.
+
+**Numbering matches.** Each sherd's share of the points is identical in both methods to
+three places, its longest extent agrees within 1.1% of the pot, and the distances between
+sherd centres agree within 1.1% of the pot. "Sherd 2" is the same physical sherd in both.
+
+**Symmetry (done early, same run).** Spun a half turn about its own outward direction and
+nudged to fit, every sherd except the large sherd 0 sits back on its own surface within
+0.7-1.2 mm on average. That is at or under the spacing between sampled points (about
+1.1 mm) and far under the 4.6 mm seating threshold. At this sampling, the outline of a
+small Juglet sherd barely tells it apart from itself turned round. That holds for sherds
+that seat (1: 0.74 mm, 7: 0.78 mm) as well as those that do not (2: 0.85 mm, 4: 0.95 mm),
+so it does not explain the split by itself. Scoring is not fooled by it: the score compares
+each point with its own home point, not with the nearest surface.
+
+**Reference.** Conservator, 2026-10-05: sherd 2's placement in `juglet_gt` is correct.
+Nothing in step 1 points at the reference: the same five sherds fail on both methods.
+
+Output: `/mnt/project-files/t16_sherd2_step1_output.txt` (script run read-only on Spartan).
