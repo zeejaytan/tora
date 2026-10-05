@@ -8,6 +8,16 @@ is that the wear model is a **training augmentation**, not a measuring instrumen
 augmentations are validated by whether they help rather than by physical fidelity. The two
 criteria are now **behavioural** and **bounded-range**.
 
+## Where it stands
+
+Training TORA on rough breaks did better on the Juglet than training on clean breaks, and
+the gain held when repeated. Training on worn breaks did not give back sherd 1 and has
+been dropped. These results are in tickets 08 and 09 and not yet written here.
+
+Weight: one real pot; repeated training runs for rough against clean.
+Next: the refute check, then write the result into this question.
+Viewer: `u10_juglet_rough1x_t09` beside `u10_juglet_fresh_t08`
+
 ## Why it matters
 
 The wear model is currently calibrated against **a physical argument and one pot**. That is
