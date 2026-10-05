@@ -239,5 +239,5 @@ on the same presentations (ds1-10, ds123), for each seed separately. Neck-side s
   `_ds`, 20-60 attempts each) sherd 2 comes home in 50-57% of rough/worn attempts (14%
   fresh) while sherd 7 drops to 0%. Which sherds succeed depends on the presentation
   as much as on the training.
-- Weight: one pot. On GARF, one training run per arm (per G1 ticket 04). The figures are
+- Weight: one pot; training-run counts per GARF arm not re-checked here. The figures are
   sherds at home, not join-by-join fits.
