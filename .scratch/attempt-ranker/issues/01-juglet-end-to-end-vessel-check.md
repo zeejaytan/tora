@@ -73,3 +73,19 @@ filter. Overlap belongs in Layer 2's per-join test (ticket 02), not as a retune 
     wall sherds 7 and 2 miss by 2–4 mm (median), the handle sherd by 0.6 mm; no separation.
   - Layer 2 controls unchanged (spin-on-truth AUC 0.98; near-miss AUC 0.76; small-move
     control still fails).
+- Fix for the handle (conservator, 2026-10-05: "the handle is attached to the sherd, so it
+  shouldn't even need to be judged"): `--near-pct` judges a sherd only where it is within
+  NEAR of another sherd's outer surface. Two cases found, both on Spartan:
+  - 32273759 `l1_synthetic.slurm` (--near 3 5 8 mm, synthetic plate + bottle) — COMPLETED
+    0:0, 18 min. Log `TORA/rank_u17/u17_l1_syn_32273759.log`. Correct attempts read
+    0.07–0.16 mm with no sherd unjudged at every NEAR. **Near-only hides misplacements**:
+    a judged point is within NEAR of a neighbour by construction, so readings are capped
+    near NEAR. At 3 mm, a bottle sherd turned upside down read 0.36 mm and tilted 90°
+    0.99 mm (whole surface: 3.9 / 13.2); most moved plate sherds became unjudged and
+    passed. At 8 mm most are caught again (upside 1.3, push5 1.6 still under ~1.7).
+  - CPU holder 32274453 (Juglet, both genuine): sherd 0 (handle) reads 0.03–0.05 mm at
+    every NEAR from 3% to 12% of pot (1.95–7.8 mm); attempts 0.10–0.34 mm (whole surface:
+    0.65 / 1.58). The handle stays out even at 12%.
+  - So: use a wide NEAR (≥8%) and make an unjudged sherd fail (`--unjudged fail`,
+    10537d4) — in a correct reassembly every sherd meets a neighbour. Synthetic re-run
+    with verdicts next, in the held CPU allocation.
