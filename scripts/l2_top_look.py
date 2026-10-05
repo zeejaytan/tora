@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from l2_report import gaps  # noqa: E402
 from own_place import SEAT_PCT, score_draw  # noqa: E402
+from label_attempts import run_name  # noqa: E402
 
 ap = argparse.ArgumentParser()
 for k in ("bundles", "l2", "ranks", "key", "out"):
@@ -50,7 +51,7 @@ for n, aid in enumerate(order[: a.n], 1):
     cells = " ".join(f"{x:4.2f}{'' if r else ('*' if o else '!')}"
                      for x, o, r in zip(g, own, right))
     print(f"{n:6d} {rk[aid]['rank']:5d}   {sum(own)}/{sum(right)}     {worst[aid]:4.2f}  {cells}"
-          f"   {Path(run).parts[-4]} #{t}")
+          f"   {run_name(run)} #{t}")
     if n <= a.k:
         looks.append((n, aid, own, right))
 

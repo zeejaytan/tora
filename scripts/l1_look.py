@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rank_attempts as RA  # noqa: E402
 from check_inside_out import curvature  # noqa: E402
+from label_attempts import run_name  # noqa: E402
 
 ap = argparse.ArgumentParser()
 for k in ("root", "bundles", "labels", "out"):
@@ -50,7 +51,7 @@ rk = {r["id"]: r for r in json.loads((a.root / a.pot / "ranks.json").read_text()
 idmap = json.loads((a.root / a.pot / "key" / "idmap.json").read_text())
 lab = {(r["pot"], r["run"], r["attempt"]): r for r in json.loads(a.labels.read_text())}
 gen = [aid for aid, m in idmap.items()
-       if (l := lab[(f"fractura_fresh/{a.pot}", Path(m["run"]).parts[-4], m["attempt"])])
+       if (l := lab[(f"fractura_fresh/{a.pot}", run_name(m["run"]), m["attempt"])])
        ["oriented"] == l["n"]]
 flags = Counter(j for aid in gen for j in rk[aid]["inside_out"])
 print(f"{a.pot}: {len(gen)} genuine attempts; flagged inside out, per sherd: {dict(flags)}")
