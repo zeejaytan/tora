@@ -77,6 +77,7 @@ NEAR_MM = None      # --near-pct: judge only points this close (3D) to another s
 MIN_COVER = 20      # judged outer points a sherd needs to be judged itself
 PROFILE = "bands"
 IO_GATE = True
+UNJUDGED_FAIL = False   # --unjudged fail: a sherd touching no neighbour fails the attempt
 
 _SH = None
 
@@ -287,11 +288,15 @@ def _finish(placed, d, c, axis_rms, profile_mm, per_sherd):
         f = rule_flag(p[::stp], centre)
         if f:
             io.append(j)
-    ok = bool(profile_mm <= PROFILE_MM and not (IO_GATE and io))   # NaN fails
-    least = io[0] if io and IO_GATE else int(np.nanargmax(per_sherd))
+    unj = [j for j, x in enumerate(per_sherd) if not np.isfinite(x)]
+    # In a correct reassembly every sherd meets a neighbour, so with --near-pct a sherd
+    # with nothing near a join has been moved away (lifted, pushed out, turned over).
+    ok = bool(profile_mm <= PROFILE_MM and not (IO_GATE and io)        # NaN fails
+              and not (UNJUDGED_FAIL and unj))
+    least = (io[0] if io and IO_GATE else unj[0] if unj and UNJUDGED_FAIL
+             else int(np.nanargmax(per_sherd)) if len(unj) < len(per_sherd) else 0)
     return dict(profile_mm=round(profile_mm, 3), axis_rms_mm=round(axis_rms, 3),
-                inside_out=io, layer1_pass=ok, least_sure=least,
-                unjudged=[j for j, x in enumerate(per_sherd) if not np.isfinite(x)],
+                inside_out=io, layer1_pass=ok, least_sure=least, unjudged=unj,
                 sherd_dev_mm=[round(x, 2) if np.isfinite(x) else None for x in per_sherd])
 
 
@@ -318,9 +323,12 @@ def main() -> int:
     ap.add_argument("--io-gate", choices=("on", "off"), default="on")
     ap.add_argument("--near-pct", type=float, help="--profile outer: judge only points this "
                     "close to another sherd, %% of pot (a handle mid-sherd is not judged)")
+    ap.add_argument("--unjudged", choices=("report", "fail"), default="report",
+                    help="fail: a sherd with no judged points fails the attempt")
     a = ap.parse_args()
-    global BIN_MM, PROFILE_MM, PROFILE, IO_GATE, COVER_MM, NEAR_MM
+    global BIN_MM, PROFILE_MM, PROFILE, IO_GATE, COVER_MM, NEAR_MM, UNJUDGED_FAIL
     PROFILE, IO_GATE = a.profile, a.io_gate == "on"
+    UNJUDGED_FAIL = a.unjudged == "fail"
     if a.bin_pct is not None or a.profile_pct is not None:
         if a.pot_mm is None:
             sys.exit("--bin-pct/--profile-pct need --pot-mm")
@@ -352,7 +360,8 @@ def main() -> int:
         layer="1", cutoffs=dict(BIN_MM=BIN_MM, PROFILE_MM=PROFILE_MM,
                                 OUTER_PCT=OUTER_PCT, DEV_PCT=DEV_PCT, pot_mm=a.pot_mm,
                                 profile=PROFILE, COVER_MM=COVER_MM, OUTER_K=OUTER_K,
-                                MIN_COVER=MIN_COVER, NEAR_MM=NEAR_MM, io_gate=IO_GATE),
+                                MIN_COVER=MIN_COVER, NEAR_MM=NEAR_MM, io_gate=IO_GATE,
+                                unjudged_fail=UNJUDGED_FAIL),
         attempts=rows), indent=1))
     n_pass = sum(r["layer1_pass"] for r in rows)
     print(f"{len(rows)} attempts ranked, {n_pass} pass Layer 1 -> {a.out}")

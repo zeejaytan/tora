@@ -2,9 +2,12 @@
 
 A plate and a bottle (6 mm wall) cut into sherds; one sherd at a time pushed out 2/5 mm,
 lifted 15 mm, tilted 90 deg, turned upside down or inside out. Prints that sherd's reading
-/ the attempt's, U if a sherd is unjudged. Correct attempts must read ~0 with no U.
+/ the attempt's, U if a sherd is unjudged, then the verdict: P pass / F fail (cut-off
+--profile-mm, default 1.72 = the calibrated 1.72% of a ~100 mm pot; --unjudged fail makes
+an unjudged sherd fail the attempt). Correct attempts must read ~0, no U, and P.
 
-Usage: python scripts/l1_synthetic.py [--near MM ...]   (None = whole outer surface)
+Usage: python scripts/l1_synthetic.py [--near MM ...] [--no-whole] [--unjudged fail]
+       (None = whole outer surface)
 """
 import argparse
 import sys
@@ -88,10 +91,15 @@ def move(sh, k, kind):
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--near", nargs="*", type=float, default=[])
+    ap.add_argument("--no-whole", action="store_true", help="skip the whole-surface pass")
+    ap.add_argument("--unjudged", choices=("report", "fail"), default="report")
+    ap.add_argument("--profile-mm", type=float, default=1.72)
     a = ap.parse_args()
     RA.PROFILE, RA.IO_GATE = "outer", False
+    RA.UNJUDGED_FAIL, RA.PROFILE_MM = a.unjudged == "fail", a.profile_mm
+    v = lambda r: "P" if r["layer1_pass"] else "F"  # noqa: E731
     G = Rot.random(random_state=1).as_matrix()
-    for near in [None] + a.near:
+    for near in ([] if a.no_whole else [None]) + a.near:
         RA.NEAR_MM = near
         print(f"\n######## near-join only: {near} mm")
         for name, prof, cs, ct, ks in [
@@ -105,13 +113,13 @@ def main() -> int:
             run = lambda S: RA.layer1([(p @ G.T, n @ G.T) for p, n in S])  # noqa: E731
             r = run(sh)
             print(f"{name}: correct {r['profile_mm']:.2f} per sherd {r['sherd_dev_mm']}"
-                  + (" U" if r["unjudged"] else ""))
+                  + (" U" if r["unjudged"] else "") + " " + v(r))
             for k in ks:
                 row = []
                 for kind in KINDS:
                     r = run(move(sh, k, kind))
                     row.append(f"{kind} {r['sherd_dev_mm'][k]}/{r['profile_mm']:.1f}"
-                               + ("U" if r["unjudged"] else ""))
+                               + ("U" if r["unjudged"] else "") + v(r))
                 print(f"  sherd {k}: " + "  ".join(row), flush=True)
     return 0
 
