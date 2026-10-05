@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=01:00:00
+#SBATCH --time=03:00:00
 #SBATCH --output=/data/gpfs/projects/punim2657/TORA/logs/u10_juglet_%x_%j.log
 
 # U10 ticket 05: one arm, 20 draws on the Juglet, with renders and assembly npz.
@@ -62,6 +62,10 @@ if [ -n "${ADAPTER:-}" ]; then
     C=$ADAPTER
 fi
 LABEL="${LABEL:-}"
+# Ticket 10: SEEDS="42 1 2 ..." re-runs the arm once per sampling seed. The seed picks the
+# presentation (sampled points, each sherd's random input turn) as well as the starts;
+# every run before ticket 10 used 42 only. 42 keeps the old folder name, others add _s<n>.
+SEEDS="${SEEDS:-42}"
 
 module purge
 module load Anaconda3/2024.02-1 CUDA/12.4.1 cuDNN/9.6.0.74-CUDA-12.4.1
@@ -85,10 +89,12 @@ if [ "$ARM" != untouched ]; then
         || { echo "STRICT diff failed on $C -- not evaluating"; exit 1; }
 fi
 
-OUT=$LOG_ROOT/u10_${SET}_${ARM}${LABEL:+_$LABEL}_${SLURM_JOB_ID}
+for S in $SEEDS; do
+OUT=$LOG_ROOT/u10_${SET}_${ARM}${LABEL:+_$LABEL}$([ "$S" = 42 ] || echo "_s$S")_${SLURM_JOB_ID}
 python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
     data="$DATA" data.batch_size="$BATCH" \
     "${ARGS[@]}" \
+    seed="$S" \
     log_dir="$OUT" \
     model.n_generations="$DRAWS" \
     "+visualizer._target_=tora.visualizer.FlowVisualizationCallback" \
@@ -99,8 +105,9 @@ python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
     "+visualizer.save_trajectory=false" \
     "+visualizer.save_procrustes_assembly=true" \
     "+visualizer.save_assembly_npz=true" \
-    || { echo "sampling failed"; exit 1; }
+    || { echo "sampling failed (seed $S)"; exit 1; }
 
 python scripts/own_place.py --run "$OUT" "${POTMM[@]}" --json "$OUT/own_place.json" \
-    || { echo "own-place scoring failed (the draws are kept; score on CPU)"; exit 1; }
-echo "=== done $(date): $OUT ==="
+    || { echo "own-place scoring failed (seed $S; the draws are kept; score on CPU)"; exit 1; }
+done
+echo "=== done $(date): seeds $SEEDS ==="
