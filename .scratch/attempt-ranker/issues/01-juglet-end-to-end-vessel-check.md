@@ -58,3 +58,18 @@ the next commit.) Pre-registration e3f1b27. Outputs on Spartan
 Reading: the ruler is sound (gates, labels, renders agree); this is the method (Layer 1
 as pre-registered) not being able to rank finely, not a broken measurement. It is a weak
 filter. Overlap belongs in Layer 2's per-join test (ticket 02), not as a retune here.
+- 32265963 `rank_u17_juglet_v2.slurm` — COMPLETED 0:0. Repaired Layer 1 (`--profile outer`,
+  inside-out reported only) with the Fractura cut-off 1.723% of pot (calib_32160629) =
+  1.12 mm on the Juglet. Output `TORA/rank_u17/jug_v2_32265963/`.
+  - Layer 1 keeps 532 of 1,400. Genuine noise_d100_ds1 #19: 0.65 mm, kept, rank 357 →
+    **9** with Layer 2. Genuine worn_d400_s7_ds4 #11: **1.58 mm, dropped**, rank 703 → 533.
+    Top 5 has no genuine (before this repair, Layers 1+2 ranked them 1 and 13).
+  - Cause, looked at (scratchpad render of both genuine attempts): all of the deviation is
+    sherd 0 (0.65 / 1.58 mm; all others 0.02–0.24). Sherd 0 is the neck **with the
+    handle**; the handle loop sits off the outline in the (r, h) plane. Broken measurement
+    for a handled vessel (the measure assumes a round pot, as SfS++ does), not a misplaced
+    sherd. Fractura calibration pots have no handles, so calibration could not see it.
+  - Tried and rejected: dropping points whose surface normal line misses the axis. Plain
+    wall sherds 7 and 2 miss by 2–4 mm (median), the handle sherd by 0.6 mm; no separation.
+  - Layer 2 controls unchanged (spin-on-truth AUC 0.98; near-miss AUC 0.76; small-move
+    control still fails).
