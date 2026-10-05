@@ -10,7 +10,7 @@ reconciliation, not a passing test.
 
 **Blocked by:** 01
 
-**Status:** done
+**Status:** resolved
 
 ## Why this is separate from the gate
 

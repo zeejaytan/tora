@@ -21,7 +21,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 5 and 6.
 
 **Blocked by:** CSC `u10-juglet-ceiling` 04 (the corpus), done 2026-09-21.
 
-**Status:** done (2026-09-24)
+**Status:** resolved (2026-09-24)
 
 **Needs-eye:** the audit renders.
 

@@ -10,7 +10,7 @@ Job: `scripts/hpc/juglet_anchor_choice.slurm`.
 
 **Blocked by:** none
 
-**Status:** done
+**Status:** resolved
 
 **Why:** on baseline job 30130049 the sherds sharing the longest break edge with the
 held sherd (1, 7) went home 15/20 and 14/20; sherds not touching it (4, 5, 6) 0-2/20.

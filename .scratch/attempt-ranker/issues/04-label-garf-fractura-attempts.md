@@ -8,7 +8,7 @@ right way round), and which pots qualify for ranking. CPU only; no new GPU run.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done
+**Status:** resolved
 
 - [x] Confirm which pots the Fractura file holds: 8, not 3 — blue_pot, galli_pot, narrow_bottle1–4,
       pink_bowl, plate (one clouds npz per pot per run)

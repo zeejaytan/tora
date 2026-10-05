@@ -15,7 +15,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, module 7.
 - 02 (writer and audit);
 - 03 (the gate).
 
-**Status:** done 2026-09-25
+**Status:** resolved 2026-09-25
 
 - [x] Both arms' training files are written, and the audit passes on each; the recipe
       hash matches CSC ticket 03. (Ticket 02, 2026-09-21: 0 failures on 885 breakages,

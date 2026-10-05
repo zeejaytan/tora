@@ -11,7 +11,7 @@ sherds than generic vessel training does?
 
 **Blocked by:** 06 (the recipe and the ceiling adapter).
 
-**Status:** results in (2026-09-25); waiting on the conservator's look and refute-finding
+**Status:** results-in (2026-09-25); waiting on the conservator's look and refute-finding
 
 **The result, plainly (2026-09-25).** With the alignment term off, fine-tuning no longer
 damages TORA's placement in general. Both adapters improve on their own practice vessels

@@ -11,7 +11,7 @@ written into the design and never executed.
 **Needs the conservator's go-ahead to submit** — no `sbatch` without it, and the
 submit gets a laptop-side `scripts/slurm_poll.sh`, per `AGENTS.md`.
 
-**Status:** DONE 2026-09-09 — job **30293058**, `sacct: COMPLETED|0:0|2026-09-09T16:34:44`.
+**Status:** resolved 2026-09-09 — job **30293058**, `sacct: COMPLETED|0:0|2026-09-09T16:34:44`.
 Result: `docs/notes/EROSION_LADDER_CERAMICS.md`.
 
 **Outcome in one line:** the selection step worked — **four** pots carry a

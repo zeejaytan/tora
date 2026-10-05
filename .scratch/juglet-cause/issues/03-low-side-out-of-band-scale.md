@@ -9,7 +9,7 @@ there.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** answered 2026-09-06 — job 30130045 (downward ladder) came back and the
+**Status:** resolved 2026-09-06 — job 30130045 (downward ladder) came back and the
 prediction written into the job header **failed**
 
 ## Why it is live

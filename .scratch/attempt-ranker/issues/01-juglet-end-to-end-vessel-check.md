@@ -9,7 +9,7 @@ bundles → ranker → report, run on Spartan. See `../spec.md`.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done (2026-10-02): result below; Layer 1 alone does not reach the top 5
+**Status:** resolved (2026-10-02): result below; Layer 1 alone does not reach the top 5
 
 - [x] Converter turns one GARF evaluation run's rigid ("solid") attempts plus the Juglet's
       full-detail sherds into one bundle per attempt, each moved to a random position; the

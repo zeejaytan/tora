@@ -15,7 +15,7 @@ back to U10's "what that leaves" line.
 
 **Blocked by:** 07 (the alignment-off recipe).
 
-**Status:** results in (2026-09-26), write-back to O7 pending: rough beats fresh and worn on the Juglet and fresh on the ladder, two runs per arm; strengths refined in 09. Write-back waits on refute-finding. Conservator chose the arms: pooled corpus, noise kept.
+**Status:** results-in (2026-09-26), write-back to O7 pending: rough beats fresh and worn on the Juglet and fresh on the ladder, two runs per arm; strengths refined in 09. Write-back waits on refute-finding. Conservator chose the arms: pooled corpus, noise kept.
 
 **Needs-eye:** before training, one worn join from the corpus, before/after, in a section
 window that resolves 0.1 mm. After, the Juglet median attempt per new arm in visual-qa,

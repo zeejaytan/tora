@@ -11,7 +11,7 @@ trusted. Nothing that currently prints a table is touched by this ticket.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done
+**Status:** resolved
 
 ## Why this is first, and why it stops short of the callers
 
