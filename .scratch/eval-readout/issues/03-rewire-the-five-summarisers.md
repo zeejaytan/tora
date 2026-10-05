@@ -9,7 +9,7 @@ script records, in its own docstring, which of its figures moved and by how much
 
 **Blocked by:** 02
 
-**Status:** done
+**Status:** resolved
 
 ## Why this is last, and why it is the bulk of the work
 

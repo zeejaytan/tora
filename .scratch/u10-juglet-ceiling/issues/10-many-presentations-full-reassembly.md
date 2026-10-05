@@ -12,7 +12,8 @@ This ticket gives each trained adapter 26 presentations × 20 attempts.
 **Answers:** O8 (what stops TORA reassembling the Juglet: whether rough-trained TORA can do
 it at all, given enough attempts)
 **Blocked by:** 09 (the adapters)
-**Status:** in progress
+**Status:** in-progress
+**Working in:** project thread "Check the juglet full-reassembly run" (2026-10-05)
 **Needs-eye:** any attempt that scores 9 of 9 right way round goes to visual-qa beside the
 conservator's reassembly before it is called a full reassembly.
 

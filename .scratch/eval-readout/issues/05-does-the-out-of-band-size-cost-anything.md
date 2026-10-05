@@ -13,7 +13,7 @@ middle of the trained band and reads the difference.
 
 **Blocked by:** None. 04 is resolved and supplies the measured band.
 
-**Status:** done (phase 1 and phase 2)
+**Status:** resolved (phase 1 and phase 2)
 
 ## Why it exists
 

@@ -10,7 +10,7 @@ get there. It runs against pots TORA does rebuild, and it comes with a render.
 
 **Blocked by:** None. No GPU, no fetch, no Slurm: every input is already under `artifacts/`.
 
-**Status:** done (2026-09-12). Reading C; the recorded prediction (A) was wrong. See
+**Status:** resolved (2026-09-12). Reading C; the recorded prediction (A) was wrong. See
 **Result** at the end.
 
 **Needs-eye:** the render from the fourth box below. The question started as the

@@ -11,7 +11,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, modules 8 and 9.
 
 **Blocked by:** 01 (the scorer), 04 (both adapters).
 
-**Status:** done 2026-09-25 except the Needs-eye witness (viewer pairs staged, conservator look pending)
+**Status:** resolved 2026-09-25 except the Needs-eye witness (viewer pairs staged, conservator look pending)
 
 **Needs-eye:** the per-arm Juglet renders. The pictures decide; the table ranks.
 

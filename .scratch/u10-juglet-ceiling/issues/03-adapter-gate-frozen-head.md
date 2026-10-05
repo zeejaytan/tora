@@ -12,7 +12,7 @@ Spec: the umbrella `.scratch/u10-juglet-ceiling/spec.md`, module 7.
 **Blocked by:** None (can start immediately). The smoke test uses an existing small
 training file.
 
-**Status:** done (2026-09-24)
+**Status:** resolved (2026-09-24)
 
 - [x] The U10 training configuration sets the head frozen explicitly, not by default.
       The default is still to train it. (`scripts/hpc/u10_session.sh` passes

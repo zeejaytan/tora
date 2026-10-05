@@ -10,7 +10,7 @@ five, so that tickets 02–05 can resolve smaller effects.
 **Blocked by:** None. It sharpens 01's rule rather than replacing it — 02, 03 and 04 can
 proceed under the coarse 17° rule while this runs.
 
-**Status:** answered 2026-09-06 — **job 30130049**, all three arms at twenty draws
+**Status:** resolved 2026-09-06 — **job 30130049**, all three arms at twenty draws
 each. The rule sharpens from 17° to **9°**, and the adapter still does nothing.
 
 ## Why it exists
