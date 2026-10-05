@@ -91,7 +91,7 @@ Read against the readings fixed above:
   way round, 3 attempts, all rough 1x (08) s42; at least 7 right way round occurs nowhere
   else.
 - **9 of 9 own place but fewer right way round** (near-misses, not full): 3 solid attempts
-  (8 raw), every one with 2-6 sherds turned, mostly 150-180 degrees on their own face, or
+  (10 raw), every one with 2-6 sherds turned, mostly 150-180 degrees on their own face, or
   8-25% of pot size off their own points. The GARF spun-sherd trap, not near-success.
 - **The seed changes the presentation:** per-seed mean spread 2.75-3.85 sherds for rough
   (GARF worn 4x: 1.90), far above the 0.1 void line. Presentation decides TORA's Juglet
