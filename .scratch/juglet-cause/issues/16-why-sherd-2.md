@@ -32,7 +32,7 @@ must keep them apart:
 **Answers:** O8 (also feeds `GARF/intent/G1`: a named, measurable property of one sherd is
 the kind of mechanism G1's "Done when" asks for)
 **Blocked by:** None (can start immediately). All inputs are saved; no new sampling runs.
-**Status:** ready-for-agent. **Re-scoped 2026-10-05 (conservator's choice):** the question is
+**Status:** done (2026-10-05; see Result). **Re-scoped 2026-10-05 (conservator's choice):** the question is
 now why sherds 2, 4, 5, 6 and 8 almost never go home the right way round while 1, 3 and 7
 sometimes do, on both methods. The break-face step below is measured for all nine sherds
 and compared across the two groups (`t16_break.py`, read-only on `juglet_gt.hdf5`).
@@ -174,6 +174,45 @@ which magnifies small turning errors onto the larger sherd. So pair figures read
 to at-home figures (0-1: 36.4% as a pair against 44.3% for sherd 1 at home). That cuts
 against the block finding, not for it.
 
-Weight: one pot, one method so far. The 3,120 attempts come from a few dozen presentations
-of the same nine sherds, so they are not 3,120 independent trials. The same test on GARF's
-saved attempts is running.
+Weight: one pot. The 3,120 attempts come from a few dozen presentations of the same nine
+sherds, so they are not 3,120 independent trials.
+
+## Same test on GARF (`/mnt/project-files/t16_rel_garf_output.txt`, 2,140 attempts)
+
+| | 4-6 | 5-6 | 4-5 | 3-6 | 4, 5, 6 together | 4, 5, 6 all at home |
+|---|---|---|---|---|---|---|
+| TORA | 18.1% | 11.0% | 5.7% | 8.9% | 5.5% | 0.1% |
+| GARF | 54.3% | 21.0% | 18.5% | 21.5% | 17.1% | 1.3% |
+
+GARF shows the same pattern, more strongly: it fits the body sherds to each other far more
+often than it puts them home. Against the anchor, GARF seats 2 and 8 more than TORA does
+(8.4% and 11.8% vs 1.4% and 4.1%), but pairs with sherd 2 are still the weakest of any
+(0.7-6.8%).
+
+## Result
+
+**This was mostly already known, and should have been read first.** O8's anchor-choice
+entries (`.scratch/anchor-choice/issues/01`, `02`) already showed by experiment what the
+anchor-join table above only suggests: the region of the pot near the held sherd comes
+right, holding the base seats 3, 4 and 5 about half the time, and 2, 7 and 8 are never seated
+by any single held sherd. Those were held-sherd experiments; this ticket is observation on
+saved attempts, and carries less weight on that point.
+
+What this ticket adds:
+1. **Sherd 2 is not singled out.** Over every saved attempt on both methods, 2, 4, 5, 6 and 8
+   almost never go home the right way round; 1, 3 and 7 sometimes do (TORA, rough adapters).
+2. **The reference is not the cause.** The conservator confirms sherd 2's placement, and every
+   real join in `juglet_gt` closes to 0.04-0.5 mm, sherd 2's at 0.12-0.21 mm.
+3. **The body block is often assembled correctly and then misplaced.** Sherds 4 and 6 are
+   correctly joined to each other in 54% of GARF attempts and 18% of TORA's, against under
+   4% at home. This refines anchor-choice 01's "not a correct block put in the wrong place":
+   that was the whole far region on raw output; on solid sherds the body pairs often do hold
+   together, although all three together still only reach 17% (GARF) and 5.5% (TORA).
+4. **Sherds 2 and 8 stay a separate problem**, wrong even against their own neighbours. The
+   only difference found is a shorter join with the anchor (16 mm against 19-29 mm), which is
+   untested and could be chance on eight sherds.
+
+**Which of the three:** the method genuinely failed: placement across the pot, not break-face
+matching (the body joins are found) and not the reference. **Weight:** one pot, two methods,
+many attempts from a few dozen presentations each.
+

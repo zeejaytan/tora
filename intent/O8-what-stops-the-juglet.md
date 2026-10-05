@@ -513,6 +513,18 @@ declared unclosable.
     Spartan). Counts unaffected; the fix (a stream per sherd) is not made.
   - **Weight:** one pot, four training runs of one recipe, two for the control.
 
+- **Neither method fails on one bad sherd, and the body is often built right but put in the
+  wrong place (2026-10-05, `.scratch/juglet-cause/issues/16`, read-only on saved attempts).**
+  Over 3,120 TORA and 2,140 GARF attempts, sherds 2, 4, 5, 6 and 8 almost never go home the
+  right way round on either method, and 1, 3 and 7 sometimes do. Sherd 2 looked special only
+  in four hand-picked attempts. The conservator confirms sherd 2's placement in `juglet_gt`,
+  and every real join there closes to 0.04-0.5 mm. Sherds 4 and 6 come out correctly joined
+  to each other in 54% of GARF attempts and 18% of TORA's, but are at home under 4% of the
+  time: both methods find the body's joins and then misplace the block. Sherds 2 and 8 are
+  wrong even against their own neighbours, still a separate problem. **Which of the three:**
+  the method (placement across the pot), consistent with anchor-choice 01-02 above.
+  **Weight:** one pot, two methods.
+
 ## Source
 
 `docs/notes/JUGLET_TORA_ROOTCAUSE.md`, `WEAR_TEST_RESULTS.md`, `GATE_A_RESULT.md`,
