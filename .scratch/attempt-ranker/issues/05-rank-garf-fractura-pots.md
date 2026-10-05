@@ -84,3 +84,33 @@ on more than one pot.
     wall's foot, as in Revision 2 (read as the floor raised above a foot ring; inferred,
     not checked). narrow_bottle4 inside-out sherds 1, 3 lie on the S outline, not turned.
     Lead and conservator looked at both (and Revision 2 plate), 2026-10-05: "they look ok".
+- Test pre-registration `../preregistration-test.md` @ 2d07202 (narrow_bottle3 the test,
+  galli_pot a side case; Revision 3 cut-offs fixed; non-round bottle stated as a risk).
+  Handle check before it (`scripts/u17_true_look.py`, correct reassembly only): no handles.
+- 32317912 `u17_test.slurm` — COMPLETED 0:0, submitted and polled by the Spartan workspace
+  thread. Log and renders copied to the project's shared folder
+  (`u17_test_32317912*`). Output `TORA/rank_u17/test_32317912/test.json`.
+  - **narrow_bottle3: passes.** Genuine in the Layers 1+2 top 5: yes, ranks 1–5 all
+    genuine, and the top 20 are all genuine (random top 5: 13.2%; random top 20 would hold
+    0.56 genuine). Layer 1 alone: best genuine 34, no top-5 hit. Near-misses above the best
+    genuine: 0 of 21; worst-gap AUC 0.922. Layer 1 kept 617 of 1,400 and failed 1 of 39
+    genuine (profile 1.10%, not unjudged). The non-round section did not break Layer 1:
+    fitted-axis spread 8.1 mm on the median genuine, yet its profile reads 0.49%.
+    4 of 39 genuine (10%) flagged unfixable at 2.31% (reported only).
+  - **galli_pot (side case):** Layers 1+2 top 5 all genuine (random choice gives 1.1 of 5);
+    Layer 1 alone best genuine 27. Near-misses above the best genuine: 0 of 257. Worst-gap
+    AUC **0.66**, below the predicted 0.75–0.9: across all attempts Layer 2 separates
+    turned sherds weakly here, yet none outranks the best genuine.
+  - **Ruler fault, stated:** Layer 1 failed **31 of 305 genuine galli_pot attempts (10%)**
+    on the profile cut-off (1.07–1.60% against 0.873%), none unjudged. The calibration rule
+    meant to let 99% through on each pot; on this round, flat-based pot it lets 90% through.
+    Not yet looked at which sherd: the render drew the median genuine attempt (base sherd 0
+    reads 0.5 mm, the largest; flat floors misled Layer 1 on plate before). Pending a render
+    of a failed genuine attempt, this stays unassigned between measure fault and misplaced
+    sherd. Inside-out flags sherd 7 in all 305 genuine (on the outline in the render;
+    misfire, not gating).
+  - Looked at (lead, 2026-10-05): both top-5 renders are whole pots, every sherd green
+    (own place, right way); the lobed bottle reassembled. The render titles say "Juglet" and
+    "/9": `l2_top_look.py` hardcodes them (cosmetic).
+  - Weight: one test pot (4 sherds) and one side case, GARF only, 1,400 attempts each.
+    A lead for U17, not a finding.

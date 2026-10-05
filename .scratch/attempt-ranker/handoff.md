@@ -1,18 +1,17 @@
 # Handoff — attempt ranker (live file; overwrite, don't pile up)
 
-- Now (2026-10-05): Revision 3 calibration done (holder 32274553, COMPLETED 0:0). It
-  stands: no genuine attempt on the 5 pots has an unjudged sherd. Cut-offs: Layer 1
-  profile **0.873% of pot**, Layer 2 unfixable 2.31%. Juglet: both genuine kept, Layers
-  1+2 rank them 1 and 13 (top 5 hit). Results logged in tickets 05 and 01.
-- Renders `TORA/rank_u17/calib_32274553/{plate,narrow_bottle4}.png` described via the
-  Spartan thread: same as Revision 2, every sherd on one outline (ticket 05). Conservator
-  looked, 2026-10-05: "they look ok". The holder is released. Spartan requests from cloud threads go through
-  the Connect Spartan workspace thread (via the coordinator).
-- Next: commit the test pre-registration (narrow_bottle3, galli_pot; check for handles)
-  with these cut-offs fixed, then rank them, report. Ticket 02 leftovers (L2 order into
-  rank_attempts.py, small-move control still failing, wall direction). Ticket 07 waits on
-  the conservator.
-- Open faults, stated not fixed: inside-out flags 100% of genuine narrow_bottle4 and 55%
-  of plate (not gating); Layer 1 keeps 68% of Juglet attempts, so ranking rests on Layer 2.
-- Holder rule: keep it while Spartan work continues; release only when none is foreseeable.
+- Now (2026-10-05): held-out test done (job 32317912, pre-registration @ 2d07202).
+  narrow_bottle3 passes: Layers 1+2 top 20 all genuine (random top 5 13.2%); galli_pot
+  top 5 all genuine, 0 of 257 near-misses above the best genuine. Layer 1 alone misses
+  the top 5 on both: the ranking is Layer 2's. Results in ticket 05.
+- Open, first: Layer 1 drops 10% of genuine galli_pot attempts on the profile cut-off
+  (0.873%). Render one failed genuine attempt (l1_look draws only the median) to tell a
+  flat-base measure fault from a misplaced sherd. Not a retune of the test after the fact.
+- Then: ticket 06 (second method, TORA), ticket 07 (conservator's witnessed look at the
+  Juglet top 5), ticket 08 (write back to U17, refute-finding offered first).
+- Open faults, stated not fixed: inside-out misfires (narrow_bottle4, plate, galli_pot
+  sherd 7; not gating); small-move control (ticket 02) still fails; `l2_top_look.py`
+  titles hardcode "Juglet" and 9 sherds.
+- Spartan requests from cloud threads go through the Connect Spartan workspace thread
+  (via the coordinator); renders come back through the project's shared folder.
 - Synthetic check: `scripts/l1_synthetic.py` (Spartan only).
