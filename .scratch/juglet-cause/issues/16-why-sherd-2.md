@@ -241,3 +241,8 @@ on the same presentations (ds1-10, ds123), for each seed separately. Neck-side s
   as much as on the training.
 - Weight: one pot; training-run counts per GARF arm not re-checked here. The figures are
   sherds at home, not join-by-join fits.
+
+**Not run (conservator, 2026-10-05: "Not now"):** the held-sherd tests (neck, base,
+neck + base; anchor-choice 01-02) on fresh TORA at ticket-10 scale, 26 presentations × 20
+attempts per arm, with the fitted-together check. They currently rest on one presentation
+and 20 attempts per arm. This is the next step if the question of why fresh fails is reopened.
