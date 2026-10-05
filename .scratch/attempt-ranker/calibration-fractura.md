@@ -67,3 +67,31 @@ the same 5 pots (2026-10-03). Changed, and fixed before the rerun:
 - Rules 1 and 2 unchanged (99th percentile of genuine, largest over the 5 pots). Rule 3
   now also reports the share of genuine attempts with an unjudged sherd; reported, not
   tuned, not used in the pass.
+
+## Revision 3 (after Juglet run 32265963) — committed before the rerun
+
+Revision 2's Juglet run dropped a genuine attempt: the neck sherd carries the **handle**,
+which sits off the round outline (a broken measurement for a handled vessel, ticket 01).
+Conservator, 2026-10-05: "the handle is attached to the sherd, so it shouldn't even need
+to be judged." Changed, and fixed before the rerun on the same 5 pots:
+
+- **Judge each sherd only near its joins: `--near-pct 12`.** A point is judged only if it
+  lies within **12% of pot** (3D) of another sherd's outer surface. A handle in the middle
+  of a sherd is then never judged. Juglet, both genuine attempts (CPU holder 32274453):
+  handle sherd 0.03–0.05 mm at every distance from 3% to 12%; attempts 0.10–0.34 mm (Revision
+  2: 0.65 / 1.58).
+- **A sherd with nothing judged fails the attempt: `--unjudged fail`.** In a correct
+  reassembly every sherd meets a neighbour; a sherd lifted, pushed out or turned over away
+  from them has no point near a join. Without this rule such attempts passed (job 32273759).
+- Why 12%, not less: judged points are near a neighbour by construction, so readings are
+  capped near the distance; at 3 mm a sherd turned upside down read 0.36 mm. Synthetic check
+  (holder 32274553, log `TORA/rank_u17/syn_unj_32274553/`), cut-off 1.72 mm: at 12 mm all
+  correct attempts pass with no sherd unjudged; every lifted, tilted, upside-down and
+  inside-out sherd fails the attempt except the two shapes any outline check is blind to (a
+  flat round base turned over or slid in its plane; a sherd slid along a straight wall).
+  Not caught: 2 mm pushes (also missed by Revision 2) and one 5 mm push of the bottle neck
+  (1.68 mm; Revision 2 caught it at 2.7).
+- Everything else unchanged (2% sideways reach, inside-out reported only, rules 1–3). The
+  share of genuine attempts with an unjudged sherd is now also the share **failed by that
+  rule**: if it is not ~0 on the 5 pots, the rule is wrong for real scans and this
+  revision does not stand.

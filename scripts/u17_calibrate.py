@@ -27,6 +27,7 @@ from rank_report import prereg_commit  # noqa: E402
 TEST_POTS = {"narrow_bottle3", "galli_pot"}
 Q = 99          # percentile of genuine attempts a cut-off must let through
 IO_GATE = True  # --io-gate off: inside-out sherds reported, not failing (job 32159300)
+UNJ_FAIL = False  # --unjudged fail: a sherd touching no neighbour fails (Revision 3)
 
 
 def q(x, p):
@@ -51,6 +52,11 @@ def pot_rows(root, pot, labels, pot_mm):
     return rows
 
 
+def l1_ok(r, profile_pct):
+    return (r["profile"] <= profile_pct and not (IO_GATE and r["io"])
+            and not (UNJ_FAIL and r["unj"]))
+
+
 def ranks(rows, key):
     order = sorted(rows, key=key)
     return [i for i, r in enumerate(order, 1) if r["cls"] == "genuine"]
@@ -65,9 +71,10 @@ def main() -> int:
     ap.add_argument("--rule", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--io-gate", choices=("on", "off"), default="on")
+    ap.add_argument("--unjudged", choices=("report", "fail"), default="report")
     a = ap.parse_args()
-    global IO_GATE
-    IO_GATE = a.io_gate == "on"
+    global IO_GATE, UNJ_FAIL
+    IO_GATE, UNJ_FAIL = a.io_gate == "on", a.unjudged == "fail"
     if TEST_POTS & set(a.pots):
         sys.exit(f"test pots {TEST_POTS & set(a.pots)} must not be calibrated on")
     labels = {(r["pot"], r["run"], r["attempt"]): r
@@ -85,7 +92,7 @@ def main() -> int:
     print(f"Layer 1 profile cut-off: {profile_pct:.2f}% of pot (per pot q{Q} of genuine: {prof_q})")
     print(f"Layer 2 unfixable cut-off: {unfixable_pct:.2f}% of pot (per pot q{Q}: {gap_q})")
 
-    out = dict(io_gate=IO_GATE, rule=str(a.rule), rule_commit=prereg_commit(a.rule), q=Q,
+    out = dict(io_gate=IO_GATE, unjudged_fail=UNJ_FAIL, rule=str(a.rule), rule_commit=prereg_commit(a.rule), q=Q,
                profile_pct=profile_pct, unfixable_pct=unfixable_pct,
                per_pot_profile_q=prof_q, per_pot_gap_q=gap_q, pots={})
     print(f"\n{'pot':15} cls      n   profile% q50/q90   inside-out  worst gap q50/q90  "
@@ -98,7 +105,7 @@ def main() -> int:
                 continue
             pf = [r["profile"] for r in s]
             wo = [r["worst"] for r in s]
-            passed = [r["profile"] <= profile_pct and not (IO_GATE and r["io"]) for r in s]
+            passed = [l1_ok(r, profile_pct) for r in s]
             unfix = [r["worst"] > unfixable_pct for r in s]
             d[cls] = dict(n=len(s), profile_q50=q(pf, 50), profile_q90=q(pf, 90),
                           inside_out_share=round(float(np.mean([r["io"] > 0 for r in s])), 3),
@@ -113,9 +120,8 @@ def main() -> int:
         gen = [r["worst"] for r in rs if r["cls"] == "genuine"]
         near = [r["worst"] for r in rs if r["cls"] == "near"]
         d["auc_near_vs_genuine_worst"] = round(auc(near, gen), 3)
-        l1 = ranks(rs, lambda r: (not (r["profile"] <= profile_pct and not (IO_GATE and r["io"])), r["profile"]))
-        l12 = ranks(rs, lambda r: (not (r["profile"] <= profile_pct and not (IO_GATE and r["io"])),
-                                   r["worst"], r["profile"]))
+        l1 = ranks(rs, lambda r: (not l1_ok(r, profile_pct), r["profile"]))
+        l12 = ranks(rs, lambda r: (not l1_ok(r, profile_pct), r["worst"], r["profile"]))
         d["best_genuine_rank_l1"], d["best_genuine_rank_l12"] = l1[0], l12[0]
         print(f"{'':15} near-miss vs genuine worst gap AUC {d['auc_near_vs_genuine_worst']}; "
               f"best genuine rank L1 {l1[0]}, L1+2 {l12[0]} of {len(rs)}")

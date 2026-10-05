@@ -19,8 +19,9 @@ R=/data/gpfs/projects/punim2657/TORA/rank_u17
 B=$R/l2_32147567
 O=$R/calib_${SLURM_JOB_ID}; mkdir -p "$O"
 POTS=(blue_pot narrow_bottle2 narrow_bottle4 pink_bowl plate)
-# Revision 2 of the rule file: outer-surface profile, inside-out reported only
-L1=(--profile outer --cover-pct 2 --io-gate off)
+# Revision 3 of the rule file: outer-surface profile judged near joins only (12% of pot),
+# a sherd touching no neighbour fails, inside-out reported only
+L1=(--profile outer --cover-pct 2 --io-gate off --near-pct 12 --unjudged fail)
 for p in "${POTS[@]}"; do
     echo "### $p"
     mkdir -p "$O/$p"
@@ -32,8 +33,8 @@ for p in "${POTS[@]}"; do
 done
 python scripts/u17_calibrate.py --root "$O" --labels "$R/fractura_labels_32111374.json" \
     --pots "${POTS[@]}" --pot-mm 100 --rule .scratch/attempt-ranker/calibration-fractura.md \
-    --out "$O/calib.json" --io-gate off
+    --out "$O/calib.json" --io-gate off --unjudged fail
 # look at what the new measure compares (render rule), on the two pots that broke it
 for p in plate narrow_bottle4; do
-    python scripts/l1_look.py --root "$O" --bundles "$B/$p/bundles"         --labels "$R/fractura_labels_32111374.json" --pot "$p" --pot-mm 100 --bin-pct 10.77         --profile outer --cover-pct 2 --out "$O/$p.png"
+    python scripts/l1_look.py --root "$O" --bundles "$B/$p/bundles"         --labels "$R/fractura_labels_32111374.json" --pot "$p" --pot-mm 100 --bin-pct 10.77         --profile outer --cover-pct 2 --near-pct 12 --out "$O/$p.png"
 done

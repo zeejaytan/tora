@@ -8,7 +8,8 @@
 #SBATCH --output=/data/gpfs/projects/punim2657/TORA/rank_u17/u17_jug_v2_%j.log
 set -euo pipefail
 # U17: Juglet rerun with the repaired Layer 1 (rule file Revision 2) and the cut-off the
-# calibration set (calib_32160629). Same bundles and Layer 2 gaps as before.
+# calibration set (CALIB, default calib_32160629 = Revision 2). Same bundles and Layer 2
+# gaps as before. Revision 3: CALIB=calib_<id> L1X="--near-pct 12 --unjudged fail".
 module purge
 module load Anaconda3/2024.02-1
 eval "$(conda shell.bash hook)"
@@ -18,10 +19,12 @@ cd /data/gpfs/projects/punim2657/TORA/repo
 R=/data/gpfs/projects/punim2657/TORA/rank_u17
 J=$R/juglet_32107634
 O=$R/jug_v2_${SLURM_JOB_ID}; mkdir -p "$O"
-PCT=$(python -c "import json;print(json.load(open('$R/calib_32160629/calib.json'))['profile_pct'])")
+CALIB=${CALIB:-calib_32160629}
+read -ra L1X <<< "${L1X:-}"
+PCT=$(python -c "import json;print(json.load(open('$R/$CALIB/calib.json'))['profile_pct'])")
 echo "profile cut-off from calibration: $PCT% of pot"
 python scripts/rank_attempts.py --bundles "$J/bundles" --out "$O/ranks.json" \
-    --pot-mm 65 --profile-pct "$PCT" --profile outer --cover-pct 2 --io-gate off
+    --pot-mm 65 --profile-pct "$PCT" --profile outer --cover-pct 2 --io-gate off ${L1X[@]+"${L1X[@]}"}
 python scripts/rank_report.py --ranks "$O/ranks.json" --key "$J/key/idmap.json" \
     --prereg .scratch/attempt-ranker/preregistration.md --out "$O/report.json" \
     --expect-genuine 2 --expect-near 19

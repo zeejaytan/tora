@@ -35,9 +35,11 @@ ap.add_argument("--pot-mm", type=float, required=True)
 ap.add_argument("--bin-pct", type=float, required=True)
 ap.add_argument("--profile", choices=("bands", "outer"), default="bands")
 ap.add_argument("--cover-pct", type=float, default=2.0)
+ap.add_argument("--near-pct", type=float, help="judge only points near a join, % of pot")
 a = ap.parse_args()
 RA.BIN_MM = a.bin_pct * a.pot_mm / 100
 RA.PROFILE, RA.IO_GATE, RA.COVER_MM = a.profile, False, a.cover_pct * a.pot_mm / 100
+RA.NEAR_MM = None if a.near_pct is None else a.near_pct * a.pot_mm / 100
 
 rk = {r["id"]: r for r in json.loads((a.root / a.pot / "ranks.json").read_text())["attempts"]}
 idmap = json.loads((a.root / a.pot / "key" / "idmap.json").read_text())
