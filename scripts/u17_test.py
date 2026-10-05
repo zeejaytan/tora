@@ -5,6 +5,8 @@ whose commit this prints. The cut-offs come from the calibration run (calib.json
 equal the ones written in that file; nothing is tuned here. Reads per test pot: Layer 1
 ranks (rank_attempts.py), Layer 2 gaps (l2_measure.py), the converter's id map, labels.
 
+TORA (ticket 06): --method tora allows any pot; the cut-offs stay GARF's calibration.
+
 Usage: python scripts/u17_test.py --root DIR --labels labels.json --calib calib.json
     --profile-pct 0.873 --unfixable-pct 2.31 --pots narrow_bottle3 galli_pot
     --pot-mm 100 --prereg preregistration-test.md --out test.json
@@ -42,8 +44,10 @@ def main() -> int:
     ap.add_argument("--pot-mm", type=float, required=True)
     ap.add_argument("--prereg", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--method", choices=("garf", "tora"), default="garf",
+                    help="tora: any pot (the cut-offs were set on GARF's attempts only)")
     a = ap.parse_args()
-    if set(a.pots) - TEST_POTS:
+    if a.method == "garf" and set(a.pots) - TEST_POTS:
         sys.exit(f"not test pots: {set(a.pots) - TEST_POTS}")
     commit = prereg_commit(a.prereg)
     cal = json.loads(a.calib.read_text())
@@ -57,10 +61,10 @@ def main() -> int:
     labels = {(r["pot"], r["run"], r["attempt"]): r
               for r in json.loads(a.labels.read_text())}
 
-    print(f"pre-registration {a.prereg} @ {commit}")
+    print(f"pre-registration {a.prereg} @ {commit}; method {a.method}")
     print(f"cut-offs (fixed): Layer 1 profile {a.profile_pct}% of pot; "
           f"unfixable gap {a.unfixable_pct}% of pot; calibration {a.calib}")
-    out = dict(prereg_commit=commit, profile_pct=a.profile_pct,
+    out = dict(prereg_commit=commit, method=a.method, profile_pct=a.profile_pct,
                unfixable_pct=a.unfixable_pct, k=K, pots={})
     for p in a.pots:
         rs = C.pot_rows(a.root, p, labels, a.pot_mm)
