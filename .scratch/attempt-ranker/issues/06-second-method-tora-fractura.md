@@ -82,3 +82,11 @@
   - Weight: two pots, one method, 560 attempts each; plate was seen in calibration. A
     lead for U17: the ranker found the right reassembly on a lobed bottle for a second
     method, and has a stated blind spot for small, featureless sherds (floor pieces).
+- Conservator, 2026-10-05, on the plate top 5 (32330575): "there are more overlaps of
+  sherds in the top 5 assembly". Confirmed on the render: the misplaced floor sherds lie
+  across rim sherds. Neither layer measures overlap: Layer 2 (`l2_measure.py`) takes the
+  distance from a sherd's break to the nearest neighbouring break, so a sherd sunk into
+  another reads as a tight join. An overlap (interpenetration) test is the obvious missing
+  check, and thesis aim 2 already names "hard rejection of interpenetrations". Not added
+  to this test: plate and narrow_bottle3 are now seen, so any overlap rule needs its own
+  pre-registration and calibration on GARF's calibration pots, and fresh pots to test on.
