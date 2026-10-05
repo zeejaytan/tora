@@ -90,3 +90,8 @@
   check, and thesis aim 2 already names "hard rejection of interpenetrations". Not added
   to this test: plate and narrow_bottle3 are now seen, so any overlap rule needs its own
   pre-registration and calibration on GARF's calibration pots, and fresh pots to test on.
+- Revision 4 built (conservator chose "Build it", 2026-10-05): `overlap_measure.py`
+  (label-free), `u17_overlap.py` (cut-off on GARF's calibration pots, re-rank of every
+  seen pot), `overlap_look.py` (draws the overlap in red), job `u17_overlap.slurm`, plan
+  `../preregistration-overlap.md`. Synthetic ring: correct 0.25-0.38%, sherd slid half
+  over its neighbour 34%. No fresh test pot exists; this run is calibration plus checks.

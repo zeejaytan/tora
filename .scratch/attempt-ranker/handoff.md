@@ -11,7 +11,10 @@
   void). narrow_bottle3 passes (top 5: 4 genuine); plate misses (best genuine 84, AUC
   0.41): small floor sherds put in the wrong place still read as snug. Ruler checks
   pass on both.
-- Now: ticket 07 (conservator's witnessed look at the
+- Now: Revision 4, an overlap gate (`preregistration-overlap.md`, job
+  `scripts/hpc/u17_overlap.slurm`, waiting on the conservator's go). Calibration plus
+  checks only; a fresh test needs new attempts.
+- Then: ticket 07 (conservator's witnessed look at the
   Juglet top 5), ticket 08 (write back to U17, refute-finding offered first).
 - Open faults, stated not fixed: small featureless sherds misplaced but snug fool both
   layers (TORA plate, ticket 06); inside-out misfires (narrow_bottle4, plate, galli_pot
