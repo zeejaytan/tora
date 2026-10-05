@@ -73,6 +73,7 @@ OUTER_PTS = 3000    # --profile outer: points per sherd in the half-plane compar
 OUTER_K = 8         # neighbours that set the others' local profile line
 OUTER_NMIN = 0.7    # in-plane share of a normal (drops side break faces)
 COVER_MM = 2.0      # sideways reach beyond the others (set from --cover-pct)
+NEAR_MM = None      # --near-pct: judge only points this close (3D) to another sherd
 MIN_COVER = 20      # judged outer points a sherd needs to be judged itself
 PROFILE = "bands"
 IO_GATE = True
@@ -232,10 +233,11 @@ def layer1(placed):
 
 def outer_points(placed, d, c, h_mid):
     """Each sherd's outer-surface points and profile normals in the (r, h) half-plane."""
-    pts, nrm = [], []
+    pts, nrm, xyz = [], [], []
     for p, n in placed:
         stp = max(1, len(p) // OUTER_PTS)
         s, n = p[::stp] - c, n[::stp]
+        xyz.append(s[:0])
         h = s @ d
         rad = s - np.outer(h, d)
         r = np.linalg.norm(rad, axis=1)
@@ -246,12 +248,13 @@ def outer_points(placed, d, c, h_mid):
         keep = (m > OUTER_NMIN) & (np.einsum("ij,ij->i", n2, x - [0.0, h_mid]) > 0)
         pts.append(x[keep])
         nrm.append(n2[keep] / m[keep, None])
-    return pts, nrm
+        xyz[-1] = s[keep]
+    return pts, nrm, xyz
 
 
 def outer_profile(placed, d, c, h_mid):
     """Each sherd's outer surface against the others' outer surface, (r, h) plane, mm."""
-    pts, nrm = outer_points(placed, d, c, h_mid)
+    pts, nrm, xyz = outer_points(placed, d, c, h_mid)
     per_sherd = []
     for j in range(len(pts)):
         if len(pts[j]) < MIN_PTS:
@@ -266,6 +269,9 @@ def outer_profile(placed, d, c, h_mid):
         off = np.abs(np.einsum("ij,ij->i", v, ny))
         side = np.abs(v[:, 0] * ny[:, 1] - v[:, 1] * ny[:, 0])
         cov = side <= COVER_MM
+        if NEAR_MM is not None:      # near a join only: a handle mid-sherd says nothing
+            X3 = np.concatenate([x for k, x in enumerate(xyz) if k != j])
+            cov &= cKDTree(X3).query(xyz[j])[0] <= NEAR_MM
         per_sherd.append(float(np.median(off[cov])) if cov.sum() >= MIN_COVER
                          else float("nan"))
     judged = [x for x in per_sherd if np.isfinite(x)]
@@ -310,8 +316,10 @@ def main() -> int:
     ap.add_argument("--profile", choices=("bands", "outer"), default="bands")
     ap.add_argument("--cover-pct", type=float, help="--profile outer: sideways reach, %% of pot")
     ap.add_argument("--io-gate", choices=("on", "off"), default="on")
+    ap.add_argument("--near-pct", type=float, help="--profile outer: judge only points this "
+                    "close to another sherd, %% of pot (a handle mid-sherd is not judged)")
     a = ap.parse_args()
-    global BIN_MM, PROFILE_MM, PROFILE, IO_GATE, COVER_MM
+    global BIN_MM, PROFILE_MM, PROFILE, IO_GATE, COVER_MM, NEAR_MM
     PROFILE, IO_GATE = a.profile, a.io_gate == "on"
     if a.bin_pct is not None or a.profile_pct is not None:
         if a.pot_mm is None:
@@ -324,6 +332,10 @@ def main() -> int:
         if a.pot_mm is None:
             sys.exit("--cover-pct needs --pot-mm")
         COVER_MM = a.cover_pct * a.pot_mm / 100
+    if a.near_pct is not None:
+        if a.pot_mm is None:
+            sys.exit("--near-pct needs --pot-mm")
+        NEAR_MM = a.near_pct * a.pot_mm / 100
     paths = sorted((a.bundles / "bundles").glob("*.npz"))
     if a.workers > 1:
         with Pool(a.workers, initializer=_init, initargs=(str(a.bundles),)) as pool:
@@ -340,7 +352,7 @@ def main() -> int:
         layer="1", cutoffs=dict(BIN_MM=BIN_MM, PROFILE_MM=PROFILE_MM,
                                 OUTER_PCT=OUTER_PCT, DEV_PCT=DEV_PCT, pot_mm=a.pot_mm,
                                 profile=PROFILE, COVER_MM=COVER_MM, OUTER_K=OUTER_K,
-                                MIN_COVER=MIN_COVER, io_gate=IO_GATE),
+                                MIN_COVER=MIN_COVER, NEAR_MM=NEAR_MM, io_gate=IO_GATE),
         attempts=rows), indent=1))
     n_pass = sum(r["layer1_pass"] for r in rows)
     print(f"{len(rows)} attempts ranked, {n_pass} pass Layer 1 -> {a.out}")
