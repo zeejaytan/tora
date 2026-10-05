@@ -492,6 +492,27 @@ declared unclosable.
     during sampling is untested. Beyond that: reference sherds a person seats, a
     better-trained model, or a different method.
 
+- **Given as many attempts as GARF, rough-trained TORA still never reassembled the Juglet
+  (2026-10-05, `.scratch/u10-juglet-ceiling/issues/10`, jobs 32274395-400, all
+  `COMPLETED|0:0`).** Ticket 09's best (8 of 9 own place) rested on one presentation; GARF
+  showed the presentation decides the Juglet. So each rough 1x adapter (four training runs)
+  and fresh (two) got 26 presentations x 20 attempts.
+  - **0 full reassemblies in 2,080 rough attempts, 0 in 1,040 fresh.** Best: **7 of 9
+    the right way round** (3 attempts, one adapter). The 9-of-9-own-place attempts all had
+    2-6 sherds spun on their own face (mostly 150-180 degrees): GARF's trap, not near-success.
+  - Presentation decides it on TORA too: one adapter's per-attempt mean moves 2.75-3.85
+    sherds between presentations (GARF worn 4x: 1.90). Rough stays about 0.8 sherd above
+    fresh (3.6 vs 2.7 own place).
+  - **Against GARF (2 genuine in ~1,400): a lead, not a proof.** Comparing the two counts,
+    0 against 2 is about 1 in 6 by chance; GARF's rate rests on two events.
+  - **Which of the three:** the method failed (TORA on the Juglet). Separately, a
+    repeatability fault, not a broken ruler: the seed-42 control did not reproduce
+    tickets 08/09 because the loader turns and samples the sherds in a thread pool drawing
+    on one shared random stream, so no TORA "seed N" presentation can be re-made
+    (`tora/data/dataset.py:370`, `:502`; read from code, environment and data ruled out on
+    Spartan). Counts unaffected; the fix (a stream per sherd) is not made.
+  - **Weight:** one pot, four training runs of one recipe, two for the control.
+
 ## Source
 
 `docs/notes/JUGLET_TORA_ROOTCAUSE.md`, `WEAR_TEST_RESULTS.md`, `GATE_A_RESULT.md`,
