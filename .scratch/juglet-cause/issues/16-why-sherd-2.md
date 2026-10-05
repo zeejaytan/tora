@@ -137,7 +137,43 @@ pot, so the 16-vs-19 mm cut could be chance. It is a hypothesis, not a finding. 
 make this answer 3 (the method's placement, not the break faces or the reference),
 in line with U2's "placement, not perception".
 
-**Test that could refute it (running):** `t16_rel.py` asks whether sherds 4, 5 and 6 come
+**Test that could refute it:** `t16_rel.py` asks whether sherds 4, 5 and 6 come
 out right *relative to each other* while wrong relative to the anchor. If they do, the
 method assembles the body correctly and only misplaces it as a block against the anchor.
 If they are wrong among themselves too, the anchor-join story is not enough.
+
+## Are the rarely-seated sherds right among themselves? (TORA, `t16_rel.py`)
+
+Output: `/mnt/project-files/t16_rel_output.txt`, covering all 3,120 TORA ticket-10 attempts
+(solid cloud). "Right" uses the same 4.6 mm test, applied once the whole attempt is moved so
+one chosen sherd sits at home. Measured against the anchor, it reproduces step 1 to within
+a point (sherd 1: 44.3%, 7: 31.6%, 3: 17.6%, 2: 1.4%, 4: 0.5%).
+
+| pair (joined in the reference) | right relative to each other | either one at home |
+|---|---|---|
+| 4-6 | 18.1% | 0.5% / 1.7% |
+| 5-6 | 11.0% | 1.4% / 1.7% |
+| 3-6 | 8.9% | 17.6% / 1.7% |
+| 4-5 | 5.7% | 0.5% / 1.4% |
+| all of 4, 5, 6 together | 5.5% | 0.1% all three |
+| any pair with sherd 2 (0-2, 2-4, 2-7) | 0.1-1.8% | |
+| any pair with sherd 8 (0-8, 5-8, 6-8) | 0.4-1.8% | |
+
+Two different failures, not one:
+- **Sherds 4, 5 and 6 (the body block) are often fitted to each other and then misplaced
+  as a block.** Sherds 4 and 6 come out correctly joined 18% of the time but sit at home
+  under 2%. The method finds those joins, so their break faces carry enough. What fails is
+  connecting the block to the anchor side, which none of them touches. This part of the
+  anchor-join hypothesis survives the test.
+- **Sherds 2 and 8 are wrong against everything**, including their neighbours. The block
+  story does not cover them. Both touch the anchor along a shorter join (16 mm) than the
+  sherds that seat (19-29 mm). That remains the only difference found, and it is untested.
+
+Caveat on the ruler: a pair test moves the whole attempt by the smaller sherd's placement,
+which magnifies small turning errors onto the larger sherd. So pair figures read low next
+to at-home figures (0-1: 36.4% as a pair against 44.3% for sherd 1 at home). That cuts
+against the block finding, not for it.
+
+Weight: one pot, one method so far. The 3,120 attempts come from a few dozen presentations
+of the same nine sherds, so they are not 3,120 independent trials. The same test on GARF's
+saved attempts is running.
