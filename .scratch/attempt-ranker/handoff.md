@@ -7,7 +7,10 @@
 - Done: the 31 rejected genuine galli_pot attempts all fail on the flat base (sherd 0),
   at the floor-to-wall corner; renders show it seated. Broken measurement (inferred).
   Ranking unaffected. Revision 4 only if it bites, and never re-tested on these two pots.
-- Now: ticket 06 (second method, TORA), ticket 07 (conservator's witnessed look at the
+- Now: ticket 06 (second method, TORA). Job 32329999 void: the converter did not undo
+  TORA's 3.13x cloud scale, so sherds drifted apart. Fixed in `rank_convert.py`
+  (`run_frame`); rerun `u17_test_tora.slurm` unchanged, same pre-registration (c3559e7).
+  Then ticket 07 (conservator's witnessed look at the
   Juglet top 5), ticket 08 (write back to U17, refute-finding offered first).
 - Open faults, stated not fixed: inside-out misfires (narrow_bottle4, plate, galli_pot
   sherd 7; not gating); small-move control (ticket 02) still fails; `l2_top_look.py`

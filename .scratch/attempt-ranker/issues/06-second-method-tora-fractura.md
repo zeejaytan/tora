@@ -36,11 +36,24 @@
     near, other, near, near, other; 17 of 71 near-misses above it; AUC 0.479 (no
     separation); random top 5 4.4%. No attempt passes Layer 1. Every genuine attempt has
     sherd 5 unjudged and every one is flagged unfixable.
-  - **Ruler check, plate (first reading, to be confirmed).** In the median genuine render
-    sherd 5 sits about 100 mm from the plate's centre, outside a plate about 110 mm
-    across, so nothing is within 12% of pot to judge it against and its gap is infinite.
-    An attempt can only be labelled genuine with sherd 5 there if TORA's correct plate has
-    it there too: own place allows 7.1% of pot (`own_place.SEAT_PCT`). If confirmed, the miss
-    is the **reference answer being wrong** (a correct plate with a detached sherd), not
-    the ranker failing, and plate cannot test the ranker on TORA. Check sent:
-    `u17_true_look.py` (3fc73b0) on one TORA and one GARF run, correct plate only.
+  - Ruler check, plate: the correct plate drawn from TORA's own clouds and from GARF's
+    (`u17_true_look.py` @ 3fc73b0, Spartan workspace thread, 2026-10-05;
+    `u17_true_plate*.{png,txt}` in the project folder) has sherd 5 at the hub beside
+    sherd 4 in both. So the reference answer is fine. What differs: TORA's clouds are
+    **3.13 times** the dataset's scale (box 1.892 vs GARF's 0.605, same axes).
+- **Job 32329999 is void: broken measurement.** `rank_convert.py` read each sherd's move
+  off TORA's cloud and applied it to the dataset's scans without undoing that scale, so
+  every sherd kept its size while the moves between sherds grew 3.13 times: sherds
+  drifted apart, gaps and profile deviations inflated, sherd 5 thrown about 100 mm out.
+  Its self-check rebuilt from the run's own cloud, not the scans, so it could not see it.
+  Both pots' numbers above, narrow_bottle3's pass included, mean nothing. Labels are
+  unaffected (they compare the run's two clouds in one unit).
+  - Fix: `run_frame` in `rank_convert.py` divides out the scale (and any shift) of the
+    run's clouds against the scans, and refuses a run whose sherd centres then disagree
+    with the scans' by more than 3% of pot. Changes under 5% scale or 0.5% shift are left
+    alone, so GARF's bundles are unchanged. Synthetic check (4 sherds, each turned
+    differently): sherd-centre distances off by 21-38 mm with the old converter at 3.13x,
+    0.0 mm with the fix, at 3.13x and at 1x with a shift.
+  - Next: rerun `u17_test_tora.slurm` unchanged under the same pre-registration (nothing
+    was tuned; only the ruler is fixed). The renders of 32329999 were looked at; the
+    prediction stands as written.

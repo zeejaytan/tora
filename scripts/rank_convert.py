@@ -43,6 +43,8 @@ from readout import part_slices, unit_box_scale  # noqa: E402
 # rebuilt-vs-saved tolerance, % of pot size (was 0.2 mm: Juglet max 0.17%, Fractura
 # blue_pot 0.32% on a nominal 100 mm pot, job 32144323; rounding, labels all agreed)
 CHECK_PCT = 0.5
+SHIFT_PCT = 0.5   # % of pot
+CENTRE_PCT = 3.0   # sampled points vs mesh vertices shift a centre a little, not more
 
 
 def kabsch(a, b):
@@ -67,6 +69,44 @@ def load_scans(hdf5, obj):
         g = f[obj]["pieces"]
         n = len(g)
         return [(g[str(i)]["vertices"][:], g[str(i)]["faces"][:]) for i in range(n)]
+
+
+def run_frame(gt, sl, scans, run):
+    """Scale k and shift o with gt / k - o in the dataset scans' frame: (1, 0) if they agree.
+
+    The placement is read off the run's cloud and applied to the dataset's scans, so
+    the two must share units and origin. TORA's Fractura clouds are about 3.1 times the
+    dataset's scale (plate: box 1.892 vs 0.605); read unscaled, every sherd kept its
+    size while the moves between them grew 3.1 times, so sherds drifted apart (job
+    32329999, void). A shift does the same harm whenever sherds turn by different
+    amounts. A scale within 5% and a shift within SHIFT_PCT of pot are point sampling
+    (cloud points vs mesh vertices), not a change of frame, and are left alone so
+    GARF's bundles stay as they were. Either way each sherd's centre must then agree
+    with its scan's within CENTRE_PCT of pot size.
+    """
+    allv = np.concatenate([v for v, _ in scans])
+    size = unit_box_scale(allv)
+    k = unit_box_scale(gt) / size
+    if abs(k - 1) < 0.05:
+        k = 1.0
+    cg = np.array([gt[s:e].mean(0) for s, e in sl]) / k
+    cs = np.array([v.mean(0) for v, _ in scans])
+    o = (cg - cs).mean(0)
+    if 100 * np.linalg.norm(o) / size < SHIFT_PCT:
+        o = np.zeros(3)
+    off = 100 * np.linalg.norm(cg - o - cs, axis=1).max() / size
+    if off > CENTRE_PCT:
+        sys.exit(f"{run}: sherd layout differs from the scans by {off:.1f}% of pot "
+                 f"after scale {k:.4f} and shift {np.round(o, 4).tolist()}; not the same "
+                 f"pot, or not a uniform scale")
+    if (k != 1.0 or o.any()) and run not in _SAID:
+        _SAID.add(run)
+        print(f"{run}: clouds are {k:.4f} x the scans' scale, shifted "
+              f"{np.round(o, 4).tolist()}; undone (sherd centres agree to {off:.2f}% of pot)")
+    return k, o
+
+
+_SAID = set()
 
 
 def main() -> int:
@@ -114,11 +154,12 @@ def main() -> int:
         d = np.load(run, allow_pickle=True)
         if "name" in d.files and str(d["name"]) != a.object:
             sys.exit(f"{run} holds {d['name']}, not {a.object}")
-        gt = d["pts_gt"].astype(float)
         sl = list(part_slices(d["points_per_part"]))
         if len(sl) != len(scans):
             sys.exit(f"{run}: {len(sl)} sherds in the attempt, {len(scans)} scans")
-        for t, pred in enumerate(d["generations_proposed"].astype(float)):
+        k, o = run_frame(d["pts_gt"].astype(float), sl, scans, run)
+        gt = d["pts_gt"].astype(float) / k - o
+        for t, pred in enumerate(d["generations_proposed"].astype(float) / k - o):
             gr, gtr = random_rotation(rng), rng.uniform(-a.move_mm, a.move_mm, 3)
             R, T = [], []
             for j, (s, e) in enumerate(sl):
@@ -140,8 +181,10 @@ def main() -> int:
     bad = 0
     for aid, run, t, gr, gtr in checks:
         d = np.load(run, allow_pickle=True)
-        gt, pred = d["pts_gt"].astype(float), d["generations_proposed"][t].astype(float)
         ppp = d["points_per_part"]
+        k, o = run_frame(d["pts_gt"].astype(float), list(part_slices(ppp)), scans, run)
+        gt = d["pts_gt"].astype(float) / k - o
+        pred = d["generations_proposed"][t].astype(float) / k - o
         b = np.load(a.out / "bundles" / f"{aid}.npz")
         rebuilt = np.empty_like(gt)
         for j, (s, e) in enumerate(part_slices(ppp)):
