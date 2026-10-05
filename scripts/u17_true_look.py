@@ -13,6 +13,7 @@ from pathlib import Path
 
 import matplotlib
 import numpy as np
+from scipy.spatial import cKDTree
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -23,7 +24,8 @@ ap.add_argument("--pot", required=True)
 ap.add_argument("--out", required=True, type=Path)
 a = ap.parse_args()
 
-for f in sorted((a.run / "version_0" / "clouds").glob("*.npz")):
+# GARF runs keep clouds under <run>/version_0/clouds, TORA's under <run>/clouds
+for f in sorted(f for sub in ("version_0/clouds", "clouds") for f in (a.run / sub).glob("*.npz")):
     d = np.load(f, allow_pickle=True)
     if str(d["name"]).endswith(a.pot):
         break
@@ -51,3 +53,12 @@ fig.tight_layout()
 a.out.parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(a.out, dpi=110)
 print(f"{a.pot}: {len(ppp)} sherds, points per sherd {ppp.tolist()} -> {a.out}")
+# how far each sherd's centre sits from the others' (dataset units): a sherd far from
+# every other one in the CORRECT reassembly has no neighbour to be judged against
+cen = [s.mean(0) for s in np.split(c, cut)]
+lo, hi = c.min(0), c.max(0)
+print(f"box sides {np.round(hi - lo, 3).tolist()} (longest = 1 pot size)")
+for i, s in enumerate(np.split(c, cut)):
+    near = min(cKDTree(o).query(s)[0].min()
+               for j, o in enumerate(np.split(c, cut)) if j != i)
+    print(f"sherd {i}: centre {np.round(cen[i], 3).tolist()}, nearest other sherd {near:.4f}")
