@@ -6,14 +6,13 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done (2026-10-05)
 
-- [ ] Converter reads TORA's saved attempt clouds (the `u10_fractura_*` evaluation runs);
-      the converter's own check passes
-- [ ] TORA attempts labelled for right way round
-- [ ] Decision recorded: are 20 attempts per pot enough? If not, a TORA rerun of 200
-      attempts per qualifying pot (GPU, expected under an hour), polled
-- [ ] Per pot: genuine ranks, top-5 hit, random baseline
+- [x] Converter reads TORA's saved attempt clouds (the `u10_fractura_*` evaluation runs);
+      the converter's own check passes (after the scale fix, 0dce053)
+- [x] TORA attempts labelled for right way round
+- [x] Decision recorded: are 20 attempts per pot enough? Yes: 28 runs x 20 = 560 per pot
+- [x] Per pot: genuine ranks, top-5 hit, random baseline (job 32330575)
 
 ## Log
 
@@ -57,3 +56,29 @@
   - Next: rerun `u17_test_tora.slurm` unchanged under the same pre-registration (nothing
     was tuned; only the ruler is fixed). The renders of 32329999 were looked at; the
     prediction stands as written.
+- 32330575 `u17_test_tora.slurm` (rerun, converter @ 0dce053, pre-registration unchanged
+  @ c3559e7), COMPLETED 0:0, polled by the Spartan workspace thread. `TORA/rank_u17/
+  tora_32330575/`; log and renders `u17_tora_32330575*` in the project folder. Converter:
+  narrow_bottle3 clouds 2.56-2.58x the scans' scale, plate 3.11-3.13x, each with a shift,
+  all undone; sherd centres then agree with the scans to 0.37-2.07% of pot (limit 3%).
+  Self-check 10/10 on both.
+  - **Ruler checks pass.** No genuine attempt fails Layer 1 on either pot (none unjudged,
+    none over the profile cut-off). Median genuine renders: every sherd on one outline,
+    per-sherd 0.14-0.26% (bottle), 0.03-0.25 mm (plate, floor sherds 4, 5 at the hub).
+  - **narrow_bottle3 passes.** Top 5 under Layers 1+2: genuine, genuine, genuine,
+    near-miss, genuine (random top 5 7.8%); best genuine rank 1 (Layer 1 alone 4); 0 of 34
+    near-misses above it; worst-gap AUC 0.961; none flagged unfixable. Ranks 1-8 are all
+    every-sherd-in-place attempts. Render: whole lobed bottles, sherd 2 at the foot.
+  - **plate misses: the ranker failed** (prediction held). Best genuine rank 84 of 560
+    (Layer 1 alone 119); top 5 other, other, other, near-miss, other; 32 of 71
+    near-misses above it; AUC 0.411 (no better than chance). Render of the top 5: the four
+    large rim sherds are right in every one; the two small floor sherds (4: 154 points, 5:
+    59) are put on the rim or swapped at the hub, and still sit snugly against something,
+    so their gaps (about 1% of pot) read like a correct join. The gap test cannot tell a
+    small sherd seated in the wrong place from one in its own; the outline test cannot
+    either, since a floor piece lies on the floor wherever it goes. Not a ruler fault
+    (genuine attempts all pass and look right) and not the reference (correct plate
+    drawn, sherd 5 at the hub). Weak already on GARF's plate (AUC 0.66).
+  - Weight: two pots, one method, 560 attempts each; plate was seen in calibration. A
+    lead for U17: the ranker found the right reassembly on a lobed bottle for a second
+    method, and has a stated blind spot for small, featureless sherds (floor pieces).
