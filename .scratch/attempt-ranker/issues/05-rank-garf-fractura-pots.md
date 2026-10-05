@@ -63,3 +63,24 @@ on more than one pot.
     L1 → L1+2: plate 14 → 1, others 1 → 1.
   - Looked at `artifacts/rank_u17/calib_32160629/{plate,narrow_bottle4}.png`: every sherd's
     outer surface on one outline, per-sherd 0.03–0.56 mm. Measure reads what it should.
+- 32274553 CPU holder (Revision 3, rule @ 49400ab: `--near-pct 12 --unjudged fail`,
+  inside-out reported only) — COMPLETED 0:0, 4 h 00 min; `holder_32274553.done`
+  calib_exit=0, jug_exit=0. Output `TORA/rank_u17/calib_32274553/` (calib.json,
+  plate.png, narrow_bottle4.png). Read on Spartan by the workspace thread, 2026-10-05.
+  - **Revision 3 stands on its own test:** share of genuine attempts with an unjudged
+    sherd is 0.0 on all 5 pots, every class. The unjudged-fails rule rejects no correct
+    reassembly on real scans.
+  - Layer 1 profile cut-off **0.873%** of pot (Revision 2: 1.72%). Layer 2 unfixable
+    cut-off unchanged, 2.31%.
+  - Best genuine rank L1 → L1+2: plate 20 → 1, the other four 1 → 1 (1,400 attempts each).
+  - Near-miss vs genuine worst-gap AUC unchanged (Layer 2 untouched): blue_pot 0.90,
+    pink_bowl 0.937, plate 0.656; bottles have no near-misses.
+  - Rule 3 fault, still stated: inside-out flags 100% of genuine narrow_bottle4 (sherds 1,
+    3) and 54.5% of genuine plate (sherd 5); not gating.
+  - `calib_32274553/{plate,narrow_bottle4}.png` (median genuine attempt) described by the
+    Spartan workspace thread, 2026-10-05; not yet seen by the conservator. Same layout as
+    Revision 2: every sherd on one outline, nothing stacked, floating or turned; per-sherd
+    0.04–0.35 mm (Revision 2: 0.03–0.56). Plate floor sherds 4, 5 sit a few mm above the
+    wall's foot, as in Revision 2 (read as the floor raised above a foot ring; inferred,
+    not checked). narrow_bottle4 inside-out sherds 1, 3 lie on the S outline, not turned.
+    Lead and conservator looked at both (and Revision 2 plate), 2026-10-05: "they look ok".
