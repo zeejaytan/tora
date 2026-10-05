@@ -114,3 +114,16 @@ on more than one pot.
     "/9": `l2_top_look.py` hardcodes them (cosmetic).
   - Weight: one test pot (4 sherds) and one side case, GARF only, 1,400 attempts each.
     A lead for U17, not a finding.
+- galli_pot Layer 1 rejections, looked at (lead, 2026-10-05; `l1_look.py --pick worst` and
+  `--pick 6aa728a15a2cf0bb --fail-pct 0.873`, Spartan workspace thread, renders in the
+  shared folder as `u17_galli_fail_*.png`). **The base sherd (0) is the worst sherd in all
+  31 rejected genuine attempts.** Both renders: every sherd on one outline and the base
+  centred on the axis, nothing tilted or lifted; sherd 0 reads 1.6 / 1.07 mm, every other
+  sherd 0.04–0.19 mm. The base's outer surface turns a near right angle from floor into
+  wall, and the reading sits at that corner. Read as a **broken measurement** (same family
+  as the plate floor, Revision 2), inferred from the renders, not proven: a real ~1 mm
+  offset of the base cannot be excluded by eye at this scale.
+  Effect on the test: none on the ranking (best genuine rank 1); 10% of correct galli_pot
+  reassemblies would be wrongly sent to the back. Not retuned after the test. A fix
+  (e.g. not judging a sherd's points at a sharp turn of the outline) would be Revision 4,
+  re-calibrated on the 5 pots and tested on fresh pots, not on these two.

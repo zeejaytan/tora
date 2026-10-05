@@ -4,10 +4,10 @@
   narrow_bottle3 passes: Layers 1+2 top 20 all genuine (random top 5 13.2%); galli_pot
   top 5 all genuine, 0 of 257 near-misses above the best genuine. Layer 1 alone misses
   the top 5 on both: the ranking is Layer 2's. Results in ticket 05.
-- Open, first: Layer 1 drops 10% of genuine galli_pot attempts on the profile cut-off
-  (0.873%). Render one failed genuine attempt (l1_look draws only the median) to tell a
-  flat-base measure fault from a misplaced sherd. Not a retune of the test after the fact.
-- Then: ticket 06 (second method, TORA), ticket 07 (conservator's witnessed look at the
+- Done: the 31 rejected genuine galli_pot attempts all fail on the flat base (sherd 0),
+  at the floor-to-wall corner; renders show it seated. Broken measurement (inferred).
+  Ranking unaffected. Revision 4 only if it bites, and never re-tested on these two pots.
+- Now: ticket 06 (second method, TORA), ticket 07 (conservator's witnessed look at the
   Juglet top 5), ticket 08 (write back to U17, refute-finding offered first).
 - Open faults, stated not fixed: inside-out misfires (narrow_bottle4, plate, galli_pot
   sherd 7; not gating); small-move control (ticket 02) still fails; `l2_top_look.py`
