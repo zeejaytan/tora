@@ -50,3 +50,16 @@ on more than one pot.
   (r, h) plane, both surfaces) failed its synthetic check and was never run.
 - 32160629 `u17_calibrate.slurm` (Revision 2) — submitted, polled. Outputs
   `TORA/rank_u17/calib_32160629/` (calib.json, plate.png, narrow_bottle4.png).
+- 32160629 — COMPLETED 0:0 (1 h 24 min). Rule @ bdd585e (Revision 2).
+  - Layer 1 profile cut-off **1.72%** of pot (was 23.42%); per-pot 99th percentile of
+    genuine: blue_pot 0.64, narrow_bottle2 0.47, narrow_bottle4 0.82, pink_bowl 0.98,
+    plate 1.72. Layer 2 unfixable cut-off unchanged, 2.31%.
+  - Genuine attempts passing Layer 1: 100% on four pots, 98.9% on plate. No sherd unjudged
+    in any attempt on any pot.
+  - Rule 3 fault, stated: inside-out rule still flags 100% of genuine narrow_bottle4 and
+    54.5% of genuine plate (not gating any more).
+  - Layer 1 barely separates classes here (near-misses pass too, as expected: their sherds
+    are in place, only turned); narrow_bottle4 "other" 5 of 6 fail. Best genuine rank
+    L1 → L1+2: plate 14 → 1, others 1 → 1.
+  - Looked at `artifacts/rank_u17/calib_32160629/{plate,narrow_bottle4}.png`: every sherd's
+    outer surface on one outline, per-sherd 0.03–0.56 mm. Measure reads what it should.
