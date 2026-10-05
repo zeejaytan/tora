@@ -102,3 +102,42 @@ each point with its own home point, not with the nearest surface.
 Nothing in step 1 points at the reference: the same five sherds fail on both methods.
 
 Output: `/mnt/project-files/t16_sherd2_step1_output.txt` (script run read-only on Spartan).
+
+## Break faces and joins (2026-10-05, Spartan job 32319267, `t16_break.py` on `juglet_gt.hdf5`)
+
+Output: `/mnt/project-files/t16_break_output.txt`. Mesh area shares match step 1's point
+shares sherd for sherd, so the numbering is confirmed a second way.
+
+**The reference joins are tight, sherd 2's included.** Across the 21 places where two sherds
+meet, the typical gap is 0.04-0.5 mm, with local overlaps up to 0.6 mm (the 0.2-0.5 mm of G1).
+Sherd 2's joins sit at 0.12-0.21 mm, like the rest. Only two near-touches stand apart:
+5-7 (0.84 mm over 2 mm) and 2-3 (0.50 mm over 4 mm). Both are corner contacts, not joins.
+This agrees with the conservator: nothing here points at the reference.
+
+**Break-face size does not split the groups.** The share of break face that meets a
+neighbour is 94-98% for sherds 1, 7, 5 and 8, and 68-70% for sherds 2 and 3. Sherds 5 and 8
+are in the rarely-seated group, and sherd 3 (sometimes seated) reads like sherd 2.
+The skin/break split by facing direction is rough near rim and base, so only the
+neighbour-contact figures are relied on.
+
+**What does split them, so far: the join with the anchor (sherd 0).**
+
+| sherd | % right way round (TORA) | joins sherd 0? | length of that join |
+|---|---|---|---|
+| 7 | 32 | yes | 29 mm |
+| 1 | 44 | yes | 25 mm |
+| 3 | 18 | yes | 19 mm |
+| 2 | 1 | yes | 16 mm |
+| 8 | 4 | yes | 16 mm |
+| 4, 5, 6 | 1-2 | no | none (they meet only each other, 2, 7, 1, 3 and 8) |
+
+All three sometimes-seated sherds share a long join with the anchor. Sherds 4, 5 and 6 do
+not touch it at all, and 2 and 8 touch it along a shorter edge. This is eight sherds on one
+pot, so the 16-vs-19 mm cut could be chance. It is a hypothesis, not a finding. It would
+make this answer 3 (the method's placement, not the break faces or the reference),
+in line with U2's "placement, not perception".
+
+**Test that could refute it (running):** `t16_rel.py` asks whether sherds 4, 5 and 6 come
+out right *relative to each other* while wrong relative to the anchor. If they do, the
+method assembles the body correctly and only misplaces it as a block against the anchor.
+If they are wrong among themselves too, the anchor-join story is not enough.
