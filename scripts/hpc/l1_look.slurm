@@ -12,6 +12,7 @@ module purge
 module load Anaconda3/2024.02-1
 eval "$(conda shell.bash hook)"
 conda activate /data/gpfs/projects/punim2657/TORA/envs/tora
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"  # Spartan's profile sets 1; one python process here
 cd /data/gpfs/projects/punim2657/TORA/repo
 R=/data/gpfs/projects/punim2657/TORA/rank_u17
 C=$R/calib_32157454

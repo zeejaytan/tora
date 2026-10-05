@@ -13,6 +13,7 @@ module purge
 module load Anaconda3/2024.02-1
 eval "$(conda shell.bash hook)"
 conda activate /data/gpfs/projects/punim2657/TORA/envs/tora
+# OMP_NUM_THREADS stays 1 (Spartan's profile): the long steps run one worker process per CPU.
 cd /data/gpfs/projects/punim2657/TORA/repo
 R=/data/gpfs/projects/punim2657/TORA/rank_u17
 B=$R/l2_32147567
