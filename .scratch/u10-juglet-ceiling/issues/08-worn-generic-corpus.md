@@ -15,7 +15,7 @@ back to U10's "what that leaves" line.
 
 **Blocked by:** 07 (the alignment-off recipe).
 
-**Status:** results in (2026-09-26), write-back to O7 pending: rough beats fresh and worn on the Juglet and fresh on the ladder, two runs per arm; strengths refined in 09. Write-back waits on refute-finding. Conservator chose the arms: pooled corpus, noise kept.
+**Status:** done (2026-10-06). Written back to O7 and U10 together with ticket 09. Refute-finding was not run: the conservator chose to close on the replication already in hand (2026-10-06). Result: rough beats fresh and worn on the Juglet and fresh on the ladder, two runs per arm; strengths refined in 09. Conservator chose the arms: pooled corpus, noise kept.
 
 **Needs-eye:** before training, one worn join from the corpus, before/after, in a section
 window that resolves 0.1 mm. After, the Juglet median attempt per new arm in visual-qa,
@@ -329,9 +329,8 @@ established: rough beats worn on the ladder. Weight: one real pot; two runs per 
 - [ ] Viewer pairs staged; conservator's look. Staged: `u10_juglet_{fresh,noise}_t08`
       (median attempts). Superseded by ticket 09's best-attempt pair for rough 1×, which the
       conservator looked at on 2026-09-28. The t08 pairs themselves have no look or note.
-- [ ] Weight stated. Which of the three kinds named. Written back to O7 (and U10/O8 if
-      the first reading fires). Weight and kind are stated in ticket 09's plain summary.
-      The write-back waits for refute-finding, after ticket 09.
+- [x] Weight stated. Which of the three kinds named. Written back to O7 and U10
+      (2026-10-06, with ticket 09; refute-finding not run, by the conservator's choice).
 - [x] Every `sbatch` has a laptop poll; sacct State/ExitCode recorded here.
       Builds 31296315, 31296316: COMPLETED 0:0. Training + eval: pooled 31296425, worn
       31298231, noise 31298232 (running / queued 2026-09-25). Pooled 31296425: COMPLETED 0:0. Worn 31298231: COMPLETED 0:0. Noise 31298232: COMPLETED 0:0. Ladder scoring

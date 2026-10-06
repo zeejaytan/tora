@@ -540,6 +540,35 @@ comparison against cruder augmentation — because "wear augmentation helps" is 
 until it is shown that *wear-shaped* augmentation is what helps, rather than augmentation in
 general. The bar moved sideways, not down.
 
+## Rough, not worn: the fair test of the behavioural box (2026-10-06, tora `u10-juglet-ceiling/08` and `/09`)
+
+TORA's placement stage was fine-tuned with alignment off on pooled synthetic pots (generic
+and Juglet-shaped), whose break faces were either left perfect (*fresh*), receded as wear
+opens a join (*worn*), or jittered so faces no longer fit perfectly (*rough*). Ticket 09
+repeated this at one strength per training set, ¼x to 4x (8x for worn); 1x moves the break
+surface about 0.1 mm on a pot the Juglet's size.
+
+- **Rough beats fresh; worn does not.** Juglet, solid sherds in their own place: rough's
+  typical attempt seats 4 of 9 against 2 for fresh and worn (40 attempts per arm, two
+  training runs each, p = 3e-6). Read by best attempt, as the conservator picks by eye:
+  rough 1x reaches 7 or 8 of 9 in all four of its training runs, fresh 5. Rough keeps
+  sherd 1 home (17/20) where fresh and worn lose it (2-9/20).
+- **Same direction on the erosion ladder**, the test this box requires (8 Fractura pots x 5
+  levels of GARF's erosion, which neither training recipe used): rough beats fresh in all
+  four run pairings, three significant; the gain sits at the heavier levels. Worn vs fresh
+  shows no difference. Rough vs worn on the ladder did not replicate.
+- **Strength:** rough 1x is the setting; 2x reaches 8 of 9 but costs more on unworn pots;
+  4x damages placement. Worn levels off at 6 of 9 from 1x up; retired as a recipe.
+- **Which of the three:** the method. Changing how it is trained changes how many sherds
+  it seats, scored against the conservator's reassembly with the checked own-place ruler.
+- **Weight:** one real pot, plus 8 pots under simulated wear. Rough 1x rests on four
+  training runs, the other arms on one or two. Not shown on a second real pot.
+  Refute-finding was not run (conservator closed the tickets 2026-10-06).
+- **For the box:** augmentation earns its place, but the cruder one wins. Wear-shaped
+  augmentation is not supported. Later, on GARF and at 3,120 attempts, rough training
+  roughly doubles the sherds next to the neck and leaves the body block and sherd 2 mostly
+  unplaced (O8, `juglet-cause/16`).
+
 ## Done when
 
 - [x] **One of the two captures is recorded as unreachable, with a reason (2026-09-09).**
@@ -562,7 +591,12 @@ general. The bar moved sideways, not down.
       cruder-augmentation comparison this box also asks for has still never been run, so
       the box is unmet on both halves. Both attempts used the alignment-on recipe that
       ticket 06 later showed damages placement, so neither is a fair test of the box
-      (2026-09-25). A fair one is tora `u10-juglet-ceiling/08`. Still open
+      (2026-09-25). **Tested fairly 2026-09-26/28 (tora `u10-juglet-ceiling/08`, `/09`):
+      still not met, and now for a stated reason.** The wear-shaped augmentation (receded
+      break faces) did no better than fresh training at any strength, on the Juglet or on
+      the erosion ladder. The cruder baseline (jittered, "rough" break faces) beat both. So
+      augmentation earns its place here, but not wear-shaped augmentation. See "Rough, not
+      worn" above
 - [ ] **BOUNDED-RANGE — the parameters are defensible without being measured.** Fabric,
       temper and wall-thickness distributions pulled from the archaeometric literature
       (Khashuri Natsargora, Tsaghkasar, the Kars corpus), wear parameters shown to lie

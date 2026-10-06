@@ -15,7 +15,11 @@ It comes with a render of one mirrored sherd beside its true self.
 **Blocked by:** None. The first four boxes need no GPU, no fetch and no Slurm: every
 input is already under `artifacts/`. Only the optional last box needs new sampling.
 
-**Status:** ready-for-agent
+**Status:** done, superseded (conservator, 2026-10-06). Ticket 15 answered the question
+that mattered: forbidding mirroring during sampling left placement unchanged (neck 20 -> 22 of
+160, neck + base 33 -> 35), so mirror images are not why sherds land wrong. Ticket 14 covers
+the reference-free check: the "outside faces out" rule flags inside-out sherds, mirrored or
+not. Where mirror images come from was never explained, and is no longer needed for O8.
 
 **Needs-eye:** the render in the fourth box. A mirror image is easy to mis-measure and
 easy to see.

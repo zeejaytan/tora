@@ -13,9 +13,9 @@ on an erosion operator it was not trained on). Reports back to U10's "what that 
 
 **Blocked by:** 08 (the operators, the recipe and the fresh baselines it reuses).
 
-**Status:** results in and looked at (2026-09-28), write-back to O7 / U10 pending. Rough replicated; worn retired; read by best attempt; the
-conservator has looked at the rough 1× best attempt (see "Witnessed look"). Left open:
-refute-finding, then the write-back to O7 / U10. Conservator chose all ten arms.
+**Status:** done (2026-10-06). Written back to O7 and U10. Rough replicated; worn retired; read by best attempt; the
+conservator has looked at the rough 1× best attempt (see "Witnessed look"). Refute-finding
+was not run: the conservator chose to close on the replication in hand (2026-10-06). Conservator chose all ten arms.
 
 ## Result in plain words (2026-09-28)
 
