@@ -1,4 +1,4 @@
-"""U17 Revision 4: set the overlap cut-off on GARF's calibration pots, then re-rank (key side).
+"""U17 Revision 4/5: set the overlap cut-off on GARF's calibration pots, then re-rank (key side).
 
 Rule and read-outs fixed in .scratch/attempt-ranker/preregistration-overlap.md, whose
 commit this prints. Revision 3 (Layer 1 profile 0.873%, near joins, unjudged fails) is
@@ -8,7 +8,12 @@ cut-off share of its surface inside another sherd (overlap_measure.py).
 Cut-off: per calibration pot, the 99th percentile over genuine attempts of the worst
 sherd's inside share; the cut-off is the largest of those (as Revision 3 set its own).
 
-Every pot is then ranked twice, Revision 3 and Revision 4:
+Revision 5 (--field area): the same gate on the overlapped AREA away from each sherd's
+join strip, (% of pot)^2, instead of the share of its surface (Revision 4's measure was
+inflated on tiny sherds by joins pressed slightly in; job 32345673). In the JSON the gated
+ranking is keyed "rev4" whichever revision made it; "field" says which.
+
+Every pot is then ranked twice, Revision 3 and the gated revision:
   order  Layer 1 pass (and overlap pass, Rev 4), then worst-sherd gap, then profile.
 
 Usage: python scripts/u17_overlap.py --prereg PREREG --profile-pct 0.873 --out out.json
@@ -31,6 +36,9 @@ from rank_report import prereg_commit  # noqa: E402
 K = 5
 
 
+FIELD = "inside_pct"   # Revision 4; --field area for Revision 5
+
+
 def rows_for(root, labels_path, ovdir, pot, profile_pct):
     labels = {(r["pot"], r["run"], r["attempt"]): r
               for r in json.loads(Path(labels_path).read_text())}
@@ -39,8 +47,8 @@ def rows_for(root, labels_path, ovdir, pot, profile_pct):
                                          .read_text())["attempts"]}
     for r in rs:
         s = ov[r["id"]]["sherds"]
-        r["inside"] = max(x["inside_pct"] for x in s)
-        r["inside_sherd"] = int(np.argmax([x["inside_pct"] for x in s]))
+        r["inside"] = max(x[FIELD] for x in s)
+        r["inside_sherd"] = int(np.argmax([x[FIELD] for x in s]))
         r["pass"] = C.l1_ok(r, profile_pct)
     return rs
 
@@ -70,10 +78,18 @@ def main() -> int:
     ap.add_argument("--calib-pots", required=True, nargs="+")
     ap.add_argument("--pots", action="append", nargs="+", default=[])
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--field", choices=("inside_pct", "area"), default="inside_pct",
+                    help="inside_pct: Revision 4 (share of the sherd); area: Revision 5 "
+                         "(area away from joins, (%% of pot)^2)")
     a = ap.parse_args()
+    global FIELD
+    FIELD = a.field
     commit = prereg_commit(a.prereg)
     C.IO_GATE, C.UNJ_FAIL = False, True
-    print(f"pre-registration {a.prereg} @ {commit}; Revision 3 Layer 1 at {a.profile_pct}%")
+    gate = "4" if FIELD == "inside_pct" else "5"
+    unit = "% of the sherd's surface" if FIELD == "inside_pct" else "(% of pot)^2 away from joins"
+    print(f"pre-registration {a.prereg} @ {commit}; Revision 3 Layer 1 at {a.profile_pct}%; "
+          f"overlap gate Revision {gate}, field {FIELD} ({unit})")
 
     root, labels, ovdir, *cal = a.calib_pots
     sets = [("garf-calibration", root, labels, ovdir, cal)]
@@ -82,7 +98,7 @@ def main() -> int:
             for name, r, lab, ov, pots in sets for p in pots}
 
     per = {}
-    print("\n### overlap on GARF's calibration pots: worst sherd's surface inside another, %")
+    print(f"\n### overlap on GARF's calibration pots: worst sherd, {unit}")
     print(f"{'pot':16} {'class':8} {'n':>5} {'median':>7} {'q90':>7} {'q99':>7} {'max':>7}")
     for p in cal:
         rs = rows[("garf-calibration", p)]
@@ -92,9 +108,9 @@ def main() -> int:
                   f"{q(xs, 99)!s:>7} {max(xs, default=0):>7.2f}")
         per[p] = q([r["inside"] for r in rs if r["cls"] == "genuine"], 99)
     cut = max(per.values())
-    print(f"\nRevision 4 overlap cut-off: {cut}% of a sherd's surface (q99 genuine per pot: {per})")
+    print(f"\nRevision {gate} overlap cut-off: {cut} {unit} (q99 genuine per pot: {per})")
 
-    out = dict(prereg_commit=commit, profile_pct=a.profile_pct, overlap_cut=cut,
+    out = dict(prereg_commit=commit, profile_pct=a.profile_pct, overlap_cut=cut, field=FIELD,
                per_pot_q99=per, pots={})
     print(f"\n{'set':18} {'pot':15} {'n':>4} {'gen':>4} {'rand5':>6}  "
           f"{'rev':3} {'kept':>5} {'best':>5} {'top5?':5} {'near>':>5}  top 5 (inside %)")
@@ -109,7 +125,7 @@ def main() -> int:
                                           genuine_failed_why=[dict(id=r["id"], inside=r["inside"],
                                                                    sherd=r["inside_sherd"])
                                                               for r in failed[:10]])
-        for tag, r in (("3", r3), ("4", r4)):
+        for tag, r in (("3", r3), (gate, r4)):
             print(f"{name:18} {p:15} {n:>4} {g:>4} {100 * base:>5.1f}%  {tag:>3} {r['kept']:>5} "
                   f"{r['best_genuine']!s:>5} {'YES' if r['top5_hit'] else 'no':5} "
                   f"{r['near_above']!s:>5}  {list(zip(r['top5'], r['top5_inside']))}")

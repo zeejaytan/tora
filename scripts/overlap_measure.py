@@ -13,6 +13,10 @@ normal, by more than DEPTH_T of k's wall. Touching at a correct break is ~0 deep
 counted. Everything is in percent of pot size, as in l2_measure.py.
 
 Per sherd, per attempt:
+  area         Revision 5: area of the sherd's surface inside another, leaving out its join
+               strip (break faces and one wall thickness either side), in (% of pot)^2:
+               square millimetres on a 100 mm pot. An area, not a share of the sherd, so a
+               tiny sherd's join cannot read as most of it (Revision 4's fault).
   inside_pct   share of the sherd's surface lying inside some other sherd, %
   depth_pct    95th percentile depth of those samples, % of pot (0 if none)
   into         the sherd it overlaps most (-1 if none)
@@ -34,7 +38,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from l2_measure import SEED, SPACING_PCT, resample, volume  # noqa: E402
+from l2_measure import BALL_T, BREAK_COS, SEED, SPACING_PCT, resample, volume  # noqa: E402
 
 DEPTH_T = 0.25   # deeper than this share of the other sherd's wall = inside, not touching
 SAME_COS = 0.7   # skins this parallel (~45 deg), touching and facing the same way = stacked
@@ -52,12 +56,33 @@ def open_edges(f):
     return int((n == 1).sum())
 
 
+def join_strip(p, n, t):
+    """Samples on the break faces or within one wall thickness of them.
+
+    Breaks found as l2_measure.py finds them (normal lying across the local wall). A
+    method that seats a join a little too tightly pushes this strip into the neighbour;
+    that is a tight join, not one sherd lying on another (Revision 4, job 32345673).
+    """
+    tree = cKDTree(p)
+    wall = np.empty_like(p)
+    for i, nb in enumerate(tree.query_ball_point(p, BALL_T * t)):
+        q = p[nb] - p[nb].mean(0)
+        wall[i] = np.linalg.eigh(q.T @ q)[1][:, 0]
+    brk = np.abs(np.einsum("ij,ij->i", n, wall)) < BREAK_COS
+    if not brk.any():
+        return brk
+    d, _ = cKDTree(p[brk]).query(p)
+    return d <= t
+
+
 def prep_sherd(v, f, pot, rng):
     v = v * 100.0 / pot
     p, n, area = resample(v, f, SPACING_PCT, rng)
     if signed_volume(v, f) < 0:
         n = -n
-    return dict(p=p, n=n, thick=2 * volume(v, f) / area, open=open_edges(f))
+    t = 2 * volume(v, f) / area
+    return dict(p=p, n=n, thick=t, open=open_edges(f), strip=join_strip(p, n, t),
+                da=area / len(p))
 
 
 def load(bundles: Path):
@@ -120,7 +145,9 @@ def measure(path):
                 into, most = k, int((dep > 0).sum())
             best = np.maximum(best, dep)
         hit = best > 0
-        rows.append(dict(inside_pct=round(100 * float(hit.mean()), 3),
+        away = hit & ~sh[j]["strip"]
+        rows.append(dict(area=round(float(away.sum() * sh[j]["da"]), 3),
+                         inside_pct=round(100 * float(hit.mean()), 3),
                          depth_pct=round(float(np.percentile(best[hit], 95)) if hit.any() else 0.0, 3),
                          into=into))
     return dict(id=Path(path).stem, sherds=rows)
@@ -146,12 +173,16 @@ def main() -> int:
         pot_mm=pot, units="percent of pot size / percent of sherd surface",
         settings=dict(SPACING_PCT=SPACING_PCT, DEPTH_T=DEPTH_T, SAME_COS=SAME_COS),
         sherd_info=[dict(samples=len(s["p"]), wall_pct=round(s["thick"], 3),
-                         open_edges=s["open"]) for s in sh],
+                         open_edges=s["open"], strip_share=round(float(s["strip"].mean()), 3),
+                         area=round(float(len(s["p"]) * s["da"]), 1)) for s in sh],
         attempts=rows), indent=0))
     worst = np.array([max(s["inside_pct"] for s in r["sherds"]) for r in rows])
+    area = np.array([max(s["area"] for s in r["sherds"]) for r in rows])
     print(f"{len(rows)} attempts -> {a.out}; worst sherd's surface inside another, %: "
-          f"quartiles {np.percentile(worst, [25, 50, 75]).round(2)}; "
-          f"open edges per sherd {[s['open'] for s in sh]}")
+          f"quartiles {np.percentile(worst, [25, 50, 75]).round(2)}; away from joins, "
+          f"(% of pot)^2: {np.percentile(area, [25, 50, 75]).round(1)}; "
+          f"open edges per sherd {[s['open'] for s in sh]}; "
+          f"join strip share {[round(float(s['strip'].mean()), 2) for s in sh]}")
     return 0
 
 
