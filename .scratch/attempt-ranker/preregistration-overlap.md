@@ -61,6 +61,13 @@ test**. It is the calibration plus checks on seen pots, reported as checks:
   (0dce053). The job prints GARF's clouds' scale and shift against the scans per pot; if
   either is outside the converter's tolerance, the GARF calibration bundles are rebuilt
   before anything is read.
+- Amended 2026-10-06, before any overlap was measured (job 32331355 stopped at this
+  check, 14 s in): the converter's frame check compared sherd centres by plain vertex
+  means, which lean towards dense parts of a mesh, and refused GARF's galli_pot at 3.2%.
+  Centres are now area-weighted, as the runs' clouds are (`rank_convert.area_centre`;
+  synthetic uneven mesh: vertex means 4.2% off, area-weighted 0.6%). TORA's bundles
+  (32330575) used the old shift estimate; the job prints how far the new one differs. If
+  more than 0.3% of pot, TORA's bundles are rebuilt and re-ranked before anything is read.
 - Every failure is named: method failed, measurement broken, or reference wrong.
 
 **Prediction, written before the run.** Genuine GARF attempts overlap little (cut-off

@@ -71,6 +71,18 @@ def load_scans(hdf5, obj):
         return [(g[str(i)]["vertices"][:], g[str(i)]["faces"][:]) for i in range(n)]
 
 
+def area_centre(v, f):
+    """A mesh's centre weighted by surface area, as the run's evenly sampled cloud weights it.
+
+    A plain vertex mean leans towards wherever the mesh is densest; on GARF's galli_pot
+    (small base sherds) that put sherd centres 3.2% of pot off their own clouds' (job
+    32331355) although the two are the same pot in the same frame.
+    """
+    a, b, c = v[f[:, 0]], v[f[:, 1]], v[f[:, 2]]
+    w = 0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1)
+    return ((a + b + c) / 3 * w[:, None]).sum(0) / w.sum()
+
+
 def run_frame(gt, sl, scans, run):
     """Scale k and shift o with gt / k - o in the dataset scans' frame: (1, 0) if they agree.
 
@@ -90,7 +102,7 @@ def run_frame(gt, sl, scans, run):
     if abs(k - 1) < 0.05:
         k = 1.0
     cg = np.array([gt[s:e].mean(0) for s, e in sl]) / k
-    cs = np.array([v.mean(0) for v, _ in scans])
+    cs = np.array([area_centre(v, f) for v, f in scans])
     o = (cg - cs).mean(0)
     if 100 * np.linalg.norm(o) / size < SHIFT_PCT:
         o = np.zeros(3)

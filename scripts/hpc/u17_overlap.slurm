@@ -43,6 +43,30 @@ for p in pots:
     print(f"{p}: scale {k:.4f}, shift {np.round(o, 4).tolist()} ({run})")
 PY
 
+echo "### TORA: shift by area-weighted centres (now) vs vertex means (used for tora_32330575)"
+python - "$T/dataset/fractura_fresh.hdf5" "$TORAR" narrow_bottle3 plate <<'PY'
+import json, sys
+from pathlib import Path
+import numpy as np
+sys.path.insert(0, "scripts")
+import rank_convert as rc
+from readout import part_slices, unit_box_scale
+h5, TR, pots = sys.argv[1], Path(sys.argv[2]), sys.argv[3:]
+for p in pots:
+    runs = sorted({m["run"] for m in json.loads((TR / p / "key" / "idmap.json").read_text()).values()})
+    scans = rc.load_scans(h5, f"fractura_fresh/{p}")
+    size = unit_box_scale(np.concatenate([v for v, _ in scans]))
+    worst = 0.0
+    for run in runs:
+        d = np.load(run, allow_pickle=True)
+        gt, sl = d["pts_gt"].astype(float), list(part_slices(d["points_per_part"]))
+        k, o = rc.run_frame(gt, sl, scans, run)
+        cg = np.array([gt[s:e].mean(0) for s, e in sl]) / k
+        o_old = (cg - np.array([v.mean(0) for v, _ in scans])).mean(0)
+        worst = max(worst, 100 * np.linalg.norm(o - o_old) / size)
+    print(f"{p}: {len(runs)} runs; shift now vs then differs by at most {worst:.3f}% of pot")
+PY
+
 for p in "${CAL[@]}" narrow_bottle3 galli_pot; do
     python scripts/overlap_measure.py --bundles "$B/$p/bundles" --out "$O/garf/${p}_overlap.json"
 done
