@@ -540,7 +540,22 @@ comparison against cruder augmentation — because "wear augmentation helps" is 
 until it is shown that *wear-shaped* augmentation is what helps, rather than augmentation in
 general. The bar moved sideways, not down.
 
-## Rough, not worn: the fair test of the behavioural box (2026-10-06, tora `u10-juglet-ceiling/08` and `/09`)
+## Break-face training reassembles the Juglet: 9 of 9 (2026-10-06, tora `u10-juglet-ceiling/08`, `/09`; GARF `rough-worn-dose/02`, `/06`)
+
+**The headline is a success.** Trained on synthetic pots whose break faces are roughened or worn,
+GARF reassembled the Juglet completely: **all 9 sherds home and the right way round**, twice
+(rough 1x, presentation 1; worn 4x, presentation 4), seen and confirmed by the conservator in
+visual-qa on 2026-10-02 (`garf_juglet_genuine_t06`). This is the first full reassembly of this
+real, worn pot by any method here. Training on clean breaks never did it, and never seated even
+8 of 9 the right way round. Full reassembly is rare (2 of 1,400 attempts) and comes on favourable
+presentations, but it shows the method can do it once its training sees damaged break faces.
+**Which of the three:** the method, and it succeeded. **Weight:** one real pot; GARF's two worn
+training runs place sherds almost identically, so they are a weak repeat (GARF `intent/G1`).
+
+On TORA the same training helps but does not get there: best 7 of 9 right way round, no full
+reassembly in 3,120 attempts (ticket 10). The TORA detail follows.
+
+### TORA: rough helps, worn does not
 
 TORA's placement stage was fine-tuned with alignment off on pooled synthetic pots (generic
 and Juglet-shaped), whose break faces were either left perfect (*fresh*), receded as wear
@@ -564,8 +579,9 @@ surface about 0.1 mm on a pot the Juglet's size.
 - **Weight:** one real pot, plus 8 pots under simulated wear. Rough 1x rests on four
   training runs, the other arms on one or two. Not shown on a second real pot.
   Refute-finding was not run (conservator closed the tickets 2026-10-06).
-- **For the box:** augmentation earns its place, but the cruder one wins. Wear-shaped
-  augmentation is not supported. Later, on GARF and at 3,120 attempts, rough training
+- **For the box (TORA):** augmentation earns its place, but on TORA the cruder one wins and
+  wear-shaped augmentation is not supported. On GARF both kinds helped, and both produced a
+  full reassembly (above). Later, on GARF and at 3,120 attempts, rough training
   roughly doubles the sherds next to the neck and leaves the body block and sherd 2 mostly
   unplaced (O8, `juglet-cause/16`).
 
@@ -594,9 +610,11 @@ surface about 0.1 mm on a pot the Juglet's size.
       (2026-09-25). **Tested fairly 2026-09-26/28 (tora `u10-juglet-ceiling/08`, `/09`):
       still not met, and now for a stated reason.** The wear-shaped augmentation (receded
       break faces) did no better than fresh training at any strength, on the Juglet or on
-      the erosion ladder. The cruder baseline (jittered, "rough" break faces) beat both. So
-      augmentation earns its place here, but not wear-shaped augmentation. See "Rough, not
-      worn" above
+      the erosion ladder, on TORA. The cruder baseline (jittered, "rough" break faces) beat
+      both there. On GARF, both rough and worn training gave full 9-of-9 reassemblies of the
+      Juglet, which clean-break training never did. So break-face augmentation earns its place;
+      whether the *wear-shaped* kind beats the cruder one depends on the method. See "Break-face
+      training reassembles the Juglet" above
 - [ ] **BOUNDED-RANGE — the parameters are defensible without being measured.** Fabric,
       temper and wall-thickness distributions pulled from the archaeometric literature
       (Khashuri Natsargora, Tsaghkasar, the Kars corpus), wear parameters shown to lie
