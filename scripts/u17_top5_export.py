@@ -6,8 +6,8 @@ attempt's move, one fixed colour per sherd (the same colour for a sherd in every
 millimetres. Also top.json: rank, attempt id, worst gap, Layer 1 profile, and the colour
 legend. Reads no answer key, and writes no label: the first look is blind.
 
-Usage: python scripts/u17_top5_export.py --bundles B --l2 juglet_l2.json --ranks ranks.json
-           --out DIR [--k 5]
+Usage: python scripts/u17_top5_export.py --bundles B (the folder holding sherds.npz) --l2 juglet_l2.json --ranks ranks.json
+           --out DIR [--k 5] [--pot-mm 65]
 """
 import argparse
 import json
@@ -51,6 +51,8 @@ def main() -> int:
     for k in ("bundles", "l2", "ranks", "out"):
         ap.add_argument(f"--{k}", required=True, type=Path)
     ap.add_argument("--k", type=int, default=5)
+    ap.add_argument("--pot-mm", type=float, default=None,
+                    help="pot size in mm, for bundles whose sherds.npz predates pot_mm (Juglet: 65)")
     a = ap.parse_args()
     l2 = {r["id"]: r for r in json.loads(a.l2.read_text())["attempts"]}
     rk = {r["id"]: r for r in json.loads(a.ranks.read_text())["attempts"]}
@@ -61,6 +63,9 @@ def main() -> int:
     V = [z[f"v{j}"].astype(float) for j in range(k)]
     F = [z[f"f{j}"].astype(np.int64) for j in range(k)]
     cols = [COLOURS[j % len(COLOURS)] for j in range(k)]
+    pot_mm = float(z["pot_mm"]) if "pot_mm" in z.files else a.pot_mm
+    if pot_mm is None:
+        sys.exit("sherds.npz has no pot_mm: pass --pot-mm")
     a.out.mkdir(parents=True, exist_ok=True)
     rows = []
     for n, aid in enumerate(order[: a.k], 1):
@@ -74,7 +79,7 @@ def main() -> int:
         print(f"rank {n}: {aid}  worst gap {worst[aid]:.2f}% of pot, "
               f"box {rows[-1]['box_mm']} mm -> {a.out / f'rank{n}.ply'}")
     (a.out / "top.json").write_text(json.dumps(dict(
-        units="mm", pot_mm=float(z["pot_mm"]), order="Layer 1 pass, worst-sherd gap, profile",
+        units="mm", pot_mm=pot_mm, order="Layer 1 pass, worst-sherd gap, profile",
         sherd_colours={j: name for j, (name, _) in enumerate(cols)}, attempts=rows), indent=1))
     print(f"-> {a.out / 'top.json'}")
     return 0
