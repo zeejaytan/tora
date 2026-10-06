@@ -14,11 +14,17 @@
 - Done: Revision 4 overlap gate (job 32345673): failed by its ruler. Share of a sherd's
   surface inside another is inflated on tiny sherds by GARF's slightly pressed-in joins,
   so the cut-off came out at 37.8% and TORA plate stayed at rank 81. The drawing shows
-  the overlap itself is seen (17% vs 1.6%). Revision 5 waits on the conservator and on
-  fresh attempts; details in ticket 06.
+  the overlap itself is seen (17% vs 1.6%).
+- Done (2026-10-06): Revision 5 (area away from a one-wall join strip, job 32352965):
+  no fresh TORA pot qualified (0 genuine in 200 on bottle3 and plate), so no test. On
+  seen attempts it catches the plate's sherd-on-sherd leader (74 vs cut-off 71), plate
+  best genuine 84 -> 53, but rejects 40/305 correct galli_pot attempts; drawn (32376045),
+  all are long pressed GARF seams, not overlap. Measurement broken; not adopted. Revision
+  3 stands. Details: preregistration-overlap5.md.
 - Then: ticket 07 (conservator's witnessed look at the
   Juglet top 5), ticket 08 (write back to U17, refute-finding offered first).
-- Open faults, stated not fixed: small featureless sherds misplaced but snug fool both
+- Open faults, stated not fixed: overlap (a sherd on another) is not gated, two rulers
+  failed (Revisions 4, 5); small featureless sherds misplaced but snug fool both
   layers (TORA plate, ticket 06); inside-out misfires (narrow_bottle4, plate, galli_pot
   sherd 7; not gating); small-move control (ticket 02) still fails; `l2_top_look.py`
   titles hardcode "Juglet" and 9 sherds.

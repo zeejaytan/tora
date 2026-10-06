@@ -121,3 +121,9 @@
     (overlap as area in absolute terms, or the band within a wall of a break left out) is
     designed after looking at plate twice; plate cannot count for it, and it needs fresh
     attempts to be tested.
+- **Revision 5 (2026-10-06, jobs 32352963/4 draws, 32352965 scoring, 32376045 drawings).**
+  No fresh pot qualified, so no test. Seen attempts: plate's sherd-on-sherd leader caught
+  (74 > 71), best genuine 84 -> 53, 32 near-misses still above. Cost: 40 of 305 correct
+  galli_pot attempts rejected; drawn, the red runs along long pressed seams, not one sherd
+  on another. Measurement broken; not adopted; Revision 3 stands. Full record in
+  `preregistration-overlap5.md`.

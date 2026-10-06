@@ -94,3 +94,19 @@ therefore **untested on unseen attempts**. (Earlier TORA rates, 9/560 and 5/560,
   closed meshes), narrow_bottle4 12 of 1,394, narrow_bottle3 1 of 39. Kept attempts on
   galli_pot fall 1,162 -> 454. To be drawn (`scripts/hpc/u17_overlap5_look.slurm`) before
   this is called a real overlap or a ruler fault.
+
+### Rejected genuine attempts drawn (job 32376045)
+
+Worst three of the first ten rejected per pot (galli_pot 133, 99, 99; narrow_bottle4 86,
+83, 82; narrow_bottle3 89): **in every one the red runs along a join, just past the orange
+strip**, along the long seams where GARF has pressed two sherds into each other over a
+stretch wider than one wall thickness (galli_pot: the cluster of small sherds 1, 7, 8, 9;
+narrow_bottle4: the long seam of sherd 1). No sherd is lying on another. narrow_bottle3's
+rejection also rests partly on sherds 0 and 3, which have open mesh edges (20 and 10), so
+their outward direction is unreliable.
+
+**Named: measurement broken.** Area away from a one-wall strip still grows with the length
+of a pressed seam, so a correct attempt with long tight joins (133) reads above TORA's
+sherd-on-sherd attempt (74). The two cannot be told apart by this number, and the cut-off
+(71) only just caught the one real case. Not retuned. Revision 5 is not adopted; Revision 3
+stands as U17's ranker. Overlap stays a stated blind spot.
