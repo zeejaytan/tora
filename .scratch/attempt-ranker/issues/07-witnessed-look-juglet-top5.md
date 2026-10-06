@@ -10,7 +10,7 @@ writes — closes on a witnessed look plus a conservator note, never on numbers 
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** ready-for-agent (started 2026-10-06; conservator chose to move on from overlap)
 
 - [ ] Lead writes five `single:` descs (full-detail sherds as placed); the
       visual-qa-helper stages them; gates pass
@@ -18,3 +18,13 @@ writes — closes on a witnessed look plus a conservator note, never on numbers 
       named
 - [ ] Pass 2: the least-sure sherd named per attempt; second verdict recorded
 - [ ] Each verdict recorded beside its rank; every note gets a same-round agent reply
+
+## Log
+
+- 2026-10-06: `scripts/u17_top5_export.py` writes the Revision 3 top 5 (Layer 1
+  jug_v2_32274553, Layer 2 l2_32147567, bundles juglet_32107634) as posed full sherd
+  meshes, one fixed colour per sherd, no labels, to Spartan `TORA/rank_u17/jug_top5/`.
+  Five blind `single:` descs in `visual-qa/viewer/pairs/u17_juglet_top{1..5}.json`
+  (visual-qa d5a2274); staging dry-run on a synthetic mesh passed. Labels are read from
+  the key only after the blind verdicts are recorded. Ticket 02 (small-move control) is
+  still open; this look goes ahead regardless, at the conservator's call.
