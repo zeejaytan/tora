@@ -78,3 +78,9 @@ on the three non-regression pots.
 
 **Weight.** Calibration on one method's five pots; checks only. Nothing here can be
 written into U17 as established.
+
+## Result (job 32345673, 2026-10-06), appended after the run
+
+Cut-off 37.8% (GARF plate). Non-regression held on all three pots. TORA plate not
+rescued (84 -> 81). Ruler fault, found on the drawings: join bands counted as overlap, a
+large share of a tiny sherd. Prediction "cut-off under 2%" was wrong. Details: ticket 06.

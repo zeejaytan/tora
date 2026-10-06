@@ -95,3 +95,29 @@
   seen pot), `overlap_look.py` (draws the overlap in red), job `u17_overlap.slurm`, plan
   `../preregistration-overlap.md`. Synthetic ring: correct 0.25-0.38%, sherd slid half
   over its neighbour 34%. No fresh test pot exists; this run is calibration plus checks.
+- 32345673 `u17_overlap.slurm` (Revision 4, plan @ 31c6a68; 32331355 stopped at the frame
+  check, fixed by area-weighted centres), COMPLETED 0:0. `TORA/rank_u17/overlap_32345673/`;
+  log, report and drawings `u17_overlap_32345673*` in the project folder.
+  - Ruler checks: GARF clouds match the scans on all 7 pots (scale 1, no shift), so GARF's
+    bundles stand. TORA's shift estimate moved at most 0.08% (bottle) and 0.26% (plate)
+    of pot, under the 0.3% rebuild limit. Open mesh edges on GARF/TORA narrow_bottle3
+    sherds 0 (20), 3 (10), narrow_bottle4 sherd 3 (4), galli_pot sherd 5 (4): their
+    overlap direction is unreliable; nothing below rests on them.
+  - Cut-off **37.8%** of a sherd's surface, set by GARF plate (q99 of genuine; other
+    pots 4.3-17.2%). Non-regression holds: GARF narrow_bottle3, galli_pot and TORA
+    narrow_bottle3 keep rank 1. **TORA plate not rescued**: best genuine 84 -> 81, top 5
+    unchanged (worst sherd inside another 11-37%, all under the cut-off).
+  - **Broken measurement, not a failed idea.** The GARF plate drawing (best genuine
+    attempt) shows red along every join: GARF seats breaks slightly into each other, and
+    the measure counts the join band as overlap. As a SHARE of a sherd's surface that band
+    is small on a big sherd and most of a tiny one: GARF plate's 8 genuine attempts failed
+    by the gate are all sherd 5 (59 of 5,000 points) at 38-47%. That set the cut-off far
+    above TORA plate's misplaced sherds. The TORA plate drawing shows the measure does see
+    the conservator's overlap: Revision 3's top attempt has floor sherd 4 lying across rim
+    sherd 3, 17% of it red over its whole face; the best genuine attempt 1.6%, red only in
+    specks.
+  - As pre-registered, nothing retuned. Revision 4 stands as a failed gate (measurement
+    broken: per-sherd share, inflated on small sherds by join bands). Any Revision 5
+    (overlap as area in absolute terms, or the band within a wall of a break left out) is
+    designed after looking at plate twice; plate cannot count for it, and it needs fresh
+    attempts to be tested.
