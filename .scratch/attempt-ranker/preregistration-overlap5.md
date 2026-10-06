@@ -69,3 +69,28 @@ genuine; on a bottle-like pot, a pass as before.
 
 **Weight.** One method's fresh attempts, one arm, the pots that qualify (likely one to
 three). A pass is a lead for U17, not a finding.
+
+## Result, job 32352965 (draws 32352963, 32352964), recorded before the rejected genuine attempts are drawn
+
+**No test happened.** No fresh pot qualified: narrow_bottle3 and plate drew 0 genuine in
+200 each (6 and 0 near-misses); galli_pot and narrow_bottle1 0 genuine; blue_pot,
+narrow_bottle2, narrow_bottle4 and pink_bowl right 45-100% of the time. Revision 5 is
+therefore **untested on unseen attempts**. (Earlier TORA rates, 9/560 and 5/560, make 0 in
+200 likely-ish for the plate, about 1 in 25 for narrow_bottle3; the same labeller found
+200/200 on narrow_bottle2, so the labeller is working.)
+
+- Cut-off **71.0 (% of pot)^2**, set by GARF narrow_bottle4 (q99 of its genuine). Upper end
+  of "a few tens".
+- Checks hold: GARF narrow_bottle3, galli_pot and TORA narrow_bottle3 keep a genuine at
+  rank 1.
+- TORA plate (seen, design data): best genuine 84 -> 53, 32 near-misses still above it;
+  top 5 now 3 near-miss + 2 other, worst overlap 4-23. Drawing `tora_plate.png`: the
+  Revision 3 leader (floor sherd 4 lying across rim sherd 3) reads 74 and is out, only just;
+  the new leader has small floor sherds 4 and 5 jumbled at the hub with little overlap (11).
+  Prediction held: what remains above the genuine is misplacement without overlap.
+- GARF plate drawing: correct attempt, every join orange (strip), nothing counted. The
+  join-strip fix works as designed there.
+- **Cost:** genuine attempts rejected: galli_pot 40 of 305 (13%, worst sherds 7 and 8,
+  closed meshes), narrow_bottle4 12 of 1,394, narrow_bottle3 1 of 39. Kept attempts on
+  galli_pot fall 1,162 -> 454. To be drawn (`scripts/hpc/u17_overlap5_look.slurm`) before
+  this is called a real overlap or a ruler fault.

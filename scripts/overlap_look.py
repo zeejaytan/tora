@@ -6,8 +6,11 @@ each from the side and down the long axis, every sherd grey, the samples counted
 another sherd in red, or orange where they lie in the sherd's own join strip (left out of
 Revision 5's area). Title carries each attempt's worst inside share and its class.
 
+With --failed N, draws instead the N genuine attempts the gate rejected with the most
+overlap (the pre-registration's rule: every rejected genuine is drawn before reporting).
+
 Usage: python scripts/overlap_look.py --bundles DIR --report overlap_report.json
-           --pot "tora/plate" --out look.png
+           --pot "tora/plate" --out look.png [--failed 3]
 """
 import argparse
 import json
@@ -29,15 +32,27 @@ ap.add_argument("--bundles", required=True, type=Path)
 ap.add_argument("--report", required=True, type=Path)
 ap.add_argument("--pot", required=True, help="set/pot as the report keys it")
 ap.add_argument("--out", required=True, type=Path)
+ap.add_argument("--failed", type=int, default=0,
+                help="draw the N rejected genuine attempts with the most overlap instead")
 a = ap.parse_args()
 
-rep = json.loads(a.report.read_text())["pots"][a.pot]
-picks = [("Revision 3, rank 1", rep["rev3"]["top5_ids"][0]),
-         ("Revision 4, rank 1", rep["rev4"]["top5_ids"][0]),
-         (f"best genuine, Revision 4 rank {rep['rev4']['best_genuine']}",
-          rep["rev4"]["best_genuine_id"])]
+full = json.loads(a.report.read_text())
+rep = full["pots"][a.pot]
+gate = "5" if full.get("field") == "area" else "4"
+unit = "(% of pot)^2" if gate == "5" else "%"
+if a.failed:
+    why = sorted(rep["genuine_failed_why"], key=lambda w: -w["inside"])[: a.failed]
+    picks = [(f"genuine, rejected: {w['inside']:.0f} on sherd {w['sherd']}", w["id"])
+             for w in why]
+else:
+    picks = [("Revision 3, rank 1", rep["rev3"]["top5_ids"][0]),
+             (f"Revision {gate}, rank 1", rep["rev4"]["top5_ids"][0]),
+             (f"best genuine, Revision {gate} rank {rep['rev4']['best_genuine']}",
+              rep["rev4"]["best_genuine_id"])]
+if not picks:
+    sys.exit(f"{a.pot}: nothing to draw")
 pot, sh = O.load(a.bundles)
-fig, ax = plt.subplots(2, len(picks), figsize=(6 * len(picks), 9))
+fig, ax = plt.subplots(2, len(picks), figsize=(6 * len(picks), 9), squeeze=False)
 for c, (title, aid) in enumerate(picks):
     if aid is None:
         continue
@@ -69,8 +84,8 @@ for c, (title, aid) in enumerate(picks):
         ax[r, c].set_aspect("equal")
 ax[0, 0].set_ylabel("side view (% of pot)")
 ax[1, 0].set_ylabel("down the long axis (% of pot)")
-fig.suptitle(f"{a.pot}: where sherds pass through each other; overlap cut-off "
-             f"{json.loads(a.report.read_text())['overlap_cut']}%")
+fig.suptitle(f"{a.pot}: where sherds pass through each other; Revision {gate} cut-off "
+             f"{full['overlap_cut']} {unit}")
 fig.tight_layout()
 a.out.parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(a.out, dpi=100)
