@@ -10,7 +10,7 @@ writes — closes on a witnessed look plus a conservator note, never on numbers 
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent (started 2026-10-06; conservator chose to move on from overlap)
+**Status:** done (2026-10-08)
 
 - [ ] Lead writes five `single:` descs (full-detail sherds as placed); the
       visual-qa-helper stages them; gates pass
@@ -48,3 +48,11 @@ writes — closes on a witnessed look plus a conservator note, never on numbers 
   conservator named. Not seen blind: sherd 4 (purple) is also turned in picks 3 and 4.
   Pass 2 names sherd 4 in picks 3 and 4 (the sherd the eye did not flag).
   Weight: one pot, one method (GARF, 1,400 attempts, 2 genuine), one look.
+- 2026-10-08, **pass 2 (purple named in picks 3 and 4): conservator "purple looks fine on
+  3, 4". Measured (`u17_top5_turns.py`, 6eda76f):** sherd 4 is turned 12.8 and 15.1 deg,
+  4.66 and 5.23 mm off, against the 4.60 mm right-way limit; in the genuine pick 1 the same
+  sherd sits 15.6 deg / 4.45 mm off. Sherd 7 in picks 2-5: 173-177 deg, ~15.7 mm (flipped).
+  **The eye is right; the key's mark on sherd 4 is the measurement**, a threshold at the
+  level of the correct attempt's own offset, not a turn anyone could see. Picks 3 and 4
+  count as one flipped sherd each, like 2 and 5. Ticket 07 closes: the eye chose the one
+  genuine attempt among the ranker's top 5, at a glance, and named every real fault.
