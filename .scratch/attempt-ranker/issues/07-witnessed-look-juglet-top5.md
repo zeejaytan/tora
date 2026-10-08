@@ -28,3 +28,8 @@ writes — closes on a witnessed look plus a conservator note, never on numbers 
   (visual-qa d5a2274); staging dry-run on a synthetic mesh passed. Labels are read from
   the key only after the blind verdicts are recorded. Ticket 02 (small-move control) is
   still open; this look goes ahead regardless, at the conservator's call.
+- 2026-10-08, **pass 1 verdicts (blind, conservator, shared viewer on phone), recorded
+  before the key is opened:** pick 1 correct; picks 2, 3, 4 and 5 each have the yellow
+  sherd flipped (yellow-green = sherd 7, "olive" in `top.json`; no other sherd is
+  yellow). Verbatim: "1 seem to be the correct assembly, all others have yellow piece
+  flipped". Viewer panel covered the model on a phone; Hide panel added (visual-qa 10daed1).
