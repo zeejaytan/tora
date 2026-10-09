@@ -32,7 +32,7 @@ must keep them apart:
 **Answers:** O8 (also feeds `GARF/intent/G1`: a named, measurable property of one sherd is
 the kind of mechanism G1's "Done when" asks for)
 **Blocked by:** None (can start immediately). All inputs are saved; no new sampling runs.
-**Status:** done (2026-10-05; see Result). **Re-scoped 2026-10-05 (conservator's choice):** the question is
+**Status:** resolved (2026-10-05; see Result). **Re-scoped 2026-10-05 (conservator's choice):** the question is
 now why sherds 2, 4, 5, 6 and 8 almost never go home the right way round while 1, 3 and 7
 sometimes do, on both methods. The break-face step below is measured for all nine sherds
 and compared across the two groups (`t16_break.py`, read-only on `juglet_gt.hdf5`).
