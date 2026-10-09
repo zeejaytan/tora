@@ -13,10 +13,10 @@ fix the line — do not add a correction banner. Git holds the history. That is 
 difference between `intent/` and `docs/notes/`, and it is the whole reason this
 folder can stay readable.
 
-**Numbering is permanent.** O3, O4 and O5 are retired; O9 is next. Never reuse a number — tickets
+**Numbering is permanent.** O3, O4 and O5 are retired; O10 is next. Never reuse a number — tickets
 reference them.
 
-**Last updated:** 2026-09-05.
+**Last updated:** 2026-09-18.
 
 ---
 
@@ -52,6 +52,7 @@ at the reconstruction.
 | [O6](O6-juglet-under-valid-reference.md) | Does the Juglet failure survive a valid reference? | open | **O2** |
 | [O7](O7-wear-grounding.md) | Is the wear model grounded in real material? | open | none |
 | [O8](O8-what-stops-the-juglet.md) | What actually stops TORA reassembling the Juglet? | open — **charted**, `.scratch/juglet-cause/` | none |
+| [O9](O9-fixing-the-placement-stage.md) | If placement is the bottleneck, what fixes it — without retraining? | open — filed 2026-09-18 | none |
 
 **Start with O1 and O2.** O1 is one day and can stop the corpus project outright;
 until O2 closes, nothing built here can be shown to help or hurt.
