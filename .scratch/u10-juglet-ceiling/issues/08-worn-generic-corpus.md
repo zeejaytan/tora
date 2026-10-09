@@ -15,7 +15,7 @@ back to U10's "what that leaves" line.
 
 **Blocked by:** 07 (the alignment-off recipe).
 
-**Status:** done (2026-10-06). Written back to O7 and U10 together with ticket 09. Refute-finding was not run: the conservator chose to close on the replication already in hand (2026-10-06). Result: rough beats fresh and worn on the Juglet and fresh on the ladder, two runs per arm; strengths refined in 09. Conservator chose the arms: pooled corpus, noise kept.
+**Status:** resolved (2026-10-06). Written back to O7 and U10 together with ticket 09. Refute-finding was not run: the conservator chose to close on the replication already in hand (2026-10-06). Result: rough beats fresh and worn on the Juglet and fresh on the ladder, two runs per arm; strengths refined in 09. Conservator chose the arms: pooled corpus, noise kept.
 
 **Needs-eye:** before training, one worn join from the corpus, before/after, in a section
 window that resolves 0.1 mm. After, the Juglet median attempt per new arm in visual-qa,
