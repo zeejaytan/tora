@@ -10,7 +10,7 @@ writes — closes on a witnessed look plus a conservator note, never on numbers 
 
 **Blocked by:** 02
 
-**Status:** done (2026-10-08)
+**Status:** resolved (2026-10-08)
 
 - [ ] Lead writes five `single:` descs (full-detail sherds as placed); the
       visual-qa-helper stages them; gates pass
