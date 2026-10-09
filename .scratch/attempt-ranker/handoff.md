@@ -21,8 +21,12 @@
   best genuine 84 -> 53, but rejects 40/305 correct galli_pot attempts; drawn (32376045),
   all are long pressed GARF seams, not overlap. Measurement broken; not adopted. Revision
   3 stands. Details: preregistration-overlap5.md.
-- Then: ticket 07 (conservator's witnessed look at the
-  Juglet top 5), ticket 08 (write back to U17, refute-finding offered first).
+- Done (2026-10-08): ticket 07, conservator's blind look at the Juglet top 5 matched the
+  key (pick 1 genuine, sherd 7 flipped in 2-5); the key's sherd-4 mark was its threshold.
+  Ticket 08: U17 written back after refute-finding (0 refuted, 5 weakened), status open,
+  partly answered; hard-negative and loosening controls failed.
+- Next, cheapest first: ticket 03 re-draw on the Juglet; turn angles for the
+  narrow_bottle3/galli_pot top 5s; a Layer 2 that scores the nudge, not the gap.
 - Open faults, stated not fixed: overlap (a sherd on another) is not gated, two rulers
   failed (Revisions 4, 5); small featureless sherds misplaced but snug fool both
   layers (TORA plate, ticket 06); inside-out misfires (narrow_bottle4, plate, galli_pot
