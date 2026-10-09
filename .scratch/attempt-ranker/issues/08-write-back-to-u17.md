@@ -7,7 +7,7 @@ with best-of-N restated as *best of the 5 shown* beside the answer-key best-of-N
 
 **Blocked by:** 05, 06, 07
 
-**Status:** done (2026-10-08)
+**Status:** resolved (2026-10-08)
 
 - [x] Result stated in plain terms: per pot and method, was a genuine reassembly among the
       5 shown; how many pots, attempts and methods it rests on

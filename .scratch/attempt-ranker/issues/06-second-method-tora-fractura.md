@@ -6,7 +6,7 @@
 
 **Blocked by:** 05
 
-**Status:** done (2026-10-05)
+**Status:** resolved (2026-10-05)
 
 - [x] Converter reads TORA's saved attempt clouds (the `u10_fractura_*` evaluation runs);
       the converter's own check passes (after the scale fix, 0dce053)
