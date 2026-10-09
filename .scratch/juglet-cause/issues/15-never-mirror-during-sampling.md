@@ -14,7 +14,7 @@ change. Job: `scripts/hpc/juglet_rigid_sampling.slurm`.
 
 **Blocked by:** none
 
-**Status:** done
+**Status:** resolved
 
 **Eye check:** not needed. It was conditional on the rigid arm clearing the bar below; it did not
 (refuted), so nothing was staged for the conservator.

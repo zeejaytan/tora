@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rank_attempts as RA  # noqa: E402
 from check_inside_out import curvature  # noqa: E402
+from label_attempts import run_name  # noqa: E402
 
 ap = argparse.ArgumentParser()
 for k in ("root", "bundles", "labels", "out"):
@@ -36,6 +37,11 @@ ap.add_argument("--bin-pct", type=float, required=True)
 ap.add_argument("--profile", choices=("bands", "outer"), default="bands")
 ap.add_argument("--cover-pct", type=float, default=2.0)
 ap.add_argument("--near-pct", type=float, help="judge only points near a join, % of pot")
+ap.add_argument("--pick", default="median",
+                help="which genuine attempt to draw: median, worst, or an attempt id")
+ap.add_argument("--fail-pct", type=float,
+                help="also count, over genuine attempts above this profile cut-off, which "
+                     "sherd reads worst")
 a = ap.parse_args()
 RA.BIN_MM = a.bin_pct * a.pot_mm / 100
 RA.PROFILE, RA.IO_GATE, RA.COVER_MM = a.profile, False, a.cover_pct * a.pot_mm / 100
@@ -45,7 +51,7 @@ rk = {r["id"]: r for r in json.loads((a.root / a.pot / "ranks.json").read_text()
 idmap = json.loads((a.root / a.pot / "key" / "idmap.json").read_text())
 lab = {(r["pot"], r["run"], r["attempt"]): r for r in json.loads(a.labels.read_text())}
 gen = [aid for aid, m in idmap.items()
-       if (l := lab[(f"fractura_fresh/{a.pot}", Path(m["run"]).parts[-4], m["attempt"])])
+       if (l := lab[(f"fractura_fresh/{a.pot}", run_name(m["run"]), m["attempt"])])
        ["oriented"] == l["n"]]
 flags = Counter(j for aid in gen for j in rk[aid]["inside_out"])
 print(f"{a.pot}: {len(gen)} genuine attempts; flagged inside out, per sherd: {dict(flags)}")
@@ -55,7 +61,16 @@ print("per-sherd profile deviation, median over genuine (% of pot):",
              / a.pot_mm, 2) for j in range(len(dev[0]))])
 print("unjudged, per sherd:", dict(Counter(j for aid in gen for j in rk[aid].get("unjudged", []))))
 
-aid = sorted(gen, key=lambda i: rk[i]["profile_mm"])[len(gen) // 2]
+if a.fail_pct is not None:
+    over = [i for i in gen if 100 * rk[i]["profile_mm"] / a.pot_mm > a.fail_pct]
+    worst = Counter(int(np.nanargmax([np.nan if x is None else x for x in rk[i]["sherd_dev_mm"]]))
+                    for i in over)
+    print(f"genuine above {a.fail_pct}% of pot: {len(over)}; worst sherd in each, counted: "
+          f"{dict(worst.most_common())}")
+by_dev = sorted(gen, key=lambda i: rk[i]["profile_mm"])
+aid = (by_dev[len(gen) // 2] if a.pick == "median" else by_dev[-1] if a.pick == "worst"
+       else a.pick)
+print(f"drawing {aid} ({a.pick})")
 RA._init(str(a.bundles))
 b = np.load(a.bundles / "bundles" / f"{aid}.npz")
 placed = [(v @ R.T + t, n @ R.T) for (v, n), R, t in
@@ -104,7 +119,7 @@ ax[1].set_title("side view, axis vertical; arrow = towards curvature centre; * =
 ax[2].set_title("down the axis")
 for x in ax:
     x.set_aspect("equal")
-fig.suptitle(f"{a.pot}: genuine attempt with median Layer 1 deviation "
+fig.suptitle(f"{a.pot}: genuine attempt ({a.pick}) by Layer 1 deviation "
              f"({100 * res['profile_mm'] / a.pot_mm:.1f}% of pot); ! = flagged inside out")
 plt.tight_layout()
 plt.savefig(a.out, dpi=70)

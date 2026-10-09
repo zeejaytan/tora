@@ -12,7 +12,7 @@ recipe; see U10 *Stage 1 result*)
 
 **Blocked by:** 04 (the trained adapters and their logs).
 
-**Status:** done (2026-09-25)
+**Status:** resolved (2026-09-25)
 
 **Needs-eye:** none. This is a diagnosis on synthetic practice vessels, not a reassembly
 claim. The lead renders one practice vessel (untouched vs the original pass 19 vs the

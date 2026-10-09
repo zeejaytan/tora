@@ -32,16 +32,23 @@ from own_place import score_draw  # noqa: E402
 RARE = 0.10   # a pot qualifies if 0 < genuine share <= RARE (spec: rare but present)
 
 
+def run_name(path):
+    """The run directory's name for a clouds/*.npz path, GARF or TORA layout."""
+    clouds = Path(path).parent
+    return (clouds.parents[1] if clouds.parent.name == "version_0" else clouds.parent).name
+
+
 def label_file(path):
     d = np.load(path, allow_pickle=True)
     gt, ppp = d["pts_gt"].astype(float), d["points_per_part"]
-    run = Path(path).parents[2].name
-    m = re.match(r"rwlora_eval_(.+?)_ds(\d+)_", run)
+    # GARF runs keep clouds under <run>/version_0/clouds, TORA's under <run>/clouds
+    run = run_name(path)
+    m = re.match(r"rwlora_eval_(.+?)_ds(\d+)_", run) or re.match(r"(u10_fractura_.+)_\d+$", run)
     rows = []
     for t, pred in enumerate(d["generations_proposed"].astype(float)):
         dr = score_draw(gt, pred, ppp)
         rows.append(dict(pot=str(d["name"]), arm=m.group(1) if m else run,
-                         ds=int(m.group(2)) if m else -1, run=run, file=Path(path).name,
+                         ds=int(m.group(2)) if m and m.re.groups > 1 else -1, run=run, file=Path(path).name,
                          attempt=t, n=dr.n, own=dr.own, oriented=dr.oriented))
     return rows
 
@@ -53,7 +60,8 @@ def main() -> int:
     ap.add_argument("--workers", type=int,
                     default=int(os.environ.get("SLURM_CPUS_PER_TASK", "1")))
     a = ap.parse_args()
-    files = sorted(f for r in a.runs for f in (r / "version_0" / "clouds").glob("*.npz"))
+    files = sorted(f for r in a.runs for sub in ("version_0/clouds", "clouds")
+                   for f in (r / sub).glob("*.npz"))
     if not files:
         sys.exit("no clouds/*.npz under the given runs")
     with Pool(a.workers) as pool:

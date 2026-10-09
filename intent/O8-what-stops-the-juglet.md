@@ -2,6 +2,19 @@
 
 **Status:** open — **reopened 2026-09-07; route (b) is BACK IN PLAY as of 2026-09-09 (ticket 11), alongside (a) and (c).** Six candidates are ruled in or out, but none of them attributes *this object's* failure. Wear is ruled in as a cause of reassembly failure **on other pots, with simulated wear**; the bridge to the Juglet's own real wear is unmeasured, so "it is probably the wear" is a reasonable belief and not a result. · **Blocked by:** none · **Supersedes the diagnosis half of** [O6](O6-juglet-under-valid-reference.md)
 
+## Where it stands
+
+No single cause has been pinned on the Juglet itself. Wear harms reassembly on other
+pots with simulated wear; whether the Juglet's real wear does the same is unmeasured.
+TORA's best so far is 8 of 9 sherds in their own place, but from one presentation only.
+Ticket 10 now gives TORA 26 presentations with 20 attempts each, the chance GARF had
+when it made 2 full reassemblies in about 1,400 attempts.
+
+Weight: one real pot; four training runs of the rough recipe, two of the clean control.
+Next: score ticket 10's attempts; any full reassembly is staged for your look before it counts.
+Picture: best_look_noise_t10_s18_d7.png | Top: your reassembly. Middle: a close attempt from ticket 10's run (job 32274395, rough-break training), not yet scored in the ticket. Sherds 2 (green) and 7 (dark grey) are out of place; the bottom row shows each at home and as placed.
+Viewer: `u10_juglet_rough1x_t09` (rough-break training, ticket 9)
+
 ## Why it matters
 
 Two things changed the ground under the Juglet, and the old diagnosis has not been

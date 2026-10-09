@@ -9,7 +9,7 @@ bundles → ranker → report, run on Spartan. See `../spec.md`.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done (2026-10-02): result below; Layer 1 alone does not reach the top 5
+**Status:** resolved (2026-10-02): result below; Layer 1 alone does not reach the top 5
 
 - [x] Converter turns one GARF evaluation run's rigid ("solid") attempts plus the Juglet's
       full-detail sherds into one bundle per attempt, each moved to a random position; the
@@ -89,3 +89,14 @@ filter. Overlap belongs in Layer 2's per-join test (ticket 02), not as a retune 
   - So: use a wide NEAR (≥8%) and make an unjudged sherd fail (`--unjudged fail`,
     10537d4) — in a correct reassembly every sherd meets a neighbour. Synthetic re-run
     with verdicts next, in the held CPU allocation.
+- 32274553 CPU holder, Juglet rerun with Revision 3 (`--near-pct 12 --unjudged fail`,
+  Fractura cut-off 0.873% of pot = 0.567 mm) — COMPLETED 0:0. Output
+  `TORA/rank_u17/jug_v2_32274553/`.
+  - Layer 1 keeps 957 of 1,400. Both genuine kept: noise_d100_ds1 #19 0.104 mm, rank
+    219 → **13** with Layer 2; worn_d400_s7_ds4 #11 0.206 mm, rank 589 → **1**. The handle
+    no longer drops a correct reassembly.
+  - Top 5: no on Layer 1 alone, yes on Layers 1+2 (random 0.71%). Near-misses above the
+    best genuine: 0 of 19. Same order as before the handle fault (1 and 13).
+  - Layer 1 is now a loose filter here (keeps 68%); the ranking is Layer 2's.
+  - Layer 2 controls unchanged: spin-on-truth AUC 0.98; small-move control still fails
+    (truth moved 1–3 mm, worst 1.51–2.55% against a 1.50% limit; open since 32154993).

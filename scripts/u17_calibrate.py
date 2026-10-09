@@ -22,6 +22,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from l2_report import auc, gaps  # noqa: E402
+from label_attempts import run_name  # noqa: E402
 from rank_report import prereg_commit  # noqa: E402
 
 TEST_POTS = {"narrow_bottle3", "galli_pot"}
@@ -41,7 +42,7 @@ def pot_rows(root, pot, labels, pot_mm):
     idmap = json.loads((root / pot / "key" / "idmap.json").read_text())
     rows = []
     for aid, m in idmap.items():
-        run = Path(m["run"]).parts[-4]
+        run = run_name(m["run"])
         lab = labels[(f"fractura_fresh/{pot}", run, m["attempt"])]
         cls = ("genuine" if lab["oriented"] == lab["n"] else
                "near" if lab["own"] == lab["n"] else "other")

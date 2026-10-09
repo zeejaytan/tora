@@ -17,7 +17,7 @@ right way out put it home?
 
 **Blocked by:** None. No GPU, no fetch, no Slurm: every input is already under `artifacts/`.
 
-**Status:** done (rule and scoring); conservator's look on `insideout_rulepick` pending
+**Status:** resolved (rule and scoring); conservator's look on `insideout_rulepick` pending
 
 **Needs-eye:** the conservator saw it first (orange sherd 4, pair `twoheld_best`,
 2026-09-24). Whether a corrected sherd now sits right closes on a look, not on numbers.
