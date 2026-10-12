@@ -25,6 +25,7 @@ Per sherd, per attempt (before and after nudge):
   nudge_pct, nudge_deg   the move the nudge used (bounded by NUDGE_PCT, NUDGE_DEG)
 
 Usage: python scripts/l2_measure.py --bundles DIR --out l2.json [--pot-mm 65] [--workers N]
+       [--seed S]   (another point draw of the same sherds; ticket 03's re-draw test)
 """
 import argparse
 import json
@@ -85,19 +86,19 @@ def prep_sherd(v, f, pot, rng):
     return dict(p=p[brk], n_all=len(p), thick=t)
 
 
-def load(bundles: Path, pot_mm):
+def load(bundles: Path, pot_mm, seed=SEED):
     z = np.load(bundles / "sherds.npz")
     pot = float(z["pot_mm"]) if "pot_mm" in z.files else pot_mm
     if pot is None:
         sys.exit("sherds.npz has no pot_mm: pass --pot-mm")
-    rng = np.random.default_rng(SEED)
+    rng = np.random.default_rng(seed)
     return pot, [prep_sherd(z[f"v{j}"].astype(float), z[f"f{j}"], pot, rng)
                  for j in range(int(z["k"]))]
 
 
-def _init(bundles, pot_mm):
+def _init(bundles, pot_mm, seed=SEED):
     global _S
-    _S = load(Path(bundles), pot_mm)
+    _S = load(Path(bundles), pot_mm, seed)
 
 
 def gap(X, tree):
@@ -155,19 +156,20 @@ def main() -> int:
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--pot-mm", type=float, default=None)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--seed", type=int, default=SEED, help="point draw (default: the one every run so far used)")
     ap.add_argument("--workers", type=int,
                     default=int(os.environ.get("SLURM_CPUS_PER_TASK", "1")))
     a = ap.parse_args()
     paths = sorted((a.bundles / "bundles").glob("*.npz"))
     if a.limit:
         paths = paths[: a.limit]
-    with Pool(a.workers, initializer=_init, initargs=(str(a.bundles), a.pot_mm)) as pool:
+    with Pool(a.workers, initializer=_init, initargs=(str(a.bundles), a.pot_mm, a.seed)) as pool:
         rows = pool.map(measure, paths, chunksize=2)
-    _init(str(a.bundles), a.pot_mm)
+    _init(str(a.bundles), a.pot_mm, a.seed)
     pot, sh = _S
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text(json.dumps(dict(
-        pot_mm=pot, units="percent of pot size",
+        pot_mm=pot, units="percent of pot size", seed=a.seed,
         settings=dict(SPACING_PCT=SPACING_PCT, BALL_T=BALL_T, BREAK_COS=BREAK_COS,
                       ZONE_PCT=ZONE_PCT, CLOSE_PCT=CLOSE_PCT, NUDGE_PCT=NUDGE_PCT,
                       NUDGE_DEG=NUDGE_DEG),

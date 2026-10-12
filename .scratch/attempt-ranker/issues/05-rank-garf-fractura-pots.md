@@ -7,16 +7,16 @@ on more than one pot.
 
 **Blocked by:** 02, 04
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-10-05): narrow_bottle3 passes, galli_pot side case top 5 all genuine; galli base-sherd ruler fault stated
 
-- [ ] Converter reads the Fractura full-detail sherds; the converter's own check passes on
+- [x] Converter reads the Fractura full-detail sherds; the converter's own check passes on
       one genuine attempt per pot
-- [ ] Cut-offs in % of pot, set on the set-aside pots by `../calibration-fractura.md`
+- [x] Cut-offs in % of pot, set on the set-aside pots by `../calibration-fractura.md`
       (conservator's permission 2026-10-03), then fixed in the test pre-registration
       before narrow_bottle3 and galli_pot are scored
-- [ ] Per pot: rank of each genuine attempt, top-5 hit, random baseline, Layer 1 alone vs
+- [x] Per pot: rank of each genuine attempt, top-5 hit, random baseline, Layer 1 alone vs
       Layers 1+2
-- [ ] Spartan job polled; sacct State/ExitCode recorded here
+- [x] Spartan job polled; sacct State/ExitCode recorded here
 
 ## Log
 

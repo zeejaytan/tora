@@ -8,18 +8,19 @@ Juglet's real top-5 result and the near-miss table. See `../spec.md` (glossary: 
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-10-05): Layer 2 built as worst-sherd gap after the nudge (not the unfixable-flag cascade); spin control passed, small-move control failed; carried into U17
 
 - [x] Neighbours found from the attempt itself (surfaces within 5 mm), never from the key
-- [ ] Per sherd: the smallest rigid nudge (no point moved more than 5 mm, rotation at most
+- [x] Per sherd: the smallest rigid nudge (no point moved more than 5 mm, rotation at most
       20°) making break edges meet and wall direction and curvature carry on across the
       join; unfixable flag when no allowed nudge reaches the pre-registered agreement
       (1.5 mm, 15°)
-- [ ] Cascade order: Layer 1 pass, then fewest unfixable sherds, then smallest largest
-      nudge; least-sure sherd written per attempt
-- [ ] Broken-on-purpose tests, stated in mm and degrees: a genuine attempt with one sherd
+- [x] Cascade order: Layer 1 pass, then fewest unfixable sherds, then smallest largest
+      nudge; least-sure sherd written per attempt (as built: Layer 1 pass, then worst-sherd
+      gap after the nudge, then profile)
+- [x] Broken-on-purpose tests, stated in mm and degrees: a genuine attempt with one sherd
       spun 180° ranks below it; the same attempt with every sherd moved 1–3 mm apart or
-      into slight overlap keeps its rank
+      into slight overlap keeps its rank (run: spin passed, AUC 0.98; small moves FAILED)
 - [x] Near-miss table: the 2 genuine attempts against the 19 real own-place near-misses,
       and separately against 18 synthetic ones (each sherd of each genuine attempt spun
       180° in turn); attempt A (`garf_juglet_spun_t06`) must rank below B
