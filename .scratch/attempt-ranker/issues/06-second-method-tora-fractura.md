@@ -135,3 +135,7 @@
   `../preregistration-overlap6.md`; job `scripts/hpc/u17_overlap6.slurm`. No unseen test
   is possible yet (no fresh pot qualified); it reads the cost on unseen genuine attempts.
 
+- **Revision 6 result (job 32804500):** cost small (blue_pot only, 3 of 90 fresh genuine),
+  but TORA plate's lying-across sherd reads 5.6% of pot against a 9.67% cut-off and stays
+  first: a small sherd is all near its own break, and the rim counts as a break.
+  Measurement broken; not adopted (`../preregistration-overlap6.md`).

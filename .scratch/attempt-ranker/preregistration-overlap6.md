@@ -77,3 +77,27 @@ Five calibration pots, four seen check pots, four unseen pots for cost only, one
 fresh attempts. Adopting Revision 6 on this would rest on seen pots for its benefit: a
 design check, not a test. If adopted, the next fresh draw where a pot qualifies is its
 test.
+
+## Result, job 32804500 (e8be068), 2026-10-12
+
+- Cut-off **9.665% of pot**, set by blue_pot (q99 of genuine: blue_pot 9.67, narrow_bottle4
+  7.72, plate 4.93, narrow_bottle2 4.68, pink_bowl 3.53). Upper end of the predicted 3-10%.
+- **Cost, unseen attempts:** genuine rejected only on blue_pot: 3 of 90 fresh (3.3%, above
+  the predicted 2%), 14 of 1,377 on calibration (by construction). None on narrow_bottle2,
+  narrow_bottle4, pink_bowl (fresh or calibration), GARF test pots or TORA's seen pots.
+  Drawn (`u17_overlap6_rejected_*_blue_pot.png`): every rejection is a few red points on one
+  spot of a long seam on sherd 2, where the break face was not detected, so the nearest
+  detected break is far. A ruler fault, small.
+- **Checks:** GARF narrow_bottle3, galli_pot, TORA narrow_bottle3 keep a genuine at rank 1.
+- **Prediction failed on the case that matters.** TORA plate's Revision 3 leader (floor
+  sherd 4 lying across the rim of sherds 1 and 3) reads **5.6%**, under the cut-off, and
+  stays rank 1; best genuine 84 -> 74, 32 near-misses still above it. Drawn
+  (`u17_overlap6_tora_plate.png`): all of sherd 4's overlap is orange. Two reasons, both the
+  ruler: sherd 4 is a small wedge, so every point on it is close to its own break; and the
+  overlap sits at the plate's rim, which the break finder counts as a break face (the rim's
+  top runs across the wall, as a break does).
+- **Named: measurement broken.** Reach from the sherd's own break cannot see a small sherd
+  lying on another. Not retuned. Revision 6 is not adopted; Revision 3 stands. A next
+  version would judge the overlap from the side of the sherd being lain on (how far into
+  ITS surface, away from its breaks) and tell a rim from a break; it would need its own
+  pre-registration.
