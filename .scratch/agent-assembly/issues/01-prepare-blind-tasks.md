@@ -8,9 +8,8 @@ the answer stays on Spartan.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** in-progress
-**Working in:** project thread "general agent paper, fracture part" (2026-10-12)
+**Status:** resolved
 
 - [x] Checked on a made-up three-piece pot (cloud): perfect poses score 3/3, unmoved 1/3
-- [ ] Run on `TORA/dataset/juglet_gt.hdf5`; touching pairs listed with contact area
-- [ ] Public task folders copied to project files `agent-assembly/tasks_v1/`
+- [x] Run on `TORA/dataset/juglet_gt.hdf5`; touching pairs listed with contact area (job 32804650, COMPLETED 0:0): 20 touching pairs, most contact 4-6 (130 mm²), 5-6, 0-7, 3-6 -> the four pair tasks
+- [x] Public tasks in project files `agent-assembly/agentasm_tasks_v1_public.tar.gz` (2.1 MB); secret/ stays on Spartan

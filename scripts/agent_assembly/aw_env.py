@@ -102,7 +102,7 @@ class Env:
         lo, hi = pts.min(0), pts.max(0)
         r = float(np.linalg.norm(hi - lo)) / 2
         self.cam = {"target": ((lo + hi) / 2).tolist(), "yaw": -60.0, "pitch": 35.0,
-                    "distance": r / np.tan(np.radians(VFOV / 2)) * 1.15}
+                    "distance": r / np.tan(np.radians(VFOV / 2)) * 0.8}
 
     def cam_axes(self):
         y, p = np.radians(self.cam["yaw"]), np.radians(self.cam["pitch"])
