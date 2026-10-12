@@ -21,10 +21,10 @@ Why this pot: held out of calibration, TORA's attempts (560), and the key's top 
 all one class, so the look can disagree with it. GARF's narrow_bottle3 top 20 are all
 genuine by the key, which a look could only confirm.
 
-- [ ] Export (blind, no labels read) to Spartan `TORA/rank_u17/nb3_tora_top5/`, in the
+- [x] Export (blind, no labels read) to Spartan `TORA/rank_u17/nb3_tora_top5/`, in the
       job of ticket 03's re-draw
-- [ ] The visual-qa-helper stages the five descs; gates pass
-- [ ] Pass 1, blind: the conservator's verdict per pick recorded before any label is read
+- [x] The visual-qa-helper stages the five descs; gates pass
+- [x] Pass 1, blind: the conservator's verdict per pick recorded before any label is read
 - [ ] Unblind: key labels and per-sherd turn angles (`scripts/u17_top5_turns.py`) beside
       each verdict; every disagreement named as method, measurement or reference
 - [ ] Every note gets a same-round agent reply
@@ -33,3 +33,15 @@ genuine by the key, which a look could only confirm.
 
 - 2026-10-12: five blind `single:` descs written (scale nominal: Fractura has no real
   size, longest side set to 100 mm). Export rides in `u17_redraw.slurm`.
+- 32803836 `u17_redraw.slurm` — COMPLETED 0:0; export in `TORA/rank_u17/nb3_tora_top5/`
+  (picks by id: 51a92f23c7564bb8, be55b677ac63a1bb, 5e4c97cb5048a8f9, b014d3a12f41949d,
+  f980ae8058546941). Staged by the Spartan workspace thread, share link 2026-10-12; gates
+  passed (two unrelated loader gates fail on retired sample manifests).
+- **Blind verdicts, conservator, 2026-10-12 15:42, recorded before any label was read**
+  (colours: blue 0, orange 1, green 2, red 3):
+  1. "looks like good assembly"
+  2. "looks fine too"
+  3. "green sherd is inside out"
+  4. "same with 4" (green sherd inside out)
+  5. "looks have more overlap but position and rotation all looks fine"
+
