@@ -67,8 +67,30 @@ def lighten(mesh, faces):
             m = m.simplify_quadric_decimation(faces)
             return trimesh.Trimesh(np.asarray(m.vertices), np.asarray(m.triangles)), "open3d"
         except Exception:
-            print(f"  ** no decimator ({e}); sherd kept at {len(mesh.faces)} faces")
-            return mesh, "kept"
+            return cluster(mesh, faces), "vertex-clustering"
+
+
+def cluster(mesh, faces):
+    """Dependency-free fallback: merge vertices on a grid, cell grown until under `faces`."""
+    V, F = np.asarray(mesh.vertices), np.asarray(mesh.faces)
+    cell = float(np.sqrt(mesh.area / faces)) * 0.7
+    for _ in range(12):
+        key = np.floor(V / cell).astype(np.int64)
+        _, inv = np.unique(key, axis=0, return_inverse=True)
+        inv = inv.ravel()
+        nf = inv[F]
+        keep = (nf[:, 0] != nf[:, 1]) & (nf[:, 1] != nf[:, 2]) & (nf[:, 0] != nf[:, 2])
+        nf = np.unique(np.sort(nf[keep], axis=1), axis=0, return_index=True)[1]
+        nf = inv[F][keep][np.sort(nf)]
+        if len(nf) <= faces:
+            break
+        cell *= 1.25
+    nv = np.zeros((inv.max() + 1, 3))
+    np.add.at(nv, inv, V)
+    nv /= np.bincount(inv)[:, None]
+    out = trimesh.Trimesh(nv, nf, process=True)
+    out.fix_normals()
+    return out
 
 
 def contacts(meshes, mm_per_unit, gap_mm=0.5, n=40000, seed=0):
