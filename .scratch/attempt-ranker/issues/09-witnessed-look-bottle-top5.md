@@ -15,7 +15,7 @@ pair descs
 
 **Blocked by:** 06
 
-**Status:** ready-for-human
+**Status:** resolved (2026-10-12): eye and key agree on 4 of 5; on pick 3 the eye is right and the key is wrong
 
 Why this pot: held out of calibration, TORA's attempts (560), and the key's top 5 is not
 all one class, so the look can disagree with it. GARF's narrow_bottle3 top 20 are all
@@ -25,9 +25,9 @@ genuine by the key, which a look could only confirm.
       job of ticket 03's re-draw
 - [x] The visual-qa-helper stages the five descs; gates pass
 - [x] Pass 1, blind: the conservator's verdict per pick recorded before any label is read
-- [ ] Unblind: key labels and per-sherd turn angles (`scripts/u17_top5_turns.py`) beside
+- [x] Unblind: key labels and per-sherd turn angles (`scripts/u17_top5_turns.py`) beside
       each verdict; every disagreement named as method, measurement or reference
-- [ ] Every note gets a same-round agent reply
+- [x] Every note gets a same-round agent reply
 
 ## Log
 
@@ -44,4 +44,30 @@ genuine by the key, which a look could only confirm.
   3. "green sherd is inside out"
   4. "same with 4" (green sherd inside out)
   5. "looks have more overlap but position and rotation all looks fine"
+- **Unblinded** (Spartan workspace thread, 2026-10-12 15:44, `u17_top5_turns.py`, ranks.json,
+  test.json of 32330575). Right-way limit 7.07 mm (SEAT_PCT, nominal 100 mm pot).
+
+  | pick | eye (blind) | key class | green (sherd 2) turn, offset | inside-out rule |
+  |---|---|---|---|---|
+  | 1 | good | genuine | 8.5°, 3.53 mm | none |
+  | 2 | fine | genuine | 7.5°, 3.90 mm | none |
+  | 3 | green inside out | **genuine** | **163.5°, 6.36 mm** | **[2]** |
+  | 4 | green inside out | near-miss | 177.6°, 7.45 mm | [2] |
+  | 5 | more overlap, placement fine | genuine | 10.0°, 2.87 mm | none |
+
+  Other sherds 0.0-5.0°, 0.01-2.96 mm in every pick. All five pass Layer 1.
+- **Read.** Eye and key agree on picks 1, 2, 4, 5. On pick 3 they disagree and the eye is
+  right: green is turned 163.5°, yet its points sit 6.36 mm from home on average, under the
+  7.07 mm limit, so the key counts it right way round. **Named: the reference answer was
+  wrong** (the key's right-way rule, an offset limit with no turn limit, passes a half-turned
+  sherd that is long and thin enough). The Juglet look (ticket 07) caught the same rule
+  erring the other way on purple. So the ranker's top 5 here holds 3 correct reassemblies
+  (1, 2, 5), not the 4 the key reported; pick 1 is correct, so the conservator still gets one
+  first.
+- **The earlier inside-out rule (juglet-cause 14) flags exactly picks 3 and 4, sherd 2,** and
+  nothing in 1, 2, 5: 2 of 2 caught, no false flags. Revision 3 reports it but does not gate
+  on it (`--io-gate off`), because it misfires on narrow_bottle4 (all genuine), plate and a
+  galli_pot chip. Gated here, picks 3 and 4 would drop out. One pot, five picks: a lead.
+- Overlap on pick 5: the conservator saw more overlap with placement right; Revision 6
+  (job 32804500, running) reads it.
 
