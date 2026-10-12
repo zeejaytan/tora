@@ -13,6 +13,11 @@ join strip, (% of pot)^2, instead of the share of its surface (Revision 4's meas
 inflated on tiny sherds by joins pressed slightly in; job 32345673). In the JSON the gated
 ranking is keyed "rev4" whichever revision made it; "field" says which.
 
+Revision 6 (--field reach): how far each sherd's overlap reaches from its own break faces,
+% of pot (preregistration-overlap6.md). A pressed join stays near the break however long
+the seam; a sherd lying on another overlaps far from any break (Revision 5 grew with seam
+length, job 32376045).
+
 Every pot is then ranked twice, Revision 3 and the gated revision:
   order  Layer 1 pass (and overlap pass, Rev 4), then worst-sherd gap, then profile.
 
@@ -36,7 +41,10 @@ from rank_report import prereg_commit  # noqa: E402
 K = 5
 
 
-FIELD = "inside_pct"   # Revision 4; --field area for Revision 5
+FIELD = "inside_pct"   # Revision 4; --field area for Revision 5; --field reach for Revision 6
+GATE = {"inside_pct": "4", "area": "5", "reach": "6"}
+UNIT = {"inside_pct": "% of the sherd's surface", "area": "(% of pot)^2 away from joins",
+        "reach": "% of pot, reach of the overlap from the break"}
 
 
 def rows_for(root, labels_path, ovdir, pot, profile_pct):
@@ -78,16 +86,16 @@ def main() -> int:
     ap.add_argument("--calib-pots", required=True, nargs="+")
     ap.add_argument("--pots", action="append", nargs="+", default=[])
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--field", choices=("inside_pct", "area"), default="inside_pct",
+    ap.add_argument("--field", choices=("inside_pct", "area", "reach"), default="inside_pct",
                     help="inside_pct: Revision 4 (share of the sherd); area: Revision 5 "
-                         "(area away from joins, (%% of pot)^2)")
+                         "(area away from joins, (%% of pot)^2); reach: Revision 6 (how far "
+                         "the overlap reaches from the break, %% of pot)")
     a = ap.parse_args()
     global FIELD
     FIELD = a.field
     commit = prereg_commit(a.prereg)
     C.IO_GATE, C.UNJ_FAIL = False, True
-    gate = "4" if FIELD == "inside_pct" else "5"
-    unit = "% of the sherd's surface" if FIELD == "inside_pct" else "(% of pot)^2 away from joins"
+    gate, unit = GATE[FIELD], UNIT[FIELD]
     print(f"pre-registration {a.prereg} @ {commit}; Revision 3 Layer 1 at {a.profile_pct}%; "
           f"overlap gate Revision {gate}, field {FIELD} ({unit})")
 

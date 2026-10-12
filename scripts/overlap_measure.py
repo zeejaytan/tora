@@ -19,6 +19,12 @@ Per sherd, per attempt:
                tiny sherd's join cannot read as most of it (Revision 4's fault).
   inside_pct   share of the sherd's surface lying inside some other sherd, %
   depth_pct    95th percentile depth of those samples, % of pot (0 if none)
+  reach        Revision 6: how far the overlap reaches from the sherd's own break faces,
+               95th percentile over its overlapping samples, % of pot (mm on a 100 mm
+               pot; 0 if none). A join pressed in stays close to the break however long the
+               seam is; a sherd lying on another overlaps far from any break. Length of
+               seam does not enter (Revision 5's fault, job 32376045).
+  reach_t      the same in the sherd's own wall thicknesses
   into         the sherd it overlaps most (-1 if none)
 
 Normals: face normals oriented outward per sherd by the sign of its enclosed volume. A
@@ -56,8 +62,10 @@ def open_edges(f):
     return int((n == 1).sum())
 
 
-def join_strip(p, n, t):
-    """Samples on the break faces or within one wall thickness of them.
+def break_distance(p, n, t):
+    """Each sample's distance to the nearest break-face sample of the same sherd (inf if none).
+
+    The join strip (Revision 5) is the samples within one wall thickness of a break.
 
     Breaks found as l2_measure.py finds them (normal lying across the local wall). A
     method that seats a join a little too tightly pushes this strip into the neighbour;
@@ -70,9 +78,8 @@ def join_strip(p, n, t):
         wall[i] = np.linalg.eigh(q.T @ q)[1][:, 0]
     brk = np.abs(np.einsum("ij,ij->i", n, wall)) < BREAK_COS
     if not brk.any():
-        return brk
-    d, _ = cKDTree(p[brk]).query(p)
-    return d <= t
+        return np.full(len(p), np.inf)
+    return cKDTree(p[brk]).query(p)[0]
 
 
 def prep_sherd(v, f, pot, rng):
@@ -81,7 +88,8 @@ def prep_sherd(v, f, pot, rng):
     if signed_volume(v, f) < 0:
         n = -n
     t = 2 * volume(v, f) / area
-    return dict(p=p, n=n, thick=t, open=open_edges(f), strip=join_strip(p, n, t),
+    db = break_distance(p, n, t)
+    return dict(p=p, n=n, thick=t, open=open_edges(f), strip=db <= t, dbrk=db,
                 da=area / len(p))
 
 
@@ -146,9 +154,11 @@ def measure(path):
             best = np.maximum(best, dep)
         hit = best > 0
         away = hit & ~sh[j]["strip"]
+        reach = float(np.percentile(sh[j]["dbrk"][hit], 95)) if hit.any() else 0.0
         rows.append(dict(area=round(float(away.sum() * sh[j]["da"]), 3),
                          inside_pct=round(100 * float(hit.mean()), 3),
                          depth_pct=round(float(np.percentile(best[hit], 95)) if hit.any() else 0.0, 3),
+                         reach=round(reach, 3), reach_t=round(reach / sh[j]["thick"], 3),
                          into=into))
     return dict(id=Path(path).stem, sherds=rows)
 
@@ -174,13 +184,16 @@ def main() -> int:
         settings=dict(SPACING_PCT=SPACING_PCT, DEPTH_T=DEPTH_T, SAME_COS=SAME_COS),
         sherd_info=[dict(samples=len(s["p"]), wall_pct=round(s["thick"], 3),
                          open_edges=s["open"], strip_share=round(float(s["strip"].mean()), 3),
+                         breaks_found=bool(np.isfinite(s["dbrk"]).any()),
                          area=round(float(len(s["p"]) * s["da"]), 1)) for s in sh],
         attempts=rows), indent=0))
     worst = np.array([max(s["inside_pct"] for s in r["sherds"]) for r in rows])
     area = np.array([max(s["area"] for s in r["sherds"]) for r in rows])
+    reach = np.array([max(s["reach"] for s in r["sherds"]) for r in rows])
     print(f"{len(rows)} attempts -> {a.out}; worst sherd's surface inside another, %: "
           f"quartiles {np.percentile(worst, [25, 50, 75]).round(2)}; away from joins, "
-          f"(% of pot)^2: {np.percentile(area, [25, 50, 75]).round(1)}; "
+          f"(% of pot)^2: {np.percentile(area, [25, 50, 75]).round(1)}; reach from the "
+          f"break, % of pot: {np.percentile(reach, [25, 50, 75]).round(2)}; "
           f"open edges per sherd {[s['open'] for s in sh]}; "
           f"join strip share {[round(float(s['strip'].mean()), 2) for s in sh]}")
     return 0

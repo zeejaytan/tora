@@ -38,8 +38,8 @@ a = ap.parse_args()
 
 full = json.loads(a.report.read_text())
 rep = full["pots"][a.pot]
-gate = "5" if full.get("field") == "area" else "4"
-unit = "(% of pot)^2" if gate == "5" else "%"
+gate = {"area": "5", "reach": "6"}.get(full.get("field"), "4")
+unit = {"5": "(% of pot)^2", "6": "% of pot from the break"}.get(gate, "%")
 if a.failed:
     why = sorted(rep["genuine_failed_why"], key=lambda w: -w["inside"])[: a.failed]
     picks = [(f"genuine, rejected: {w['inside']:.0f} on sherd {w['sherd']}", w["id"])
@@ -70,16 +70,22 @@ for c, (title, aid) in enumerate(picks):
             if k != j:
                 dep = np.maximum(dep, O.inside(X, M, P, N, sh[k]["thick"], trees[k]))
         worst = max(worst, 100 * float((dep > 0).mean()))
-        away = (dep > 0) & ~sh[j]["strip"]
-        worst_area = max(worst_area, float(away.sum() * sh[j]["da"]))
+        if gate == "6":   # red = overlap reaching further from the break than the cut-off
+            away = (dep > 0) & (sh[j]["dbrk"] > full["overlap_cut"])
+            if (dep > 0).any():
+                worst_area = max(worst_area, float(np.percentile(sh[j]["dbrk"][dep > 0], 95)))
+        else:
+            away = (dep > 0) & ~sh[j]["strip"]
+            worst_area = max(worst_area, float(away.sum() * sh[j]["da"]))
         q = (X - cen) @ vt.T
         for r, (u, v) in enumerate([(0, 2), (0, 1)]):
             ax[r, c].scatter(q[dep == 0, u], q[dep == 0, v], s=0.3, c="0.6")
             ax[r, c].scatter(q[(dep > 0) & ~away, u], q[(dep > 0) & ~away, v], s=2, c="orange")
             ax[r, c].scatter(q[away, u], q[away, v], s=2, c="red")
             ax[r, c].text(*q[:, [u, v]].mean(0), str(j), fontsize=9)
-    ax[0, c].set_title(f"{title}\n{worst:.1f}% of a sherd inside; away from joins "
-                       f"{worst_area:.0f} (% of pot)^2 (red)")
+    ax[0, c].set_title(f"{title}\n{worst:.1f}% inside; " + (
+        f"reach {worst_area:.1f}% of pot from its break (red: beyond cut-off)" if gate == "6"
+        else f"away from joins {worst_area:.0f} (% of pot)^2 (red)"))
     for r in range(2):
         ax[r, c].set_aspect("equal")
 ax[0, 0].set_ylabel("side view (% of pot)")

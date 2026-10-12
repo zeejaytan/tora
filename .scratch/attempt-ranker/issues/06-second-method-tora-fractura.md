@@ -127,3 +127,11 @@
   galli_pot attempts rejected; drawn, the red runs along long pressed seams, not one sherd
   on another. Measurement broken; not adopted; Revision 3 stands. Full record in
   `preregistration-overlap5.md`.
+- **Revision 6 (2026-10-12, planned).** The conservator: "ok to have gap, not ok to stick
+  into each other too much". Overlap judged by how far it reaches from the sherd's own
+  break (`overlap_measure.py` field `reach`), so a long pressed seam stays near the break
+  and a sherd lying on another does not. Synthetic ring: correct 1.4, pressed joins 1.6 and
+  3.6, slid half over 15.8, laid across 17.2 (% of pot). Pre-registration
+  `../preregistration-overlap6.md`; job `scripts/hpc/u17_overlap6.slurm`. No unseen test
+  is possible yet (no fresh pot qualified); it reads the cost on unseen genuine attempts.
+
