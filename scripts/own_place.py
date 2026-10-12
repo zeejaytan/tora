@@ -60,8 +60,13 @@ had a sherd turned 95-179 degrees like that (GARF .scratch/rough-worn-dose/issue
 large sherd and ~50 on a small one. So each sherd also gets `point_pct`, the median distance of its points from
 their OWN home points (the cloud keeps point order: pred point k is gt point k
 moved), and `turn_deg`, the rotation that best maps home points onto placed ones.
-`oriented` counts sherds that are own place AND under SEAT_PCT on `point_pct`: in
-their place and facing the right way. The turn is reported, not gated. Nothing
+`oriented` counts sherds that are own place AND under SEAT_PCT on `point_pct` AND
+turned less than TURN_LIMIT_DEG from home: in their place and facing the right way.
+The turn limit was added 2026-10-12 (U17 ticket 09): a long thin narrow_bottle3 sherd
+turned 163.5 deg kept its points 6.36 mm from home on average, under the 7.07 mm limit,
+so the offset alone called it right way round; the conservator saw it inside out.
+Attempts' turns have nothing between ~60 and ~120 deg (juglet-cause 14), so 90 sits in
+that gap. `oriented_point` keeps the old count (offset only) for comparison. Nothing
 above changes: `own` and `swap` are what they always were.
 
 PER EPOCH. `score_draw` and `score_batch` take plain arrays (or tensors) and
@@ -92,6 +97,9 @@ from readout import (TAU, cloud_for, clouds_by_object, part_slices,  # noqa: E40
 
 # The tolerance as a distance: a sherd within this of its home, % of pot size, is seated.
 SEAT_PCT = 100.0 * float(np.sqrt(TAU / 2.0))
+
+# A sherd turned this far or more from home is not the right way round, whatever its offset.
+TURN_LIMIT_DEG = 90.0
 
 # A pinned anchor reads exactly 0; this only absorbs float noise in the solid cloud.
 PINNED_PCT = 0.05
@@ -139,7 +147,8 @@ class Draw:
     placed_in: list   # per sherd: the true sherd whose place it is seated in, or -1
     home_pct: list    # per sherd: how far from its OWN home, % of pot size
     anchor: int       # the largest sherd
-    oriented: int = 0  # own place AND facing the right way (point_pct < SEAT_PCT)
+    oriented: int = 0  # own place AND facing the right way (point_pct < SEAT_PCT, turn < TURN_LIMIT_DEG)
+    oriented_point: int = 0  # the same before 2026-10-12: offset only, no turn limit
     point_pct: list = field(default_factory=list)  # per sherd: median point-to-own-point, % of pot size
     turn_deg: list = field(default_factory=list)   # per sherd: rotation from home, degrees
 
@@ -175,13 +184,15 @@ def score_draw(gt, pred, points_per_part) -> Draw:
     status = ["own" if own[j] else "swapped" if j in seated else "off" for j in range(k)]
     point = [100.0 * float(np.median(np.linalg.norm(pred[a:b] - gt[a:b], axis=1))) / unit
              for a, b in slices]
+    turn = [turn_deg(gt[a:b], pred[a:b]) for a, b in slices]
     return Draw(n=k, own=int(own.sum()), swap=int(hit.sum()), status=status,
                 placed_in=[j if own[j] else seated.get(j, -1) for j in range(k)],
                 home_pct=[pct(cd[j, j]) for j in range(k)],
                 anchor=int(np.argmax([b - a for a, b in slices])),
-                oriented=int(sum(own[j] and point[j] < SEAT_PCT for j in range(k))),
-                point_pct=point,
-                turn_deg=[turn_deg(gt[a:b], pred[a:b]) for a, b in slices])
+                oriented=int(sum(own[j] and point[j] < SEAT_PCT and turn[j] < TURN_LIMIT_DEG
+                                 for j in range(k))),
+                oriented_point=int(sum(own[j] and point[j] < SEAT_PCT for j in range(k))),
+                point_pct=point, turn_deg=turn)
 
 
 def turn_deg(home: np.ndarray, placed: np.ndarray) -> float:

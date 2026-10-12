@@ -49,7 +49,8 @@ def label_file(path):
         dr = score_draw(gt, pred, ppp)
         rows.append(dict(pot=str(d["name"]), arm=m.group(1) if m else run,
                          ds=int(m.group(2)) if m and m.re.groups > 1 else -1, run=run, file=Path(path).name,
-                         attempt=t, n=dr.n, own=dr.own, oriented=dr.oriented))
+                         attempt=t, n=dr.n, own=dr.own, oriented=dr.oriented,
+                         oriented_point=dr.oriented_point))
     return rows
 
 

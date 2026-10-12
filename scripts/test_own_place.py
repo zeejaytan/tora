@@ -189,6 +189,21 @@ def main() -> int:
     check("two sherds exchanged: right way round 7 (never more than own)",
           d.oriented == 7, f"oriented {d.oriented}")
 
+    # U17 ticket 09: a long thin sherd flipped over its long axis keeps its points near
+    # home (offset under the limit) yet is turned 180: the turn limit must catch it.
+    rng = np.random.default_rng(1)
+    strip = np.c_[rng.uniform(-0.5, 0.5, 400), rng.uniform(-0.01, 0.01, 400),
+                  rng.uniform(-0.01, 0.01, 400)]
+    g2 = np.concatenate([strip, strip + [0.0, 0.3, 0.0]])
+    p2 = g2.copy()
+    p2[:400] = strip * [1, -1, -1]        # 180 deg about its own long axis
+    d = score_draw(g2, p2, np.array([400, 400]))
+    check("thin sherd flipped over its long axis: offset passes, turn ~180, right way round 1",
+          d.own == 2 and d.point_pct[0] < SEAT_PCT and d.turn_deg[0] > 179
+          and (d.oriented, d.oriented_point) == (1, 2),
+          f"own {d.own}, point {d.point_pct[0]:.2f}%, turn {d.turn_deg[0]:.1f}, "
+          f"oriented {d.oriented}, offset-only {d.oriented_point}")
+
     print(f"\n{len(FAILS)} failure(s)" if FAILS else "\nall checks pass")
     return 1 if FAILS else 0
 
