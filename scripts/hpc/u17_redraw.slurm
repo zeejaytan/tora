@@ -28,6 +28,13 @@ python scripts/u17_redraw.py --ranks "$R/jug_v2_32274553/ranks.json" --l2 "$R/l2
     --redraws "$O"/seed3.json "$O"/seed11.json "$O"/seed12.json "$O"/seed13.json \
     --key "$J/key/idmap.json" --report "$J/report.json" --pot-mm 65 \
     --prereg .scratch/attempt-ranker/preregistration-redraw.md --out "$O/redraw.json"
+echo "### Juglet top 5 (jug_top5): which sherds the existing inside-out rule flags (juglet-cause 14)"
+python - "$R/jug_v2_32274553/ranks.json" "$R/jug_top5/top.json" <<'PY'
+import json, sys
+rk = {r["id"]: r for r in json.load(open(sys.argv[1]))["attempts"]}
+for t in json.load(open(sys.argv[2]))["attempts"]:
+    print(f"pick {t['rank']}: {t['id']} inside_out={rk[t['id']]['inside_out']}")
+PY
 echo "### TORA narrow_bottle3 top 5 (blind export)"
 T=$R/tora_32330575
 python scripts/u17_top5_export.py --bundles "$T/narrow_bottle3/bundles" --l2 "$T/narrow_bottle3_l2.json" \
