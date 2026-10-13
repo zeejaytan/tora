@@ -7,8 +7,7 @@ round, turn and offset in mm; the paper's PA and success beside them; a picture 
 
 **Blocked by:** 01
 
-**Status:** in-progress
-**Working in:** project thread "general agent paper, fracture part" (2026-10-12)
+**Status:** resolved
 
 - [x] Checked on the made-up pot: perfect, one-sherd-turned and unmoved runs score as expected
-- [ ] Pilot runs scored on Spartan; pictures looked at before numbers are reported
+- [x] Pilot and full runs scored on Spartan (jobs 32819965, 32842542); pictures looked at

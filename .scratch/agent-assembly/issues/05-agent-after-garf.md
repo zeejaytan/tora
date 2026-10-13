@@ -8,3 +8,7 @@ adapters, GARF rough-worn-dose), paper's GARF -> agent order; count sherds gaine
 **Blocked by:** 04 (only if the whole-Juglet runs show the agent can handle 9 sherds at all)
 
 **Status:** needs-triage
+
+## Comments
+
+2026-10-13: not run yet. Ticket 04 found the agent cannot seat a body sherd from scratch (0 of 9 body-pair runs), and correcting GARF's near-misses needs exactly that. Waiting on the conservator: run it anyway, or close it.
