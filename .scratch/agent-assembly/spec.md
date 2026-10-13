@@ -2,6 +2,14 @@
 
 Requested by the conservator, 2026-10-12 (project thread "general agent paper, fracture part").
 
+**Prior work searched:** NOT searched before this spec was written (2026-10-12); the spec said
+"code not released" from the PDF alone, and the environment was rebuilt. Searched 2026-10-13
+after the conservator found it: GitHub "AssemblyWorld" -> https://github.com/AssemblyWorld/assembly-world-bench
+(commit 22646c9, released 2026-10-02: harness, scorer, Claude Code runner); Hugging Face
+AssemblyWorld/AssemblyWorldBench (episodes and answer clouds, commit f351f0f) and
+AssemblyWorld/AssemblyWorldBench-Results (gated); project page https://assemblyworld.github.io/.
+This miss is why check 8 of `scripts/check_intent_links.py` exists.
+
 ## What the paper claims (AssemblyWorld, arXiv 2609.40353v1; pr-papers `text/assemblyworld-2609.40353v1.md`)
 
 An off-the-shelf agent (GPT-6 Astra via Codex; Claude Fable/Opus/Sonnet via Claude Code), with no
@@ -35,7 +43,7 @@ leaves Spartan; Spartan prepares the tasks and scores.
 
 ## Deviations from the paper, stated
 
-- Environment rebuilt from Table A-2 (code not released): `scripts/agent_assembly/aw_env.py`.
+- Environment rebuilt from Table A-2: `scripts/agent_assembly/aw_env.py`. ("Code not released" was written here unsearched; it had been released on 2026-10-02, see above. Calibrated against it 2026-10-13: 6 of 6 of their Fantastic Breaks objects solved in this rebuild, scored by their code.)
 - A part's position is its centre; renders carry a colour legend and a world-axes triad.
 - Sherds lightened to ~30k faces each for rendering; scoring uses the full meshes.
 - The agent is a Claude Code subagent in a cloud container, not their harness build.
