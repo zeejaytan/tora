@@ -16,6 +16,7 @@ OUR RULER (glossary, `own_place.py`). Distances are in mm on the real 65 mm pot,
 tolerance is the one used for every Juglet result: 7.07% of pot size, 4.6 mm, for a pair too.
   own place        the sherd's chamfer to ITS home under readout.TAU in the whole-pot unit box
   right way round  own place AND its points a median under 4.6 mm from their own home points
+                   AND turned under 90 degrees (own_place.TURN_LIMIT_DEG)
   turn, offset     degrees the sherd is turned from home; mm its centre is off
 
 THE PAPER'S RULER (AssemblyWorld App. A.3). The largest part's principal-axis box diagonal is
@@ -45,6 +46,7 @@ from prep_tasks import load_pieces  # noqa: E402
 
 TAU = 0.01                          # readout.TAU
 SEAT_PCT = 100.0 * np.sqrt(TAU / 2)  # 7.07 % of pot size
+TURN_LIMIT = 90.0                   # own_place.TURN_LIMIT_DEG (2026-10-12)
 
 
 def kabsch(src, dst):
@@ -113,7 +115,7 @@ def score_run(final, sec, meshes, pot_longest, mm):
             rows.append({
                 "part": p, "sherd": parts[p]["sherd"], "anchor": p == anchor,
                 "own_place": bool(own),
-                "right_way_round": bool(own and point_pct <= SEAT_PCT),
+                "right_way_round": bool(own and point_pct <= SEAT_PCT and angle_deg(Rk) < TURN_LIMIT),
                 "turn_deg": round(angle_deg(Rk), 1),
                 "offset_mm": round(float(np.linalg.norm(P.mean(0) - gt[p].mean(0))) * mm, 2),
                 "point_mm": round(point_pct / 100 * pot_longest * mm, 2),
