@@ -53,3 +53,39 @@ On real, worn pottery a general agent recognises what the pieces are (neck, hand
 throwing rings, inside versus outside) but does not fit break faces. It is not a route to a
 reassembled pot (U16) on its own. The paper's GARF-then-agent step (ticket 05) is not run:
 the agent cannot place a sherd from scratch, and a correction step needs exactly that.
+
+## Calibration against the authors' own benchmark (2026-10-13)
+
+The authors released their harness on 2026-10-02 (github.com/AssemblyWorld/assembly-world-bench,
+commit 22646c9; data on Hugging Face, AssemblyWorld/AssemblyWorldBench at f351f0f). Read against
+`aw_env.py`: the Fantastic Breaks task text is word for word ours; the tool set is the same twelve
+tools; physics and collisions are off in their scenes too; the correctness rule is the same
+(per-part chamfer at most 0.01, largest part's PCA-box diagonal = 1). Differences: their agent runs
+with no built-in tools and no project settings (`claude -p --tools "" --setting-sources ""`, only
+the scene tools), where ours could see the project instructions and some attempts wrote helper
+scripts; their viewer is a WebGL page in Chrome 150+, ours a pyrender/OSMesa render. Their
+harness could not be run here (Chromium 141, no API key, and the Juglet would need their episode
+format, whose builder is not released).
+
+So the rebuild was checked from the other side: six of their twenty Fantastic Breaks objects
+(00/00017, 01/01012, 02/02002, 05/05005, 09/09022, 14/14001) were loaded into `aw_env.py` from
+their episode files (`fb_to_task.py`; their answer points sit on our meshes to within 0.003 units)
+and given to the same agent with the same prompt as the Juglet runs, one attempt each. Scored with
+their own alignment and part matching (`score_fb.py`, importing their code; checked: the untouched
+scatter scores 0%, their answer 100%):
+
+| object | part accuracy | success | shape chamfer x1000 |
+|---|---|---|---|
+| 00/00017 | 100% | yes | 0.25 |
+| 01/01012 | 100% | yes | 0.23 |
+| 02/02002 | 100% | yes | 0.56 |
+| 05/05005 | 100% | yes | 0.31 |
+| 09/09022 | 100% | yes | 2.23 |
+| 14/14001 | 100% | yes | 0.04 |
+
+**6 of 6 solved**, against the paper's 90% for Claude Fable on all twenty in their harness. Drawn
+(`agentasm_fbcal_look.png`), 00017 and 02002 sit on the answer; 09022 passes the rule but is
+visibly a little off, as its chamfer says. So the environment rebuilt here lets the agent do what
+the paper reports on lab breaks. The Juglet result (1 of 12 pairs right way round) is not an
+artefact of the rebuild: **the method fails on this material, not the measurement.** Weight: six
+objects, one attempt each, one model.

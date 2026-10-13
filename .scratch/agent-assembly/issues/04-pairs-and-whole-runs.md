@@ -18,3 +18,5 @@ scored by 03. Pilot first: 2 pairs and 1 whole run.
   - Wall time ~4.3 h each (three ran at once; 122-311 tool calls), against the paper's 60 min.
 - [x] Full set (4 pairs x 3, whole x 3), scored job 32842542 (COMPLETED 0:0); pictures looked at
 - [x] Read-out (`docs/notes/AGENT_ASSEMBLY_JUGLET_2026-10-13.md`): pairs 1 of 12 right way round, 3 of 12 on the paper's ruler (2 of those flipped 166-173 deg), against its ~83%; whole pot 0 of 8 movable sherds in all 3 runs
+
+2026-10-13: calibrated against the authors' released benchmark: the same agent and prompt in `aw_env.py` solve 6 of 6 of their Fantastic Breaks objects, scored by their own code (note, "Calibration"). The Juglet failure is the method, not the rebuild.
