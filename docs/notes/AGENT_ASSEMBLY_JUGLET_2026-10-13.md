@@ -89,3 +89,11 @@ visibly a little off, as its chamfer says. So the environment rebuilt here lets 
 the paper reports on lab breaks. The Juglet result (1 of 12 pairs right way round) is not an
 artefact of the rebuild: **the method fails on this material, not the measurement.** Weight: six
 objects, one attempt each, one model.
+
+## Agent after GARF (ticket 05)
+
+The paper's GARF -> agent order (App. D): the agent starts from one of GARF's saved Juglet attempts, sherds where GARF put them, same prompt, no history. Three attempts were picked (8, 7 and 6 of 9 sherds in their own place; 7, 7 and 6 right way round), three agent runs each, scored on Spartan (job 32892267). Each untouched scene scores exactly as GARF's attempt did.
+
+**No run added a sherd.** Eight of nine finished with the same count GARF started with; garf_c r3 moved the whole body about 6 mm off the neck and dropped to 1 by the anchor fit (5 by best fit). What the agent did well was point at the problem: in every scene the sherds it chose to move were GARF's wrong ones. What it could not do was fix them: the shoulder sherd d stayed upside down (turned 156-175 deg) and the body sherd q never came closer than 45 deg. The paper's own ruler calls garf_a r3 a 100% success, with q 45 deg out and d upside down: the measurement is too lenient for sherds, as in ticket 04.
+
+So the AssemblyWorld result that the agent improves GARF's output does not carry over to this pot: **the method fails here, not the measurement** (the rebuild solves 6 of 6 of the authors' lab breaks). Weight: one pot, three starting attempts, three runs each, one model. A lead worth one sentence: the agent as a *checker* that flags which sherds look wrong may be useful; as a *fixer* it did nothing.
