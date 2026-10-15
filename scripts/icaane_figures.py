@@ -181,27 +181,45 @@ def read_ply(path):
     return V, ft["i"].astype(np.int64), C
 
 
-def split_by_colour(V, F, C):
-    """One mesh per sherd: the export gives every sherd its own fixed colour."""
-    key = C[:, 0].astype(int) * 65536 + C[:, 1].astype(int) * 256 + C[:, 2]
-    out = []
-    for k in np.unique(key):
-        m = key[F[:, 0]] == k
-        out.append((V, F[m]))
-    return out
+def kabsch(a, b):
+    """Rotation r and shift t with a @ r.T + t closest to b (point i matches point i)."""
+    ca, cb = a.mean(0), b.mean(0)
+    u, _, vt = np.linalg.svd((a - ca).T @ (b - cb))
+    d = np.sign(np.linalg.det(vt.T @ u.T))
+    r = vt.T @ np.diag([1, 1, d]) @ u.T
+    return r, cb - r @ ca
 
 
-def load_sherds(bundles):
+def load_reference(hdf5, obj):
+    """The juglet's scans as they sit in the reference reassembly (the key side), in mm."""
+    import h5py
+    with h5py.File(hdf5, "r") as f:
+        g = f[obj]["pieces"]
+        scans = [(g[str(i)]["vertices"][:].astype(float), g[str(i)]["faces"][:].astype(np.int64))
+                 for i in range(len(g))]
+    side = float(np.ptp(np.concatenate([v for v, _ in scans]), 0).max())
+    s = POT_MM / side
+    print(f"reference: {len(scans)} sherds from {obj}, longest side {side:.4f} -> {POT_MM:g} mm")
+    return [v * s for v, _ in scans]
+
+
+def load_sherds(bundles, H):
+    """The ranker's neutral sherds (each centred and turned at random, in mm). Their
+    vertices are the reference scans' vertices in the same order, so each one maps onto
+    its home exactly; that is checked here."""
     z = np.load(bundles / "sherds.npz")
     k = int(z["k"])
     V = [z[f"v{j}"].astype(float) for j in range(k)]
     F = [z[f"f{j}"].astype(np.int64) for j in range(k)]
-    side = float(np.ptp(np.concatenate(V), 0).max())
-    print(f"reference: {k} sherds, longest side {side:.2f} (units of sherds.npz)")
-    if abs(side - POT_MM) > 0.05 * POT_MM:
-        s = POT_MM / side
-        print(f"  not {POT_MM:g} mm: scaling by {s:.4f} to millimetres")
-        V = [v * s for v in V]
+    if k != len(H) or any(len(v) != len(h) for v, h in zip(V, H)):
+        sys.exit("CHECK FAILED: sherds.npz and the reference scans differ in vertex counts")
+    res = []
+    for v, h in zip(V, H):
+        r, t = kabsch(v, h)
+        res.append(float(np.abs(v @ r.T + t - h).max()))
+    print(f"neutral sherds onto their homes: worst vertex {max(res):.3f} mm")
+    if max(res) > 0.1:
+        sys.exit("CHECK FAILED: a neutral sherd does not map onto its home; vertex order differs")
     return V, F
 
 
@@ -213,19 +231,35 @@ def attempt_file(bundles, aid):
     sys.exit(f"attempt {aid} not found under {bundles}")
 
 
-def placed(V, bundle):
+def anchor_of(H, F):
+    """The largest sherd by area: the one each method holds in its true place."""
+    def area(v, f):
+        return float(0.5 * np.linalg.norm(np.cross(v[f[:, 1]] - v[f[:, 0]],
+                                                   v[f[:, 2]] - v[f[:, 0]]), axis=1).sum())
+    return int(np.argmax([area(h, f) for h, f in zip(H, F)]))
+
+
+def home_frame(P, H, anchor):
+    """Undo the ranker's random move of the whole attempt: put its anchor back home."""
+    r, t = kabsch(P[anchor], H[anchor])
+    return [p @ r.T + t for p in P]
+
+
+def placed(V, bundle, H, anchor):
     b = np.load(bundle)
-    return [v @ R.T + t for v, R, t in zip(V, b["R"].astype(float), b["t"].astype(float))]
+    P = [v @ R.T + t for v, R, t in zip(V, b["R"].astype(float), b["t"].astype(float))]
+    return home_frame(P, H, anchor)
 
 
-def right_way(V, P):
+def right_way(H, P):
     """Per sherd: median offset from its own home points under 4.6 mm (one-to-one points)."""
-    return [float(np.median(np.linalg.norm(p - v, axis=1))) < SEAT_MM for v, p in zip(V, P)]
+    return [float(np.median(np.linalg.norm(p - h, axis=1))) < SEAT_MM for h, p in zip(H, P)]
 
 
 # ---------------------------------------------------------------- figures
 
 def fig3(V, F, out, mpp):
+    """V here is the reference: the sherds in their home places."""
     allv = np.concatenate(V)
     R = frame(allv)
     c = allv.mean(0)
@@ -240,14 +274,15 @@ def fig3(V, F, out, mpp):
               ["(a) the nine sherds", "(b) the reference reassembly"], mpp, 7.5)
 
 
-def fig4(V, F, bundles, key, out, mpp):
+def fig4(V, H, F, bundles, key, out, mpp):
     idmap = json.loads(key.read_text())
     gen = [a for a, m in idmap.items()
            if GENUINE[0] in str(m["run"]) and int(m["attempt"]) == GENUINE[1]]
     if len(gen) != 1:
         sys.exit(f"genuine attempt {GENUINE} found {len(gen)} times in the key")
-    Pg = placed(V, attempt_file(bundles, gen[0]))
-    rg = right_way(V, Pg)
+    anc = anchor_of(H, F)
+    Pg = placed(V, attempt_file(bundles, gen[0]), H, anc)
+    rg = right_way(H, Pg)
     print(f"genuine {GENUINE}: right way round {sum(rg)}/9")
     if sum(rg) != len(V):
         sys.exit("CHECK FAILED: the genuine attempt does not score 9 of 9 here, so the "
@@ -257,15 +292,15 @@ def fig4(V, F, bundles, key, out, mpp):
         run = str(m["run"])
         if "_fresh_" not in run or "juglet" not in run:
             continue
-        P = placed(V, attempt_file(bundles, a))
-        r = right_way(V, P)
-        off = float(np.mean([np.median(np.linalg.norm(p - v, axis=1)) for v, p in zip(V, P)]))
+        P = placed(V, attempt_file(bundles, a), H, anc)
+        r = right_way(H, P)
+        off = float(np.mean([np.median(np.linalg.norm(p - h, axis=1)) for h, p in zip(H, P)]))
         key = (sum(r), -off)
         if best is None or key > best[0]:
             best = (key, a, run, int(m["attempt"]), P, r)
     (_, a, run, t, Pc, rc) = best
     print(f"best clean attempt: {run} #{t}: right way round {sum(rc)}/9")
-    R = frame(np.concatenate(V))
+    R = frame(np.concatenate(H))
     imgs, titles = [], []
     for P, r, name in ((Pc, rc, "clean"), (Pg, rg, "rough")):
         greys = [0.92 if ok else 0.45 for ok in r]
@@ -278,15 +313,21 @@ def fig4(V, F, bundles, key, out, mpp):
         genuine=dict(run=GENUINE[0], attempt=GENUINE[1], right_way=sum(rg))), indent=2))
 
 
-def fig5(V, top5, out, mpp):
-    R = frame(np.concatenate(V))      # the reference's own frame, the same for all five
+def fig5(H, F, top5, out, mpp):
+    """rank<N>.ply holds the nine placed sherds one after another, in sherds.npz order."""
+    R = frame(np.concatenate(H))      # the reference's own frame, the same for all five
+    anc = anchor_of(H, F)
+    cuts = np.cumsum([0] + [len(h) for h in H])
+    greys = np.linspace(0.62, 0.95, len(H))
     imgs = []
     for n in range(1, 6):
-        Vr, Fr, C = read_ply(top5 / f"rank{n}.ply")
-        sh = split_by_colour(Vr, Fr, C)
-        greys = np.linspace(0.62, 0.95, len(sh))
-        imgs.append(render(sh, greys, R, mpp))
-        print(f"rank {n}: {len(sh)} sherds, box {np.ptp(Vr, 0).round(1)} mm")
+        Vr, _, _ = read_ply(top5 / f"rank{n}.ply")
+        if len(Vr) != cuts[-1]:
+            sys.exit(f"CHECK FAILED: rank{n}.ply has {len(Vr)} vertices, sherds {cuts[-1]}")
+        P = home_frame([Vr[a:b] for a, b in zip(cuts[:-1], cuts[1:])], H, anc)
+        r = right_way(H, P)
+        imgs.append(render(list(zip(P, F)), greys, R, mpp))
+        print(f"rank {n}: right way round {sum(r)}/9 (key side, for the record only)")
     panel_row(out / "icaanefig_fig5_top5.png", imgs, [f"{n}" for n in range(1, 6)], mpp, 4.5)
 
 
@@ -337,22 +378,25 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--bundles", type=Path, required=True)
     ap.add_argument("--key", type=Path, required=True, help="the ranker's key/idmap.json")
+    ap.add_argument("--hdf5", type=Path, required=True, help="dataset/juglet_gt.hdf5")
+    ap.add_argument("--object", default="juglet_gt/Juglet-000")
     ap.add_argument("--top5", type=Path, required=True)
     ap.add_argument("--bbad", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--only", default="2345")
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
-    V, F = load_sherds(a.bundles)
+    H = load_reference(a.hdf5, a.object)
+    V, F = load_sherds(a.bundles, H)
     mpp = 0.08   # mm per pixel: a 65 mm juglet spans about 800 px, ample at 300 dpi
     if "3" in a.only:
-        fig3(V, F, a.out, mpp)
+        fig3(H, F, a.out, mpp)
     if "4" in a.only:
-        fig4(V, F, a.bundles, a.key, a.out, mpp)
+        fig4(V, H, F, a.bundles, a.key, a.out, mpp)
     if "5" in a.only:
-        fig5(V, a.top5, a.out, mpp)
+        fig5(H, F, a.top5, a.out, mpp)
     if "2" in a.only:
-        fig2(V, F, a.bbad, a.out, 0.04)
+        fig2(H, F, a.bbad, a.out, 0.04)
     return 0
 
 
