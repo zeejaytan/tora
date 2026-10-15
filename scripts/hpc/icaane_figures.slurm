@@ -22,6 +22,7 @@ cd /data/gpfs/projects/punim2657/TORA/repo
 U=/data/gpfs/projects/punim2657/TORA/rank_u17
 O=/data/gpfs/projects/punim2657/TORA/figs_icaane/${SLURM_JOB_ID}
 mkdir -p "$O"
-python scripts/icaane_figures.py --bundles "$U/juglet_32107634" --top5 "$U/jug_top5" \
+python scripts/icaane_figures.py --bundles "$U/juglet_32107634/bundles" \
+    --key "$U/juglet_32107634/key/idmap.json" --top5 "$U/jug_top5" \
     --bbad /data/gpfs/projects/punim2657/TORA/dataset/breaking_bad_vol.hdf5 --out "$O"
 ls -la "$O"

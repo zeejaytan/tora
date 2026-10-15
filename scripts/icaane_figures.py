@@ -24,7 +24,7 @@ against the juglet's 65 mm; the genuine attempt scoring 9 of 9 right way round; 
 attempt frame matching the reference frame. A failed check stops the figure.
 
 Usage (Spartan, CPU node; scripts/hpc/icaane_figures.slurm):
-  python scripts/icaane_figures.py --bundles .../rank_u17/juglet_32107634 \
+  python scripts/icaane_figures.py --bundles .../rank_u17/juglet_32107634/bundles --key .../key/idmap.json \
       --top5 .../rank_u17/jug_top5 --bbad dataset/breaking_bad_vol.hdf5 --out DIR
 """
 import argparse
@@ -205,6 +205,14 @@ def load_sherds(bundles):
     return V, F
 
 
+def attempt_file(bundles, aid):
+    """The ranker writes sherds.npz beside a bundles/ folder of one npz per attempt."""
+    for p in (bundles / "bundles" / f"{aid}.npz", bundles / f"{aid}.npz"):
+        if p.exists():
+            return p
+    sys.exit(f"attempt {aid} not found under {bundles}")
+
+
 def placed(V, bundle):
     b = np.load(bundle)
     return [v @ R.T + t for v, R, t in zip(V, b["R"].astype(float), b["t"].astype(float))]
@@ -232,13 +240,13 @@ def fig3(V, F, out, mpp):
               ["(a) the nine sherds", "(b) the reference reassembly"], mpp, 7.5)
 
 
-def fig4(V, F, bundles, out, mpp):
-    idmap = json.loads((bundles / "key" / "idmap.json").read_text())
+def fig4(V, F, bundles, key, out, mpp):
+    idmap = json.loads(key.read_text())
     gen = [a for a, m in idmap.items()
            if GENUINE[0] in str(m["run"]) and int(m["attempt"]) == GENUINE[1]]
     if len(gen) != 1:
         sys.exit(f"genuine attempt {GENUINE} found {len(gen)} times in the key")
-    Pg = placed(V, bundles / "bundles" / f"{gen[0]}.npz")
+    Pg = placed(V, attempt_file(bundles, gen[0]))
     rg = right_way(V, Pg)
     print(f"genuine {GENUINE}: right way round {sum(rg)}/9")
     if sum(rg) != len(V):
@@ -249,7 +257,7 @@ def fig4(V, F, bundles, out, mpp):
         run = str(m["run"])
         if "_fresh_" not in run or "juglet" not in run:
             continue
-        P = placed(V, bundles / "bundles" / f"{a}.npz")
+        P = placed(V, attempt_file(bundles, a))
         r = right_way(V, P)
         off = float(np.mean([np.median(np.linalg.norm(p - v, axis=1)) for v, p in zip(V, P)]))
         key = (sum(r), -off)
@@ -328,6 +336,7 @@ def fig2(V, F, bbad, out, mpp):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--bundles", type=Path, required=True)
+    ap.add_argument("--key", type=Path, required=True, help="the ranker's key/idmap.json")
     ap.add_argument("--top5", type=Path, required=True)
     ap.add_argument("--bbad", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
@@ -339,7 +348,7 @@ def main():
     if "3" in a.only:
         fig3(V, F, a.out, mpp)
     if "4" in a.only:
-        fig4(V, F, a.bundles, a.out, mpp)
+        fig4(V, F, a.bundles, a.key, a.out, mpp)
     if "5" in a.only:
         fig5(V, a.top5, a.out, mpp)
     if "2" in a.only:
