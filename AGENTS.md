@@ -31,6 +31,14 @@ git push origin HEAD
 
 TORA is a 3D fracture assembly method (evaluated zero-shot on fractura/juglet/thinwalled sets here). `tora.eval.spatial` is referenced by training-time probing callbacks but absent upstream — its re-exports are disabled in `tora/eval/__init__.py`; do not "fix" imports by re-adding them. Analysis notes live in `docs/notes/`.
 
+**The attempt ranker moved out** (2026-10-15, conservator's request) to its own repo,
+`zeejaytan/attempt-ranker`, with its history: the `u17_*`, `l1_*`, `l2_*`, `rank_*`,
+`overlap_*`, `label_attempts`, `check_attempt_ranker` and `check_inside_out` scripts, their
+Slurm jobs and `.scratch/attempt-ranker/`. Older tickets here that cite those paths mean
+that repo now. **The answer key stays here** (`scripts/own_place.py`, `scripts/readout.py`):
+the ranker imports it from this folder, so a change to the key also changes the ranker's
+labels. Pull Spartan's TORA checkout before a ranker job that depends on a key change.
+
 ## Agent skills
 
 Configured here so this repo works when opened on its own, not only from the `C:\PR`
