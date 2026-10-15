@@ -331,9 +331,11 @@ def fig5(H, F, top5, out, mpp):
     panel_row(out / "icaanefig_fig5_top5.png", imgs, [f"{n}" for n in range(1, 6)], mpp, 4.5)
 
 
-def bbad_fragment(path):
-    """The largest piece of a several-piece break of a Breaking Bad vase, in mm at the
-    juglet's 65 mm, with faces if the file holds them."""
+def bbad_fragment(path, target_mm):
+    """A piece of a several-piece break of a Breaking Bad vessel, scaled so the vessel is
+    the juglet's 65 mm (Breaking Bad models have no real size), choosing the piece whose
+    longest side is nearest a juglet sherd's: the largest piece was nearly the whole vase
+    (job 33141486), which shows no break face."""
     import h5py
     h = h5py.File(path, "r")
     root = h["everyday"] if "everyday" in h else h
@@ -342,26 +344,29 @@ def bbad_fragment(path):
             continue
         obj = root[cat][sorted(root[cat].keys())[0]]
         for fr in sorted(obj.keys()):
-            if len(obj[fr].keys()) >= 4:
+            if len(obj[fr].keys()) >= 6:
                 parts = [obj[fr][k] for k in sorted(obj[fr].keys())]
                 allv = np.concatenate([np.asarray(p["vertices"] if "vertices" in p else p)
                                        for p in parts])
                 s = POT_MM / float(np.ptp(allv, 0).max())
-                big = max(parts, key=lambda p: len(p["vertices"] if "vertices" in p else p))
+                def side(p):
+                    return float(np.ptp(np.asarray(p["vertices"] if "vertices" in p else p), 0).max()) * s
+                big = min(parts, key=lambda p: abs(side(p) - target_mm))
                 v = np.asarray(big["vertices"] if "vertices" in big else big, float) * s
                 f = np.asarray(big["faces"], np.int64) if "faces" in big else None
-                print(f"Breaking Bad: {cat}/{obj.name.split('/')[-1]}/{fr}, "
-                      f"{len(parts)} pieces, largest {len(v)} vertices, faces: {f is not None}")
+                print(f"Breaking Bad: {cat}/{obj.name.split('/')[-1]}/{fr}, {len(parts)} pieces; "
+                      f"piece of {side(big):.1f} mm (juglet sherd {target_mm:.1f} mm), "
+                      f"{len(v)} vertices, faces: {f is not None}")
                 return v, f
     sys.exit("no several-piece vessel break found in the Breaking Bad file")
 
 
 def fig2(V, F, bbad, out, mpp):
-    vb, fb = bbad_fragment(bbad)
+    j = int(np.argmax([len(f) for f in F[1:]])) + 1    # largest sherd that is not the anchor
+    vb, fb = bbad_fragment(bbad, float(np.ptp(V[j], 0).max()))
     if fb is None:
         print("fig2 skipped: the Breaking Bad file holds vertices only; a mesh source is needed")
         return
-    j = int(np.argmax([len(f) for f in F[1:]])) + 1    # largest sherd that is not the anchor
     rake = (-0.92, 0.25, 0.3)
     imgs, titles = [], []
     for (v, f), name in (((vb, fb), "simulated"), ((V[j], F[j]), f"juglet sherd {j}")):
