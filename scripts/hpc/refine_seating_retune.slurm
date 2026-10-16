@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=tora-refine-retune
-#SBATCH --partition=cascade
+#SBATCH --partition=sapphire,cascade
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
