@@ -150,6 +150,10 @@ def scale_bar(ax, img, mm_per_px, mm=10.0):
 
 
 def panel_row(path, imgs, titles, mm_per_px, height_cm):
+    # pad every panel to one height, so all are drawn at one scale (job 33142284 fitted
+    # each to its own box, and the juglet panel of Fig 2 came out at two-thirds scale)
+    h = max(i.shape[0] for i in imgs)
+    imgs = [np.vstack([np.ones((h - i.shape[0], i.shape[1])), i]) for i in imgs]
     fig, axs = plt.subplots(1, len(imgs), figsize=(WIDTH_CM * CM, height_cm * CM),
                             gridspec_kw=dict(width_ratios=[i.shape[1] for i in imgs]))
     axs = np.atleast_1d(axs)
