@@ -12,7 +12,14 @@ shaded surfaces, one grey per sherd, with a dark line where two sherds meet.
   fig4  GARF's best clean-trained attempt beside the full reassembly from rough training
         (rough 1x, seed 42, job 31835635, presentation 1, attempt 19); sherds placed the
         right way round light, the rest dark
-  fig5  the ranker's top five as the conservator saw them blind (rank1..5.ply)
+  fig5  the ranker's top five as the conservator saw them blind (rank1..5.ply), with an
+        arrow on each sherd turned more than 90 degrees from home
+  rabati a contact sheet of Rabati per-sherd meshes (--rabati-glob), to choose the sherd
+        whose break replaces the juglet's in Fig 2; then --rabati-mesh draws that Fig 2
+
+Review of 2026-10-22 (ICAANE paper thread): Figs 3-5 are drawn mouth up, the
+archaeological convention (the earlier renders had the juglet neck down); Fig 5 marks the
+turned sherd, which at print size was invisible; Fig 2 can take a Rabati sherd.
 
 THE RENDERER is a point splat with a depth buffer: each surface is sampled densely by
 area, projected orthographically, the nearest sample wins each pixel, and it is shaded by
@@ -81,8 +88,24 @@ def turn(R, deg):
     return r @ R
 
 
-def render(meshes, greys, R, mm_per_px, light=(-0.45, 0.6, 0.66), pad_mm=3.0, seed=0):
-    """meshes: list of (V, F) in mm. Returns a float image in [0, 1] (1 = white)."""
+def upright(R, H, neck):
+    """Mouth up, as pottery is drawn: flip the camera's up if the neck sherd sits below
+    the vessel's centre (frame() picks the long axis with an arbitrary sign)."""
+    if (H[neck].mean(0) - np.concatenate(H).mean(0)) @ R[1] < 0:
+        R = R * np.array([[-1], [-1], [1]])
+    return R
+
+
+def turn_deg(h, p):
+    """How far a placed sherd is turned from home, in degrees (one-to-one points)."""
+    r, _ = kabsch(h, p)
+    return float(np.degrees(np.arccos(np.clip((np.trace(r) - 1) / 2, -1, 1))))
+
+
+def render(meshes, greys, R, mm_per_px, light=(-0.45, 0.6, 0.66), pad_mm=3.0, seed=0,
+           with_frame=False):
+    """meshes: list of (V, F) in mm. Returns a float image in [0, 1] (1 = white), and with
+    with_frame also a function taking points (mm) to pixel (x, y) in that image."""
     rng = np.random.default_rng(seed)
     dens = 6.0 / mm_per_px ** 2          # about six samples per pixel
     Ps, Ns, Is = [], [], []
@@ -138,6 +161,11 @@ def render(meshes, greys, R, mm_per_px, light=(-0.45, 0.6, 0.66), pad_mm=3.0, se
         nb = np.roll(ids, (dy, dx), (0, 1))
         edge |= (nb != ids)
     img[edge & ((ids >= 0) | (np.roll(ids, (1, 1), (0, 1)) >= 0))] = 0.1
+    if with_frame:
+        def to_px(Q):
+            Q = np.atleast_2d(Q) @ R.T
+            return np.stack([(Q[:, 0] - lo[0]) / mm_per_px, (hi[1] - Q[:, 1]) / mm_per_px], 1)
+        return img, to_px
     return img
 
 
@@ -149,19 +177,26 @@ def scale_bar(ax, img, mm_per_px, mm=10.0):
     ax.text(x0 + L / 2, y0 - 0.02 * H, f"{mm:g} mm", ha="center", va="bottom", fontsize=7)
 
 
-def panel_row(path, imgs, titles, mm_per_px, height_cm):
+def panel_row(path, imgs, titles, mm_per_px, height_cm, marks=None):
     # pad every panel to one height, so all are drawn at one scale (job 33142284 fitted
     # each to its own box, and the juglet panel of Fig 2 came out at two-thirds scale)
     h = max(i.shape[0] for i in imgs)
+    tops = [h - i.shape[0] for i in imgs]
     imgs = [np.vstack([np.ones((h - i.shape[0], i.shape[1])), i]) for i in imgs]
     fig, axs = plt.subplots(1, len(imgs), figsize=(WIDTH_CM * CM, height_cm * CM),
                             gridspec_kw=dict(width_ratios=[i.shape[1] for i in imgs]))
     axs = np.atleast_1d(axs)
-    for ax, im, t in zip(axs, imgs, titles):
+    for k, (ax, im, t) in enumerate(zip(axs, imgs, titles)):
         ax.imshow(im, cmap="gray", vmin=0, vmax=1, interpolation="lanczos")
         ax.set_title(t, fontsize=7.5)
         ax.axis("off")
         scale_bar(ax, im, mm_per_px)
+        for (x, y) in (marks[k] if marks else []):
+            # black arrow with a white edge, from the upper left, so it reads in greyscale
+            L = 0.22 * im.shape[1]
+            ax.annotate("", xy=(x, y + tops[k]), xytext=(x - L, y + tops[k] - L),
+                        arrowprops=dict(arrowstyle="-|>", color="black", lw=1.6,
+                                        mutation_scale=10, shrinkB=2))
     fig.tight_layout(pad=0.3)
     fig.savefig(path, dpi=DPI)
     plt.close(fig)
@@ -265,7 +300,9 @@ def right_way(H, P):
 def fig3(V, F, out, mpp):
     """V here is the reference: the sherds in their home places."""
     allv = np.concatenate(V)
-    R = frame(allv)
+    neck = anchor_of(V, F)
+    R = upright(frame(allv), V, neck)
+    print(f"fig3: neck sherd (largest) {neck}; drawn mouth up")
     c = allv.mean(0)
     greys = np.linspace(0.62, 0.95, len(V))
     apart = []
@@ -304,7 +341,7 @@ def fig4(V, H, F, bundles, key, out, mpp):
             best = (key, a, run, int(m["attempt"]), P, r)
     (_, a, run, t, Pc, rc) = best
     print(f"best clean attempt: {run} #{t}: right way round {sum(rc)}/9")
-    R = frame(np.concatenate(H))
+    R = upright(frame(np.concatenate(H)), H, anc)
     imgs, titles = [], []
     for P, r, name in ((Pc, rc, "clean"), (Pg, rg, "rough")):
         greys = [0.92 if ok else 0.45 for ok in r]
@@ -319,20 +356,26 @@ def fig4(V, H, F, bundles, key, out, mpp):
 
 def fig5(H, F, top5, out, mpp):
     """rank<N>.ply holds the nine placed sherds one after another, in sherds.npz order."""
-    R = frame(np.concatenate(H))      # the reference's own frame, the same for all five
     anc = anchor_of(H, F)
+    R = upright(frame(np.concatenate(H)), H, anc)   # the reference's frame, the same for all five
     cuts = np.cumsum([0] + [len(h) for h in H])
     greys = np.linspace(0.62, 0.95, len(H))
-    imgs = []
+    imgs, marks = [], []
     for n in range(1, 6):
         Vr, _, _ = read_ply(top5 / f"rank{n}.ply")
         if len(Vr) != cuts[-1]:
             sys.exit(f"CHECK FAILED: rank{n}.ply has {len(Vr)} vertices, sherds {cuts[-1]}")
         P = home_frame([Vr[a:b] for a, b in zip(cuts[:-1], cuts[1:])], H, anc)
         r = right_way(H, P)
-        imgs.append(render(list(zip(P, F)), greys, R, mpp))
-        print(f"rank {n}: right way round {sum(r)}/9 (key side, for the record only)")
-    panel_row(out / "icaanefig_fig5_top5.png", imgs, [f"{n}" for n in range(1, 6)], mpp, 4.5)
+        img, to_px = render(list(zip(P, F)), greys, R, mpp, with_frame=True)
+        imgs.append(img)
+        deg = [turn_deg(h, p) for h, p in zip(H, P)]
+        turned = [i for i, d in enumerate(deg) if d > 90]
+        marks.append([tuple(to_px(P[i].mean(0))[0]) for i in turned])
+        print(f"rank {n}: right way round {sum(r)}/9 (key side, for the record only); "
+              f"turns {', '.join(f'{d:.0f}' for d in deg)} deg; arrow on {turned}")
+    panel_row(out / "icaanefig_fig5_top5.png", imgs, [f"{n}" for n in range(1, 6)], mpp, 4.5,
+              marks=marks)
 
 
 def bbad_fragment(path, target_mm):
@@ -383,6 +426,63 @@ def fig2(V, F, bbad, out, mpp):
     panel_row(out / "icaanefig_fig2_juglet_views.png", imgs[half:], titles[half:], mpp, 4.5)
 
 
+def load_any_mesh(path):
+    import trimesh
+    m = trimesh.load(path, force="mesh", process=False)
+    return np.asarray(m.vertices, float), np.asarray(m.faces, np.int64)
+
+
+def rabati_sheet(globs, out, mpp=0.15):
+    """One raking view of each Rabati per-sherd mesh found, titled with its file and its
+    longest side in file units, to choose Fig 2's sherd by eye. Units are printed, not
+    assumed: a mesh is in mm only where scale_apply.py has run for its capture."""
+    import glob
+    paths = sorted({p for g in globs for p in glob.glob(g, recursive=True)})[:24]
+    if not paths:
+        print("rabati: no meshes matched", globs)
+        return
+    rows = []
+    for p in paths:
+        v, f = load_any_mesh(p)
+        side = float(np.ptp(v, 0).max())
+        scale = next((s for s in Path(p).parents if (s / "scale" / "SCALE.txt").exists()), None)
+        print(f"rabati: {p}: {len(v)} vertices, {len(f)} faces, longest side {side:.3f} units; "
+              f"scale/SCALE.txt {'at ' + str(scale) if scale else 'not found'}")
+        s = 40.0 / side            # each drawn about 40 units wide, for choosing only
+        img = render([(v * s, f)], [0.9], frame(v * s), mpp, light=(-0.92, 0.25, 0.3))
+        rows.append((img, f"{Path(p).parent.parent.name}/{Path(p).name}  {side:.1f}"))
+    n = len(rows)
+    cols = 4
+    fig, axs = plt.subplots((n + cols - 1) // cols, cols, figsize=(18 * CM, 4.5 * CM * ((n + cols - 1) // cols)))
+    for ax in np.atleast_1d(axs).ravel():
+        ax.axis("off")
+    for ax, (img, t) in zip(np.atleast_1d(axs).ravel(), rows):
+        ax.imshow(img, cmap="gray", vmin=0, vmax=1)
+        ax.set_title(t, fontsize=6)
+    fig.tight_layout(pad=0.3)
+    fig.savefig(out / "icaanefig_rabati_sheet.png", dpi=150)
+    plt.close(fig)
+    print(f"-> {out / 'icaanefig_rabati_sheet.png'} (not to scale: for choosing only)")
+
+
+def fig2_rabati(mesh, mm_per_unit, bbad, out, mpp):
+    """Fig 2 with a Rabati sherd's break in place of the juglet's, both at one scale."""
+    v, f = load_any_mesh(mesh)
+    v = v * mm_per_unit
+    side = float(np.ptp(v, 0).max())
+    print(f"rabati sherd {mesh}: longest side {side:.1f} mm at {mm_per_unit} mm per unit")
+    vb, fb = bbad_fragment(bbad, side)
+    rake = (-0.92, 0.25, 0.3)
+    imgs, titles = [], []
+    for (vv, ff), name in (((vb, fb), "simulated"), ((v, f), "Rabati sherd")):
+        R0 = frame(vv)
+        for d in (0, 60, 120):
+            imgs.append(render([(vv, ff)], [0.9], turn(R0, d), mpp, light=rake))
+            titles.append(f"{name}, {d}°")
+    panel_row(out / "icaanefig_fig2_rabati_views.png", imgs[3:], titles[3:], mpp, 4.5)
+    panel_row(out / "icaanefig_fig2_simulated_views.png", imgs[:3], titles[:3], mpp, 4.5)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--bundles", type=Path, required=True)
@@ -393,6 +493,10 @@ def main():
     ap.add_argument("--bbad", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--only", default="2345")
+    ap.add_argument("--rabati-glob", nargs="*", default=[],
+                    help="Rabati per-sherd meshes for the contact sheet (only 'r')")
+    ap.add_argument("--rabati-mesh", type=Path, help="the chosen Rabati sherd (only 'R')")
+    ap.add_argument("--rabati-mm-per-unit", type=float, default=1.0)
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     H = load_reference(a.hdf5, a.object)
@@ -406,6 +510,10 @@ def main():
         fig5(H, F, a.top5, a.out, mpp)
     if "2" in a.only:
         fig2(H, F, a.bbad, a.out, 0.04)
+    if "r" in a.only:
+        rabati_sheet(a.rabati_glob, a.out)
+    if "R" in a.only and a.rabati_mesh:
+        fig2_rabati(a.rabati_mesh, a.rabati_mm_per_unit, a.bbad, a.out, 0.04)
     return 0
 
 
