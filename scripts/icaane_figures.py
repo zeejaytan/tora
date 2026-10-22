@@ -88,6 +88,13 @@ def turn(R, deg):
     return r @ R
 
 
+def tilt(R, deg):
+    """Rotate a camera basis about its own right axis (look down onto the piece)."""
+    t = np.radians(deg)
+    r = np.array([[1, 0, 0], [0, np.cos(t), -np.sin(t)], [0, np.sin(t), np.cos(t)]])
+    return r @ R
+
+
 def upright(R, H, neck):
     """Mouth up, as pottery is drawn: flip the camera's up if the neck sherd sits below
     the vessel's centre (frame() picks the long axis with an arbitrary sign)."""
@@ -393,12 +400,21 @@ def bbad_fragment(path, target_mm, vessel_mm=POT_MM, thin=False, n_obj=30):
     def verts(p):
         return np.asarray(p["vertices"] if "vertices" in p else p, float)
 
+    def wall(v, f):
+        """Mean wall thickness of a closed shell: twice its volume over its area."""
+        a, b, c = v[f[:, 0]], v[f[:, 1]], v[f[:, 2]]
+        vol = abs(np.einsum("ij,ij->i", a, np.cross(b, c)).sum()) / 6
+        area = 0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1).sum()
+        return 2 * vol / max(area, 1e-12)
+
     def extents(v):
         c = v - v.mean(0)
         return np.sort(np.ptp(c @ np.linalg.svd(c, full_matrices=False)[2].T, 0))
 
     best = None
-    for cat in ("Vase", "Bottle", "Mug", "Cup", "Bowl"):
+    # thin: curved wall pieces of closed forms only; a bowl base is a flat slab that reads
+    # as a straight line when its break is turned to the viewer (job 33674664, conservator)
+    for cat in (("Vase", "Bottle", "Jar") if thin else ("Vase", "Bottle", "Mug", "Cup", "Bowl")):
         if cat not in root:
             continue
         for name in sorted(root[cat].keys())[: (n_obj if thin else 1)]:
@@ -411,7 +427,13 @@ def bbad_fragment(path, target_mm, vessel_mm=POT_MM, thin=False, n_obj=30):
                 for p in parts:
                     e = extents(verts(p) * s)
                     gap = abs(e[-1] - target_mm) / target_mm
-                    score = (e[0] / e[-1] + 0.5 * gap) if thin else abs(e[-1] - target_mm)
+                    if thin:
+                        if "faces" not in p or e[0] / e[-1] < 0.09:
+                            continue          # flat, or no surface to measure
+                        th = wall(verts(p) * s, np.asarray(p["faces"], np.int64))
+                        score = th / e[-1] + 0.5 * gap + (0 if len(verts(p)) >= 1000 else 1)
+                    else:
+                        score = abs(e[-1] - target_mm)
                     if best is None or score < best[0]:
                         best = (score, cat, name, fr, len(parts), p, s, e)
                 if not thin:
@@ -427,6 +449,7 @@ def bbad_fragment(path, target_mm, vessel_mm=POT_MM, thin=False, n_obj=30):
     f = np.asarray(p["faces"], np.int64) if "faces" in p else None
     print(f"Breaking Bad: {cat}/{name}/{fr}, {n} pieces, vessel scaled to {vessel_mm:g} mm; "
           f"piece {e[-1]:.1f} x {e[1]:.1f} x {e[0]:.1f} mm (thinness {e[0] / e[-1]:.2f}; "
+          f"wall {wall(verts(p) * s, np.asarray(p['faces'], np.int64)) if 'faces' in p else float('nan'):.1f} mm; "
           f"real sherd {target_mm:.1f} mm), {len(v)} vertices, faces: {f is not None}")
     return v, f
 
@@ -514,13 +537,15 @@ def fig2_rabati(mesh, mm_per_unit, bbad, out, mpp, base=None):
     # than to the juglet; the caption says so (job 33674098 picked the whole 65 mm vase).
     vb, fb = bbad_fragment(bbad, side, vessel_mm=VESSEL_MM, thin=True)
     rake = (-0.92, 0.25, 0.3)
-    views = (0, 90, 270)       # face on, then each long edge's break face turned to the viewer
+    # face on, then three-quarter views (turned 60 and 300 degrees and tipped 25 degrees),
+    # which show the break face together with the curve of the wall
+    views = (0, 60, 300)
     imgs, titles = [], []
-    for (vv, ff), name in (((vb, fb), "simulated"), ((v, f), "Rabati sherd")):
+    for (vv, ff), name in (((vb, fb), "simulated"), ((v, f), "Rabati")):
         R0 = frame(vv)
         for d in views:
-            imgs.append(render([(vv, ff)], [0.9], turn(R0, d), mpp, light=rake))
-            titles.append(f"{name}, {d}°")
+            imgs.append(render([(vv, ff)], [0.9], tilt(turn(R0, d), 25 if d else 0), mpp, light=rake))
+            titles.append(f"{d}°")
     n = len(views)
     panel_row(out / "icaanefig_fig2_rabati_views.png", imgs[n:], titles[n:], mpp, 4.5)
     panel_row(out / "icaanefig_fig2_simulated_views.png", imgs[:n], titles[:n], mpp, 4.5)
