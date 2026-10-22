@@ -378,7 +378,7 @@ def fig5(H, F, top5, out, mpp):
               marks=marks)
 
 
-def bbad_fragment(path, target_mm):
+def bbad_fragment(path, target_mm, vessel_mm=POT_MM):
     """A piece of a several-piece break of a Breaking Bad vessel, scaled so the vessel is
     the juglet's 65 mm (Breaking Bad models have no real size), choosing the piece whose
     longest side is nearest a juglet sherd's: the largest piece was nearly the whole vase
@@ -395,14 +395,15 @@ def bbad_fragment(path, target_mm):
                 parts = [obj[fr][k] for k in sorted(obj[fr].keys())]
                 allv = np.concatenate([np.asarray(p["vertices"] if "vertices" in p else p)
                                        for p in parts])
-                s = POT_MM / float(np.ptp(allv, 0).max())
+                s = vessel_mm / float(np.ptp(allv, 0).max())
                 def side(p):
                     return float(np.ptp(np.asarray(p["vertices"] if "vertices" in p else p), 0).max()) * s
                 big = min(parts, key=lambda p: abs(side(p) - target_mm))
                 v = np.asarray(big["vertices"] if "vertices" in big else big, float) * s
                 f = np.asarray(big["faces"], np.int64) if "faces" in big else None
-                print(f"Breaking Bad: {cat}/{obj.name.split('/')[-1]}/{fr}, {len(parts)} pieces; "
-                      f"piece of {side(big):.1f} mm (juglet sherd {target_mm:.1f} mm), "
+                print(f"Breaking Bad: {cat}/{obj.name.split('/')[-1]}/{fr}, {len(parts)} pieces, "
+                      f"vessel scaled to {vessel_mm:g} mm; piece of {side(big):.1f} mm "
+                      f"(real sherd {target_mm:.1f} mm), "
                       f"{len(v)} vertices, faces: {f is not None}")
                 return v, f
     sys.exit("no several-piece vessel break found in the Breaking Bad file")
@@ -465,6 +466,7 @@ def rabati_sheet(globs, out, mpp=0.15):
     print(f"-> {out / 'icaanefig_rabati_sheet.png'} (not to scale: for choosing only)")
 
 
+VESSEL_MM = 250.0  # simulated vessel size for the Rabati comparison
 BASE_MM = 190.0   # the turntable base's long side, 13 x 19 cm (MILo AGENTS.md: scale
                   # captures without SCALE.txt from the base)
 
@@ -485,19 +487,26 @@ def fig2_rabati(mesh, mm_per_unit, bbad, out, mpp, base=None):
     v = v * mm_per_unit
     side = float(np.ptp(v, 0).max())
     print(f"rabati sherd {mesh}: longest side {side:.1f} mm at {mm_per_unit} mm per unit")
-    vb, fb = bbad_fragment(bbad, side)
+    # A Rabati sherd (79 mm) is larger than the whole juglet, so the simulated vessel is
+    # scaled to a mid-sized Caucasus coarse-ware vessel (15-40 cm, CSC AGENTS.md) rather
+    # than to the juglet; the caption says so (job 33674098 picked the whole 65 mm vase).
+    vb, fb = bbad_fragment(bbad, side, vessel_mm=VESSEL_MM)
     rake = (-0.92, 0.25, 0.3)
+    views = (0, 90, 270)       # face on, then each long edge's break face turned to the viewer
     imgs, titles = [], []
     for (vv, ff), name in (((vb, fb), "simulated"), ((v, f), "Rabati sherd")):
         R0 = frame(vv)
-        for d in (0, 60, 120):
+        for d in views:
             imgs.append(render([(vv, ff)], [0.9], turn(R0, d), mpp, light=rake))
             titles.append(f"{name}, {d}°")
-    panel_row(out / "icaanefig_fig2_rabati_views.png", imgs[3:], titles[3:], mpp, 4.5)
-    panel_row(out / "icaanefig_fig2_simulated_views.png", imgs[:3], titles[:3], mpp, 4.5)
-    for k, d in enumerate((0, 60, 120)):    # candidates: simulated at 120 (agreed 2026-10-16)
-        panel_row(out / f"icaanefig_fig2_breaks_rabati{d}.png", [imgs[2], imgs[3 + k]],
-                  ["(a) simulated", "(b) real, worn (Rabati)"], mpp, 6.0)
+    n = len(views)
+    panel_row(out / "icaanefig_fig2_rabati_views.png", imgs[n:], titles[n:], mpp, 4.5)
+    panel_row(out / "icaanefig_fig2_simulated_views.png", imgs[:n], titles[:n], mpp, 4.5)
+    for a, da in enumerate(views):
+        for b, db in enumerate(views):
+            if da and db:
+                panel_row(out / f"icaanefig_fig2_breaks_s{da}_r{db}.png", [imgs[a], imgs[n + b]],
+                          ["(a) simulated", "(b) real, worn (Rabati)"], mpp, 6.0)
 
 
 def main():
