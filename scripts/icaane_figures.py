@@ -465,8 +465,22 @@ def rabati_sheet(globs, out, mpp=0.15):
     print(f"-> {out / 'icaanefig_rabati_sheet.png'} (not to scale: for choosing only)")
 
 
-def fig2_rabati(mesh, mm_per_unit, bbad, out, mpp):
-    """Fig 2 with a Rabati sherd's break in place of the juglet's, both at one scale."""
+BASE_MM = 190.0   # the turntable base's long side, 13 x 19 cm (MILo AGENTS.md: scale
+                  # captures without SCALE.txt from the base)
+
+
+def fig2_rabati(mesh, mm_per_unit, bbad, out, mpp, base=None):
+    """Fig 2 with a Rabati sherd's break in place of the juglet's, both at one scale. With
+    base (the 13 x 19 cm turntable base, split out of the same model) the scale is read
+    from the base's long side instead of mm_per_unit."""
+    if base is not None:
+        vb0, _ = load_any_mesh(base)
+        ext = np.sort(np.ptp((vb0 - vb0.mean(0)) @ np.linalg.svd(vb0 - vb0.mean(0), full_matrices=False)[2].T, 0))
+        mm_per_unit = BASE_MM / ext[-1]
+        print(f"base {base}: sides {ext[-1]:.4f} x {ext[-2]:.4f} units (ratio {ext[-2] / ext[-1]:.3f}, "
+              f"13/19 = {13 / 19:.3f}) -> {mm_per_unit:.2f} mm per unit")
+        if abs(ext[-2] / ext[-1] - 13 / 19) > 0.05:
+            sys.exit("CHECK FAILED: the base's sides are not in the 13:19 ratio; not the base")
     v, f = load_any_mesh(mesh)
     v = v * mm_per_unit
     side = float(np.ptp(v, 0).max())
@@ -481,6 +495,9 @@ def fig2_rabati(mesh, mm_per_unit, bbad, out, mpp):
             titles.append(f"{name}, {d}°")
     panel_row(out / "icaanefig_fig2_rabati_views.png", imgs[3:], titles[3:], mpp, 4.5)
     panel_row(out / "icaanefig_fig2_simulated_views.png", imgs[:3], titles[:3], mpp, 4.5)
+    for k, d in enumerate((0, 60, 120)):    # candidates: simulated at 120 (agreed 2026-10-16)
+        panel_row(out / f"icaanefig_fig2_breaks_rabati{d}.png", [imgs[2], imgs[3 + k]],
+                  ["(a) simulated", "(b) real, worn (Rabati)"], mpp, 6.0)
 
 
 def main():
@@ -497,6 +514,7 @@ def main():
                     help="Rabati per-sherd meshes for the contact sheet (only 'r')")
     ap.add_argument("--rabati-mesh", type=Path, help="the chosen Rabati sherd (only 'R')")
     ap.add_argument("--rabati-mm-per-unit", type=float, default=1.0)
+    ap.add_argument("--rabati-base", type=Path, help="the turntable base mesh, to read the scale from")
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     H = load_reference(a.hdf5, a.object)
@@ -513,7 +531,7 @@ def main():
     if "r" in a.only:
         rabati_sheet(a.rabati_glob, a.out)
     if "R" in a.only and a.rabati_mesh:
-        fig2_rabati(a.rabati_mesh, a.rabati_mm_per_unit, a.bbad, a.out, 0.04)
+        fig2_rabati(a.rabati_mesh, a.rabati_mm_per_unit, a.bbad, a.out, 0.08, a.rabati_base)
     return 0
 
 

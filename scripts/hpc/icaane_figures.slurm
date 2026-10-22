@@ -32,5 +32,6 @@ python scripts/icaane_figures.py --bundles "$U/juglet_32107634/bundles" \
     --only "${ONLY:-345r}" \
     --rabati-glob "$RB/03072025/N01/work_colmap_openmvs/**/sherd_*.ply" \
                   "$RB/17062025/A02/work_colmap_openmvs/**/sherd_*.ply" \
-    ${RABATI_MESH:+--rabati-mesh "$RABATI_MESH" --rabati-mm-per-unit "${RABATI_MM_PER_UNIT:-1}"}
+    ${RABATI_MESH:+--rabati-mesh "$RABATI_MESH" --rabati-mm-per-unit "${RABATI_MM_PER_UNIT:-1}"} \
+    ${RABATI_BASE:+--rabati-base "$RABATI_BASE"}
 ls -la "$O"
