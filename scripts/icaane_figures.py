@@ -378,35 +378,57 @@ def fig5(H, F, top5, out, mpp):
               marks=marks)
 
 
-def bbad_fragment(path, target_mm, vessel_mm=POT_MM):
+def bbad_fragment(path, target_mm, vessel_mm=POT_MM, thin=False, n_obj=30):
     """A piece of a several-piece break of a Breaking Bad vessel, scaled so the vessel is
-    the juglet's 65 mm (Breaking Bad models have no real size), choosing the piece whose
-    longest side is nearest a juglet sherd's: the largest piece was nearly the whole vase
-    (job 33141486), which shows no break face."""
+    vessel_mm (Breaking Bad models have no real size), choosing the piece whose longest side
+    is nearest the real sherd's: the largest piece was nearly the whole vase (job 33141486),
+    which shows no break face. With thin (the conservator, 2026-10-22: "pick a thin sherd"),
+    the search runs over up to n_obj vessels per category and takes the piece that is thinnest
+    for its size: smallest ratio of its least to its greatest extent along its own principal
+    axes (the most wall-like), plus half its relative size difference from the real sherd."""
     import h5py
     h = h5py.File(path, "r")
     root = h["everyday"] if "everyday" in h else h
+
+    def verts(p):
+        return np.asarray(p["vertices"] if "vertices" in p else p, float)
+
+    def extents(v):
+        c = v - v.mean(0)
+        return np.sort(np.ptp(c @ np.linalg.svd(c, full_matrices=False)[2].T, 0))
+
+    best = None
     for cat in ("Vase", "Bottle", "Mug", "Cup", "Bowl"):
         if cat not in root:
             continue
-        obj = root[cat][sorted(root[cat].keys())[0]]
-        for fr in sorted(obj.keys()):
-            if len(obj[fr].keys()) >= 6:
+        for name in sorted(root[cat].keys())[: (n_obj if thin else 1)]:
+            obj = root[cat][name]
+            for fr in sorted(obj.keys()):
                 parts = [obj[fr][k] for k in sorted(obj[fr].keys())]
-                allv = np.concatenate([np.asarray(p["vertices"] if "vertices" in p else p)
-                                       for p in parts])
-                s = vessel_mm / float(np.ptp(allv, 0).max())
-                def side(p):
-                    return float(np.ptp(np.asarray(p["vertices"] if "vertices" in p else p), 0).max()) * s
-                big = min(parts, key=lambda p: abs(side(p) - target_mm))
-                v = np.asarray(big["vertices"] if "vertices" in big else big, float) * s
-                f = np.asarray(big["faces"], np.int64) if "faces" in big else None
-                print(f"Breaking Bad: {cat}/{obj.name.split('/')[-1]}/{fr}, {len(parts)} pieces, "
-                      f"vessel scaled to {vessel_mm:g} mm; piece of {side(big):.1f} mm "
-                      f"(real sherd {target_mm:.1f} mm), "
-                      f"{len(v)} vertices, faces: {f is not None}")
-                return v, f
-    sys.exit("no several-piece vessel break found in the Breaking Bad file")
+                if len(parts) < 6 or any("faces" not in p for p in parts if hasattr(p, "keys")):
+                    continue
+                s = vessel_mm / float(np.ptp(np.concatenate([verts(p) for p in parts]), 0).max())
+                for p in parts:
+                    e = extents(verts(p) * s)
+                    gap = abs(e[-1] - target_mm) / target_mm
+                    score = (e[0] / e[-1] + 0.5 * gap) if thin else abs(e[-1] - target_mm)
+                    if best is None or score < best[0]:
+                        best = (score, cat, name, fr, len(parts), p, s, e)
+                if not thin:
+                    break
+            if best is not None and not thin:
+                break
+        if best is not None and not thin:
+            break
+    if best is None:
+        sys.exit("no several-piece vessel break found in the Breaking Bad file")
+    _, cat, name, fr, n, p, s, e = best
+    v = verts(p) * s
+    f = np.asarray(p["faces"], np.int64) if "faces" in p else None
+    print(f"Breaking Bad: {cat}/{name}/{fr}, {n} pieces, vessel scaled to {vessel_mm:g} mm; "
+          f"piece {e[-1]:.1f} x {e[1]:.1f} x {e[0]:.1f} mm (thinness {e[0] / e[-1]:.2f}; "
+          f"real sherd {target_mm:.1f} mm), {len(v)} vertices, faces: {f is not None}")
+    return v, f
 
 
 def fig2(V, F, bbad, out, mpp):
@@ -490,7 +512,7 @@ def fig2_rabati(mesh, mm_per_unit, bbad, out, mpp, base=None):
     # A Rabati sherd (79 mm) is larger than the whole juglet, so the simulated vessel is
     # scaled to a mid-sized Caucasus coarse-ware vessel (15-40 cm, CSC AGENTS.md) rather
     # than to the juglet; the caption says so (job 33674098 picked the whole 65 mm vase).
-    vb, fb = bbad_fragment(bbad, side, vessel_mm=VESSEL_MM)
+    vb, fb = bbad_fragment(bbad, side, vessel_mm=VESSEL_MM, thin=True)
     rake = (-0.92, 0.25, 0.3)
     views = (0, 90, 270)       # face on, then each long edge's break face turned to the viewer
     imgs, titles = [], []
