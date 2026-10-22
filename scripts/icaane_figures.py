@@ -385,7 +385,7 @@ def fig5(H, F, top5, out, mpp):
               marks=marks)
 
 
-def bbad_fragment(path, target_mm, vessel_mm=POT_MM, thin=False, n_obj=30):
+def bbad_fragment(path, target_mm, vessel_mm=POT_MM, thin=False, n_obj=60):
     """A piece of a several-piece break of a Breaking Bad vessel, scaled so the vessel is
     vessel_mm (Breaking Bad models have no real size), choosing the piece whose longest side
     is nearest the real sherd's: the largest piece was nearly the whole vase (job 33141486),
@@ -428,10 +428,11 @@ def bbad_fragment(path, target_mm, vessel_mm=POT_MM, thin=False, n_obj=30):
                     e = extents(verts(p) * s)
                     gap = abs(e[-1] - target_mm) / target_mm
                     if thin:
-                        if "faces" not in p or e[0] / e[-1] < 0.09:
-                            continue          # flat, or no surface to measure
+                        if "faces" not in p or not 0.09 <= e[0] / e[-1] <= 0.3:
+                            continue          # flat slab, a collar wrapping the vessel, or no surface
                         th = wall(verts(p) * s, np.asarray(p["faces"], np.int64))
-                        score = th / e[-1] + 0.5 * gap + (0 if len(verts(p)) >= 1000 else 1)
+                        # a sherd-like piece: wall near the Rabati sherd's, size near it too
+                        score = abs(th - WALL_MM) / WALL_MM + 0.5 * gap + (0 if len(verts(p)) >= 1000 else 1)
                     else:
                         score = abs(e[-1] - target_mm)
                     if best is None or score < best[0]:
@@ -511,6 +512,7 @@ def rabati_sheet(globs, out, mpp=0.15):
     print(f"-> {out / 'icaanefig_rabati_sheet.png'} (not to scale: for choosing only)")
 
 
+WALL_MM = 7.2      # the A02 Rabati sherd's wall (7.16 mm, four routes), for a like piece
 VESSEL_MM = 250.0  # simulated vessel size for the Rabati comparison
 BASE_MM = 190.0   # the turntable base's long side, 13 x 19 cm (MILo AGENTS.md: scale
                   # captures without SCALE.txt from the base)
