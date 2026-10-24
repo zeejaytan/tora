@@ -27,6 +27,8 @@ git push origin HEAD
 ./scripts/remote/fetch_artifacts.sh some/remote/path ./artifacts/
 ```
 
+Workbench layout, and the harvest-then-delete procedure that goes with it: `C:\PR\docs\agents\workspace-hygiene.md`. Deletion follows `C:\PR\AGENTS.md` rule 13. Canonical checkout `/data/gpfs/projects/punim2657/TORA/repo`, working area `/data/gpfs/projects/punim2657/TORA/`; `runs/` + `attic/` not yet set up.
+
 ## Domain / debugging
 
 TORA is a 3D fracture assembly method (evaluated zero-shot on fractura/juglet/thinwalled sets here). `tora.eval.spatial` is referenced by training-time probing callbacks but absent upstream — its re-exports are disabled in `tora/eval/__init__.py`; do not "fix" imports by re-adding them. Analysis notes live in `docs/notes/`.
