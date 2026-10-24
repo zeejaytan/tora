@@ -27,7 +27,7 @@ git push origin HEAD
 ./scripts/remote/fetch_artifacts.sh some/remote/path ./artifacts/
 ```
 
-Workbench layout, and the harvest-then-delete procedure that goes with it: `C:\PR\docs\agents\workspace-hygiene.md`. Deletion follows `C:\PR\AGENTS.md` rule 13. Canonical checkout `/data/gpfs/projects/punim2657/TORA/repo`, working area `/data/gpfs/projects/punim2657/TORA/`; `runs/` + `attic/` not yet set up.
+Workbench layout, and the harvest-then-delete procedure that goes with it: `../docs/agents/workspace-hygiene.md`. Deletion follows `../AGENTS.md` rule 13. Canonical checkout `/data/gpfs/projects/punim2657/TORA/repo`, working area `/data/gpfs/projects/punim2657/TORA/`; `runs/` + `attic/` not yet set up.
 
 ## Domain / debugging
 
