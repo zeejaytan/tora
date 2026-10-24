@@ -17,7 +17,16 @@ Default branch is **`master`**. Heavy data on Spartan only: checkpoints, `datase
 
 **Write rules:** new analysis/code → `scripts/`; versioned Slurm → `scripts/hpc/`; method notes → `docs/notes/`; fetched samples → `artifacts/` (not source); HPC paths → `CLAUDE.local.md`. Do not add files at the TORA root.
 
-**Slurm scripts:** the versioned copies live in `scripts/hpc/`; the *operational* copies live untracked in the outer `TORA/` folder on Spartan and are sbatch'd from there (their log/output paths assume that). When editing a job script, edit `scripts/hpc/` here, push, and update the outer copy on Spartan to match — or switch to sbatching the repo copy.
+**Slurm scripts live in `scripts/hpc/` and are submitted from there**, in the canonical
+checkout (`./scripts/remote/pull_and_sbatch.sh scripts/hpc/<job>.slurm`), or through the
+workspace's `new_run.sh` for a recorded run. There are no operational copies: the untracked
+ones that used to sit in the outer `TORA/` folder (40: 21 identical to these, none different,
+19 one-off wrappers with no twin) were archived in `TORA/attic/outer-job-scripts-20261024/`
+and removed (ticket
+`.scratch/workbench-hygiene/issues/01-submit-from-the-repo.md`, 2026-10-24). Every script
+writes its Slurm log to an absolute path, so the directory it is submitted from does not
+matter; `python scripts/check_hpc_paths.py` fails any that does not. Do not put a job
+script in the outer folder again: two copies drift.
 
 Typical loop:
 
@@ -27,7 +36,7 @@ git push origin HEAD
 ./scripts/remote/fetch_artifacts.sh some/remote/path ./artifacts/
 ```
 
-Workbench layout, and the harvest-then-delete procedure that goes with it: `../docs/agents/workspace-hygiene.md`. Deletion follows `../AGENTS.md` rule 13. Canonical checkout `/data/gpfs/projects/punim2657/TORA/repo`, working area `/data/gpfs/projects/punim2657/TORA/`; `runs/` + `attic/` not yet set up.
+Workbench layout, and the harvest-then-delete procedure that goes with it: `../docs/agents/workspace-hygiene.md`. Deletion follows `../AGENTS.md` rule 13. Canonical checkout `/data/gpfs/projects/punim2657/TORA/repo`, working area `/data/gpfs/projects/punim2657/TORA/`; `runs/index.tsv` and `attic/` started 2026-10-24 (first entry: the outer job scripts).
 
 ## Domain / debugging
 
