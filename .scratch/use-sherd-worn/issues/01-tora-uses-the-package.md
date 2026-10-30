@@ -49,3 +49,24 @@ verified: `tail logs/tora-sw05equiv-34061924.out` -> ModuleNotFoundError numpy a
 verified: login-node import probe with the run's pydeps and no PYTHONNOUSERSITE -> sherd_worn 0.1.0, numpy 2.2.6 from ~/.local; master arm `_proud_height` from wear_ops, switched arm from sherd_worn.wear; rtree absent. Read, not run: trimesh proximity.py:52 `mesh.triangles_tree`, util.py:1742 `import rtree`.
 
 **Pin stays at v0.1.0 for now; moving to v0.1.1 is a follow-up (coordinator, relay of 2026-10-30, 13:04Z).** The sw05 run tests v0.1.0. sherd-worn v0.1.1 adds the rtree warning and declares rtree, and changes no output. Moving the pin is a separate change after this ticket; with `--no-deps` in `install.sh` it would still not bring rtree into TORA's env, and that install stays the conservator's decision.
+
+**The run, job 34062629, 2026-10-30 (Claude on Thinkbook16).** Run `TORA/runs/20261030-2330_78ed667_sw05equiv`, FAILED 1:0 at 2:05:30 by the job's own test: fine-scan and v3 passed; worn and rough each failed on the same two items, the train and val name lists. Those lists hold the same names in a different order (train 698, val 187, in both parts). The writer lists names in whichever order the workers finish, and this run has no master-against-master control. So the measurement was too strict for that one list: nothing here says the package changes the output. Weight: one run of each part, on the whole corpus.
+
+verified: lead accepted sw05 (job 34062629) — v3 and fine-scan pass; worn/rough identical in all 17,982 arrays, attributes and manifest; only train/val name order differs, from imap_unordered at write_u10_worn.py:322 (coordinator, relay of 2026-10-30, 14:49Z; line 322 is master, line 217 on this branch).
+verified: `compare_worn.json`, `compare_rough.json` -> `n_differences` 2 each, both `values: data_split/<dataset>/train` and `/val`; 28303 names, 17982 arrays each. `compare_v3.json` -> identical, same sha256. `compare_hdf5_arrays.py:52-55,99-100` compares attributes and manifests.
+verified: h5py read of all four files -> worn and rough, train and val: same set true, same order false.
+
+The order is not fully harmless: the loader keeps the list as written (`tora/data/dataset.py:247`), so a seeded shuffle draws a different sequence from two builds of one dataset. That comes from the writer, not the package, and master now sorts the names in its own commit. Files already built are unchanged.
+
+**Geometry to remove, as the record (geometry dies with the ticket).** The worn and rough arms stayed because the job deletes them only after a pass. The coordinator has Spartan remove the four `.hdf5` with this list in hand; nothing is deleted from the laptop. The two `compare_*.json` keep the comparison, and the manifests beside these files are small records, not geometry, so they stay. All under `TORA/runs/20261030-2330_78ed667_sw05equiv/out/`:
+
+| File | Bytes | sha256 |
+|---|---|---|
+| `worn_master/u10_worn_d200.hdf5` | 2547260744 | `5197cfe262f909867be0ea532a5c52ccd9f91fc61e822742172f8b657557693e` |
+| `worn_switched/u10_worn_d200.hdf5` | 2547262720 | `34e75045bb5ae9d09da8e0240bbeee161982ad44b8de340be88fd759c4713206` |
+| `rough_master/u10_noise_d200.hdf5` | 2547261616 | `ea5bf6fa1ca9e2fdf9a8f166e330807b2d6756931b3e66d347692f1ced1bb780` |
+| `rough_switched/u10_noise_d200.hdf5` | 2547262488 | `347011d89e9c88e45c99bd4cac28bc20d05a39099a7ac3cc00a0bf5294f0d1f2` |
+
+verified: `ls -l` of the four arm folders -> the byte counts above; the hashes are `sha256_a`/`sha256_b` in the two compare files, taken when the job compared them.
+
+The merge waits for the coordinator's word that sherd-worn v0.1.0 is installed in the TORA env.
