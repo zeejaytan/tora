@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import numpy as np
 import trimesh
+from sherd_worn.fracture import (
+    erode_fracture_band,
+)
 
 
 def vertex_max_dihedral(mesh: trimesh.Trimesh) -> np.ndarray:
@@ -101,89 +104,6 @@ def erode_fracture_rim(
     w = np.clip(strength, 0.0, 1.0)
     out[mask] = (1.0 - w) * mesh.vertices[mask] + w * smooth.vertices[mask]
     return out.astype(np.float64), faces
-
-
-def erode_fracture_band(
-    pieces: list[tuple[np.ndarray, np.ndarray]],
-    strength: float,
-    *,
-    band_tau_frac: float = 0.02,
-    feather_mult: float = 3.0,
-    kernel_frac_max: float = 0.05,
-    n_self_samples: int = 20000,
-    n_other_samples: int = 20000,
-    knn: int = 48,
-    seed: int = 0,
-) -> list[np.ndarray]:
-    """Archaeological-wear simulation on the TRUE fracture band of an assembled object.
-
-    ``pieces`` are (verts, faces) in the ASSEMBLED (GT) pose. The fracture
-    surface of each piece is identified physically: vertices within
-    ``band_tau_frac`` * object_scale of any OTHER piece's surface (the mating
-    contact band), feathered out to ``feather_mult`` * tau. Those vertices are
-    mollified — replaced by a Gaussian-weighted average of surface samples
-    within a FIXED PHYSICAL radius ``strength * kernel_frac_max * piece_scale``
-    — which removes fine fracture relief and rounds rim creases at a
-    resolution-independent physical wear scale, exactly what centuries of
-    abrasion do. In-place vertex edit only: faces and GT pose are preserved,
-    so benchmark metrics stay valid.
-
-    Returns the list of eroded vertex arrays (faces unchanged).
-
-    Rationale: Taubin/Laplacian smoothing diffuses at a mesh-resolution-
-    dependent rate (~edge_len * sqrt(iters)), which is why it barely moves the
-    relief_p90 statistic on ~1e6-face Fractura scans. Mollification over a
-    physical radius is resolution-independent by construction.
-    """
-    if strength <= 0:
-        return [np.asarray(v, dtype=np.float64) for v, _ in pieces]
-    from scipy.spatial import cKDTree
-
-    rng = np.random.default_rng(seed)
-    meshes = [
-        trimesh.Trimesh(vertices=np.asarray(v, np.float64), faces=np.asarray(f, np.int64), process=False)
-        for v, f in pieces
-    ]
-    allv = np.concatenate([m.vertices for m in meshes], axis=0)
-    obj_scale = float(np.linalg.norm(allv.max(0) - allv.min(0)))
-    tau = band_tau_frac * obj_scale
-
-    # Surface samples per piece (fixed count -> resolution-independent kernels).
-    samples = []
-    for m in meshes:
-        pts, _ = trimesh.sample.sample_surface(m, n_other_samples, seed=int(rng.integers(2**31)))
-        samples.append(np.asarray(pts, dtype=np.float64))
-
-    out = []
-    for i, m in enumerate(meshes):
-        verts = np.asarray(m.vertices, dtype=np.float64)
-        others = np.concatenate([samples[j] for j in range(len(meshes)) if j != i], axis=0)
-        d_other, _ = cKDTree(others).query(verts)
-        # Fracture-band weight: 1 inside tau, feathered to 0 at feather_mult*tau.
-        w = np.clip((feather_mult * tau - d_other) / ((feather_mult - 1.0) * tau), 0.0, 1.0)
-        band = w > 0
-        if not band.any():
-            out.append(verts)
-            continue
-        piece_scale = float(max(m.extents))
-        r = strength * kernel_frac_max * piece_scale
-        self_pts, _ = trimesh.sample.sample_surface(m, n_self_samples, seed=int(rng.integers(2**31)))
-        self_pts = np.asarray(self_pts, dtype=np.float64)
-        dist, idx = cKDTree(self_pts).query(verts[band], k=knn, distance_upper_bound=r)
-        valid = np.isfinite(dist)
-        sigma = 0.5 * r
-        gw = np.where(valid, np.exp(-0.5 * (dist / sigma) ** 2), 0.0)
-        gw_sum = gw.sum(axis=1, keepdims=True)
-        ok = gw_sum[:, 0] > 1e-12
-        idx_safe = np.where(valid, idx, 0)
-        target = np.einsum("nk,nkd->nd", gw, self_pts[idx_safe]) / np.maximum(gw_sum, 1e-12)
-        new_band = verts[band].copy()
-        blend = (strength * w[band])[:, None]
-        new_band[ok] = (1.0 - blend[ok]) * verts[band][ok] + blend[ok] * target[ok]
-        new_v = verts.copy()
-        new_v[band] = new_band
-        out.append(new_v)
-    return out
 
 
 def sharpen_fracture_band_solo(

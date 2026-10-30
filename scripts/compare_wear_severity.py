@@ -41,6 +41,9 @@ from pathlib import Path
 import h5py
 import numpy as np
 from scipy.spatial import cKDTree
+from sherd_worn.severity import (
+    coincident_frac,
+)
 
 
 def load_parts(grp):
@@ -67,29 +70,6 @@ def joint_gap(parts, max_pts=40000, seed=0):
                 d, _ = t.query(s, workers=-1)
                 best = np.minimum(best, d)
         out.append(float(np.percentile(best, 10)))
-    return float(np.mean(out))
-
-
-def coincident_frac(parts, max_pts=40000, seed=0, tol=1e-9):
-    """Fraction of each piece's vertices lying EXACTLY on another piece.
-
-    Fragments cut from a single mesh share their mating vertices, so this is
-    roughly the contact band. Fragments from separate real scans never do, so
-    this is 0 and the join carries genuine slop. It is the cleanest single
-    number for "was this break simulated by cutting, or observed".
-    """
-    rng = np.random.default_rng(seed)
-    subs = [v if len(v) <= max_pts else v[rng.choice(len(v), max_pts, replace=False)]
-            for v in parts]
-    trees = [cKDTree(s) for s in subs]
-    out = []
-    for i, s in enumerate(subs):
-        best = np.full(len(s), np.inf)
-        for j, t in enumerate(trees):
-            if i != j:
-                d, _ = t.query(s, workers=-1)
-                best = np.minimum(best, d)
-        out.append(float(np.mean(best <= tol)))
     return float(np.mean(out))
 
 

@@ -59,82 +59,19 @@ from scipy.spatial import cKDTree
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wear_ops import recede_and_chip  # noqa: E402
 from compare_wear_severity import coincident_frac  # noqa: E402
+from sherd_worn.labelled import (  # noqa: E402
+    diag,
+    point_triangle,
+    surface_dist,
+    contact_gap,
+    recede_break,
+    band_rms,
+    jitter,
+)
 
 # wear v3's two trainable levels, verbatim (build_bbad_vessel_trainset.py, WEAR_LEVELS)
 LEVELS = [("light", 0.0015, 2, 0.0022), ("moderate", 0.0030, 3, 0.0025)]
 SOURCES = ("u10_generic", "u10_ceiling")
-
-
-def diag(pieces):
-    allv = np.concatenate([v for v, _ in pieces], axis=0)
-    return float(np.linalg.norm(allv.max(0) - allv.min(0))) + 1e-12
-
-
-def point_triangle(p, a, b, c):
-    """Distance from points p to triangles (a, b, c), row-wise (Ericson, RTCD 5.1.5)."""
-    ab, ac, ap = b - a, c - a, p - a
-    d1, d2 = (ab * ap).sum(-1), (ac * ap).sum(-1)
-    bp = p - b
-    d3, d4 = (ab * bp).sum(-1), (ac * bp).sum(-1)
-    cp = p - c
-    d5, d6 = (ab * cp).sum(-1), (ac * cp).sum(-1)
-    va, vb, vc = d3 * d6 - d5 * d4, d5 * d2 - d1 * d6, d1 * d4 - d3 * d2
-    den = va + vb + vc
-    den = np.where(np.abs(den) < 1e-30, 1e-30, den)
-    v, w = vb / den, vc / den
-    q = a + ab * v[..., None] + ac * w[..., None]  # interior
-    t_ab = d1 / np.where(np.abs(d1 - d3) < 1e-30, 1e-30, d1 - d3)
-    t_ac = d2 / np.where(np.abs(d2 - d6) < 1e-30, 1e-30, d2 - d6)
-    e = (d4 - d3) + (d5 - d6)
-    t_bc = (d4 - d3) / np.where(np.abs(e) < 1e-30, 1e-30, e)
-    cases = [  # later rows override earlier ones, so regions go from widest to vertex
-        ((va <= 0) & (d4 - d3 >= 0) & (d5 - d6 >= 0), b + (c - b) * t_bc[..., None]),
-        ((vb <= 0) & (d2 >= 0) & (d6 <= 0), a + ac * t_ac[..., None]),
-        ((d6 >= 0) & (d5 <= d6), c),
-        ((vc <= 0) & (d1 >= 0) & (d3 <= 0), a + ab * t_ab[..., None]),
-        ((d3 >= 0) & (d4 <= d3), b), ((d1 <= 0) & (d2 <= 0), a)]
-    for m, r in cases:
-        q = np.where(m[..., None], r, q)
-    return np.linalg.norm(p - q, axis=-1)
-
-
-def surface_dist(pts, v, f, tree, k=4):
-    """Point-to-surface distance to mesh (v, f): exact over the faces round the k nearest
-    vertices. Vertex-to-vertex distance is not used because it carries mesh density."""
-    order = np.argsort(f.ravel(), kind="stable")
-    owner = order // 3
-    start = np.searchsorted(f.ravel()[order], np.arange(len(v) + 1))
-    width = int(np.diff(start).max())
-    adj = np.full((len(v), width), -1)
-    for r in range(width):
-        has = start[:-1] + r < start[1:]
-        adj[has, r] = owner[start[:-1][has] + r]
-    _, nv = tree.query(pts, k=k, workers=1)
-    cand = adj[nv].reshape(len(pts), -1)  # (n, k*width), -1 padded
-    ok = cand >= 0
-    fc = f[np.where(ok, cand, 0)]
-    d = point_triangle(pts[:, None], v[fc[..., 0]], v[fc[..., 1]], v[fc[..., 2]])
-    return np.where(ok, d, np.inf).min(axis=1)
-
-
-def contact_gap(pieces, cut_frac):
-    """p10/p50/p90 (% of diagonal) of vertex-to-other-sherd SURFACE distance, within the cut."""
-    D = diag(pieces)
-    trees = [cKDTree(v) for v, _ in pieces]
-    ds = []
-    for i, (v, _) in enumerate(pieces):
-        best = np.full(len(v), np.inf)
-        for j, (t, (vj, fj)) in enumerate(zip(trees, pieces)):
-            if i == j:
-                continue
-            near = t.query(v, workers=1)[0] <= 2 * cut_frac * D  # surface <= vertex dist
-            if near.any():
-                best[near] = np.minimum(best[near], surface_dist(v[near], vj, fj, t))
-        ds.append(best[best <= cut_frac * D])
-    d = np.concatenate(ds) / D * 100.0
-    if not len(d):
-        return None
-    return [round(float(x), 4) for x in np.percentile(d, [10, 50, 90])] + [int(len(d))]
 
 
 def break_gap(pieces, vflags):
@@ -165,48 +102,6 @@ def load_flags(npz, k, pieces):
         fflags.append(fb)
         vflags.append(vb)
     return fflags, vflags
-
-
-def recede_break(pieces, fflags, vflags, dose, k=16):
-    """Move break-face vertices back along the break face's smoothed normal by dose * D."""
-    D = diag(pieces)
-    out = []
-    for (v, f), bf, bv in zip(pieces, fflags, vflags):
-        tri = v[f]
-        fn = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])  # area-weighted
-        vol = float(np.einsum("ij,ij->i", tri[:, 0], np.cross(tri[:, 1], tri[:, 2])).sum())
-        sign = 1.0 if vol > 0 else -1.0  # outward for a positively wound closed mesh
-        vn = np.zeros_like(v)
-        for c in range(3):
-            np.add.at(vn, f[bf, c], fn[bf])
-        idx = np.where(bv & (np.linalg.norm(vn, axis=1) > 0))[0]
-        n = vn[idx] / np.linalg.norm(vn[idx], axis=1, keepdims=True)
-        if len(idx) > k:  # smooth the direction field over the break face
-            _, nb = cKDTree(v[idx]).query(v[idx], k=k)
-            n = n[nb].mean(axis=1)
-            n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-15
-        w = v.copy()
-        w[idx] -= sign * n * dose * D
-        out.append((w, f.copy()))
-    return out
-
-
-def band_rms(fresh, out, vflags):
-    sq, n = 0.0, 0
-    for (v0, _), (v1, _), b in zip(fresh, out, vflags):
-        if len(v0) != len(v1):
-            raise RuntimeError("vertex count changed; dish chipping should preserve it")
-        sq += float(((v1[b] - v0[b]) ** 2).sum())
-        n += int(b.sum())
-    return (sq / max(n, 1)) ** 0.5
-
-
-def jitter(fresh, vflags, target_rms, rng):
-    raw = [rng.standard_normal(v.shape) * b[:, None] for (v, _), b in zip(fresh, vflags)]
-    sq = sum(float((r[b] ** 2).sum()) for r, b in zip(raw, vflags))
-    n = sum(int(b.sum()) for b in vflags)
-    k = target_rms / max((sq / max(n, 1)) ** 0.5, 1e-15)
-    return [(v + k * r, f.copy()) for (v, f), r in zip(fresh, raw)]
 
 
 def work(job):

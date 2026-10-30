@@ -15,10 +15,17 @@ Slurm job show what the switch changes. Do not merge until that run has passed a
 decision and the plan. TORA and the package must not drift apart as two copies, and the conservator chose to take
 the skin-spike fix in `_proud_height`.
 
-- [ ] `git diff 1db3453 origin/master` is empty for the four modules before the edit
-- [ ] 26 copied functions become one import block per module; every other def byte-identical
-- [ ] `sherd-worn` pinned to v0.1.0 where TORA lists dependencies
+- [x] `git diff 1db3453 origin/master` is empty for the four modules before the edit
+- [x] 26 copied functions become one import block per module; every other def byte-identical
+- [x] `sherd-worn` pinned to v0.1.0 where TORA lists dependencies
 - [ ] Equivalence job written: worn, rough and v3 smoke identical array by array; fine-scan on 3 objects with "neither" = 0
 - [ ] Job passed and reviewed by the coordinator; only then merged
 
 ## Comments
+
+**Module edit, 2026-10-30, Claude on Thinkbook16, by hand, not DeepSeek.**
+
+verified: `git diff --quiet 1db3453 origin/master` on the four modules -> no difference, before the edit.
+verified: scratchpad shimcheck.py (ast against origin/master) -> kept defs identical 6+6+8+6 = 26, other top-level statements identical, and all 26 removed names `is` the package object; `wear_ops.erode_fracture_band` is the package object through its unchanged line from `fracture_mesh_ops`.
+
+`scripts/check_mesh_integrity.py` and `scripts/check_wall_estimator_noise.py` import these modules, so after the merge they need the package wherever they run.
