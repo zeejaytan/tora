@@ -7,7 +7,9 @@ Slurm job show what the switch changes. Do not merge until that run has passed a
 
 **Answers:** none
 **Blocked by:** None - can start immediately
-**Status:** ready-for-agent
+**Status:** in-progress
+**Working in:** laptop chat, Remote Control (2026-10-30) (2026-10-30)
+**Branch:** 01-tora-uses-the-package, in /c/PR/worktrees/tora/01
 
 **Why:** sherd-worn ticket 05 (`sherd-worn/.scratch/release/issues/05-tora-csc-use-the-package.md`) holds the
 decision and the plan. TORA and the package must not drift apart as two copies, and the conservator chose to take
