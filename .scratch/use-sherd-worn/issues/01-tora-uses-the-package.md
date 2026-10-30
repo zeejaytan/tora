@@ -7,8 +7,8 @@ Slurm job show what the switch changes. Do not merge until that run has passed a
 
 **Answers:** none
 **Blocked by:** None - can start immediately
-**Status:** in-progress
-**Working in:** laptop chat, Remote Control (2026-10-30) (2026-10-30)
+**Status:** resolved
+**Working in:** nothing
 **Branch:** 01-tora-uses-the-package, in /c/PR/worktrees/tora/01
 
 **Why:** sherd-worn ticket 05 (`sherd-worn/.scratch/release/issues/05-tora-csc-use-the-package.md`) holds the
@@ -19,7 +19,7 @@ the skin-spike fix in `_proud_height`.
 - [x] 26 copied functions become one import block per module; every other def byte-identical
 - [x] `sherd-worn` pinned to v0.1.0 where TORA lists dependencies
 - [x] Equivalence job written: worn, rough and v3 smoke identical array by array; fine-scan on 3 objects with "neither" = 0 (see the arm D note below)
-- [ ] Job passed and reviewed by the coordinator; only then merged
+- [x] Job passed and reviewed by the coordinator; only then merged (accepted on name order, see the run below)
 
 ## Comments
 
@@ -69,4 +69,12 @@ The order is not fully harmless: the loader keeps the list as written (`tora/dat
 
 verified: `ls -l` of the four arm folders -> the byte counts above; the hashes are `sha256_a`/`sha256_b` in the two compare files, taken when the job compared them.
 
-The merge waits for the coordinator's word that sherd-worn v0.1.0 is installed in the TORA env.
+**Env install and merge.** sherd-worn v0.1.0 went into the TORA env on Spartan on 2026-10-30, about 14:50Z (card approval at 12:23Z), and the coordinator gave the word to merge at 14:54Z. The install has two consequences:
+
+- numpy still comes from `~/.local`, so any TORA job that sets `PYTHONNOUSERSITE=1` would fail.
+- rtree is absent, so TORA keeps its no-rtree chips, as before.
+
+verified: `envs/tora/bin/python` on Spartan -> sherd_worn 0.1.0 from `envs/tora/lib/python3.10/site-packages/sherd_worn/__init__.py`, numpy 2.2.6 from `/home/zhuojiat/.local/lib/python3.10/site-packages/numpy/__init__.py`, `import rtree` -> ModuleNotFoundError.
+verified: `fine_scan_summary.json` -> passed true, 0 failures, package 0.1.0; `times.tsv` -> fine-scan and all six arms exit 0. The coordinator looked at the blue_pot A-C picture: a 0.98 R move at a blunted vertex, the expected 07/07b effect.
+
+The merge is TORA's code only. The CSC check is still open in sherd-worn ticket 05.
