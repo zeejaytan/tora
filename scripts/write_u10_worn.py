@@ -357,7 +357,7 @@ def main():
                               for v in res["variants"]), flush=True)
         sg = fo.create_group("data_split").create_group(ds)
         for sp, mem in members.items():
-            sg.create_dataset(sp, dtype=vlen, data=np.array([m.encode() for m in mem],
+            sg.create_dataset(sp, dtype=vlen, data=np.array([m.encode() for m in sorted(mem)],
                                                             dtype=object))
     (out / f"{ds}.manifest.json").write_text(json.dumps(manifest, indent=1))
     print(f"wrote {path}: train {len(members['train'])}, val {len(members['val'])}, "
