@@ -65,4 +65,7 @@ rm -rf /tmp/Pointnet2_PyTorch
 
 pip install --no-build-isolation "git+https://github.com/unlimblue/KNN_CUDA.git"
 
+# --no-deps so it cannot move numpy, scipy or trimesh; private repo for now, so pip needs the stored GitHub login
+pip install --no-deps --no-build-isolation "sherd-worn @ git+https://github.com/zeejaytan/sherd-worn@v0.1.0"
+
 echo "Done!"

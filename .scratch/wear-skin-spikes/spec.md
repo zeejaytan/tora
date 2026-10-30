@@ -10,4 +10,4 @@ past its cutoff. Do TORA's wear v2 datasets carry such vertices, and does it mat
 concluded from them? Serves O7. The one ticket is `issues/01-count-spikes-in-wear-v2.md`.
 
 **Not in scope:** changing TORA's code. A fix exists in sherd-worn (`sherd_worn/wear.py`, ticket 07 of
-its release spec); whether TORA takes it is decided after the count.
+its release spec); TORA takes it through the package (conservator, decision card of 2026-10-30, 11:40Z; `.scratch/use-sherd-worn/`). The count is still owed: it says what the wear v2 meshes already built carry.

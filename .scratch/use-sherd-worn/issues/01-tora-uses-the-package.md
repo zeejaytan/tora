@@ -7,16 +7,74 @@ Slurm job show what the switch changes. Do not merge until that run has passed a
 
 **Answers:** none
 **Blocked by:** None - can start immediately
-**Status:** ready-for-agent
+**Status:** resolved
+**Working in:** nothing
+**Branch:** 01-tora-uses-the-package, in /c/PR/worktrees/tora/01
 
 **Why:** sherd-worn ticket 05 (`sherd-worn/.scratch/release/issues/05-tora-csc-use-the-package.md`) holds the
 decision and the plan. TORA and the package must not drift apart as two copies, and the conservator chose to take
 the skin-spike fix in `_proud_height`.
 
-- [ ] `git diff 1db3453 origin/master` is empty for the four modules before the edit
-- [ ] 26 copied functions become one import block per module; every other def byte-identical
-- [ ] `sherd-worn` pinned to v0.1.0 where TORA lists dependencies
-- [ ] Equivalence job written: worn, rough and v3 smoke identical array by array; fine-scan on 3 objects with "neither" = 0
-- [ ] Job passed and reviewed by the coordinator; only then merged
+- [x] `git diff 1db3453 origin/master` is empty for the four modules before the edit
+- [x] 26 copied functions become one import block per module; every other def byte-identical
+- [x] `sherd-worn` pinned to v0.1.0 where TORA lists dependencies
+- [x] Equivalence job written: worn, rough and v3 smoke identical array by array; fine-scan on 3 objects with "neither" = 0 (see the arm D note below)
+- [x] Job passed and reviewed by the coordinator; only then merged (accepted on name order, see the run below)
 
 ## Comments
+
+**Module edit, 2026-10-30, Claude on Thinkbook16, by hand, not DeepSeek.**
+
+verified: `git diff --quiet 1db3453 origin/master` on the four modules -> no difference, before the edit.
+verified: scratchpad shimcheck.py (ast against origin/master) -> kept defs identical 6+6+8+6 = 26, other top-level statements identical, and all 26 removed names `is` the package object; `wear_ops.erode_fracture_band` is the package object through its unchanged line from `fracture_mesh_ops`.
+
+`scripts/check_mesh_integrity.py` and `scripts/check_wall_estimator_noise.py` import these modules, so after the merge they need the package wherever they run.
+
+verified: hidden check (lead, cloud) on 5e4d887 vs 67779bf -> all properties hold; install.sh pin reviewed.
+
+**Equivalence job, 2026-10-30, Claude on Thinkbook16.** `scripts/hpc/sw05_equiv.slurm`, `scripts/compare_hdf5_arrays.py`, `scripts/compare_fine_scan_arms.py`. The coordinator has asked for 3259d06 to be submitted through `new_run.sh`, falling back to a plain `sbatch`. It installs the package into `$RUN_DIR/pydeps`, so the shared env is untouched.
+
+The accepted criterion, "neither" = 0, changed, and the coordinator accepted the change (relay of 2026-10-30, 12:19Z). `blunt_asperities` divides each vertex's exposure by the standard deviation of all the exposure heights on the piece. A guard at that coarse fit changes that one number, and through it every vertex whose removed fraction is below 1, however far from the guarded vertex. So master without thinning against the package (B to C) can have "neither" above 0 without anything being wrong. A fourth arm, D, is the package with the exposure heights taken from B: B to D must have "neither" = 0 strictly, and B to C may have it only on a piece whose exposure divisor changed, with the largest such move reported. Pictures of the three largest moves per comparison land in `out/fine_scan/`.
+
+verified: synthetic pair of 64800-vertex sheets, laptop, scratchpad tinytest.py and tinytest2.py -> no failures on the clean run; a planted stray vertex fails B-C and B-D with 1 in neither; a planted exposure change gives B-C 78 in neither with the divisor flagged and no failure, B-D 0 in neither. This tests the checks only and says nothing about pots.
+verified: compare_hdf5_arrays on small files -> reordered groups and NaNs pass; a 1e-7 value change, an attribute change, a missing group and a manifest change each fail.
+
+**Failed run, setup only, nothing tested (2026-10-30, Claude on Thinkbook16).** Job 34061924, run `TORA/runs/20261030-2319_3259d06_sw05equiv`, stopped in setup with exit 2:0. The job set `PYTHONNOUSERSITE=1`, which no other TORA job does, and TORA's numpy lives in `~/.local`, so the package could not import numpy and the job printed "sw05: wrong package". No arm built anything. My error. The line is gone; `--no-deps` stays, so both arms use the numpy master uses.
+
+Where the log lands: through `new_run.sh`, `$RUN_DIR/logs/tora-sw05equiv-<job>.out` (it overrides the script's `--output`); through a plain `sbatch`, `TORA/logs/sw05equiv_<job>.log`.
+
+rtree: neither compare script imports it, and it stays out of every arm. But the arms do reach it: `_chip_dish` and `_seal_once` call `trimesh.proximity.closest_point`, which needs rtree, inside `except Exception: pass`. rtree is not installed in this environment, so master and the package both skip those tests, as every existing TORA build has. The comparison is valid for that environment. The job prints which it found. Whether the package should declare rtree is a separate question, raised with the coordinator.
+
+verified: `tail logs/tora-sw05equiv-34061924.out` -> ModuleNotFoundError numpy at sherd_worn/labelled.py:16, then "sw05: wrong package".
+verified: login-node import probe with the run's pydeps and no PYTHONNOUSERSITE -> sherd_worn 0.1.0, numpy 2.2.6 from ~/.local; master arm `_proud_height` from wear_ops, switched arm from sherd_worn.wear; rtree absent. Read, not run: trimesh proximity.py:52 `mesh.triangles_tree`, util.py:1742 `import rtree`.
+
+**Pin stays at v0.1.0 for now; moving to v0.1.1 is a follow-up (coordinator, relay of 2026-10-30, 13:04Z).** The sw05 run tests v0.1.0. sherd-worn v0.1.1 adds the rtree warning and declares rtree, and changes no output. Moving the pin is a separate change after this ticket; with `--no-deps` in `install.sh` it would still not bring rtree into TORA's env, and that install stays the conservator's decision.
+
+**The run, job 34062629, 2026-10-30 (Claude on Thinkbook16).** Run `TORA/runs/20261030-2330_78ed667_sw05equiv`, FAILED 1:0 at 2:05:30 by the job's own test: fine-scan and v3 passed; worn and rough each failed on the same two items, the train and val name lists. Those lists hold the same names in a different order (train 698, val 187, in both parts). The writer lists names in whichever order the workers finish, and this run has no master-against-master control. So the measurement was too strict for that one list: nothing here says the package changes the output. Weight: one run of each part, on the whole corpus.
+
+verified: lead accepted sw05 (job 34062629) — v3 and fine-scan pass; worn/rough identical in all 17,982 arrays, attributes and manifest; only train/val name order differs, from imap_unordered at write_u10_worn.py:322 (coordinator, relay of 2026-10-30, 14:49Z; line 322 is master, line 217 on this branch).
+verified: `compare_worn.json`, `compare_rough.json` -> `n_differences` 2 each, both `values: data_split/<dataset>/train` and `/val`; 28303 names, 17982 arrays each. `compare_v3.json` -> identical, same sha256. `compare_hdf5_arrays.py:52-55,99-100` compares attributes and manifests.
+verified: h5py read of all four files -> worn and rough, train and val: same set true, same order false.
+
+The order is not fully harmless: the loader keeps the list as written (`tora/data/dataset.py:247`), so a seeded shuffle draws a different sequence from two builds of one dataset. That comes from the writer, not the package, and master now sorts the names in its own commit. Files already built are unchanged.
+
+**Geometry to remove, as the record (geometry dies with the ticket).** The worn and rough arms stayed because the job deletes them only after a pass. The coordinator has Spartan remove the four `.hdf5` with this list in hand; nothing is deleted from the laptop. The two `compare_*.json` keep the comparison, and the manifests beside these files are small records, not geometry, so they stay. All under `TORA/runs/20261030-2330_78ed667_sw05equiv/out/`:
+
+| File | Bytes | sha256 |
+|---|---|---|
+| `worn_master/u10_worn_d200.hdf5` | 2547260744 | `5197cfe262f909867be0ea532a5c52ccd9f91fc61e822742172f8b657557693e` |
+| `worn_switched/u10_worn_d200.hdf5` | 2547262720 | `34e75045bb5ae9d09da8e0240bbeee161982ad44b8de340be88fd759c4713206` |
+| `rough_master/u10_noise_d200.hdf5` | 2547261616 | `ea5bf6fa1ca9e2fdf9a8f166e330807b2d6756931b3e66d347692f1ced1bb780` |
+| `rough_switched/u10_noise_d200.hdf5` | 2547262488 | `347011d89e9c88e45c99bd4cac28bc20d05a39099a7ac3cc00a0bf5294f0d1f2` |
+
+verified: `ls -l` of the four arm folders -> the byte counts above; the hashes are `sha256_a`/`sha256_b` in the two compare files, taken when the job compared them.
+
+**Env install and merge.** sherd-worn v0.1.0 went into the TORA env on Spartan on 2026-10-30, about 14:50Z (card approval at 12:23Z), and the coordinator gave the word to merge at 14:54Z. The install has two consequences:
+
+- numpy still comes from `~/.local`, so any TORA job that sets `PYTHONNOUSERSITE=1` would fail.
+- rtree is absent, so TORA keeps its no-rtree chips, as before.
+
+verified: `envs/tora/bin/python` on Spartan -> sherd_worn 0.1.0 from `envs/tora/lib/python3.10/site-packages/sherd_worn/__init__.py`, numpy 2.2.6 from `/home/zhuojiat/.local/lib/python3.10/site-packages/numpy/__init__.py`, `import rtree` -> ModuleNotFoundError.
+verified: `fine_scan_summary.json` -> passed true, 0 failures, package 0.1.0; `times.tsv` -> fine-scan and all six arms exit 0. The coordinator looked at the blue_pot A-C picture: a 0.98 R move at a blunted vertex, the expected 07/07b effect.
+
+The merge is TORA's code only. The CSC check is still open in sherd-worn ticket 05.
