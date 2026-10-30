@@ -32,3 +32,7 @@ the worst few before saying what they mean for any training result.
 - [ ] Per object: vertices moved more than R, largest move in mm, vertex and band vertex count per piece, pieces over 60,000 vertices first (job on Spartan)
 - [ ] The worst few rendered before and after
 - [ ] What it means for the wear v2 training results said plainly, or the next ticket opened
+
+**Context, not a defect to fix here (2026-10-30, sherd-worn ticket 09).** TORA's env has no rtree, so the wear code's two nearest-surface tests, a chip's direction and a sealing cap's apex, fall into their `except` and are skipped. So the wear v2 and v3 builds very likely ran without them. Read when judging chips in these datasets. It does not explain a skin vertex thrown past the cutoff, which is `blunt_asperities`, not chipping. What it changes in the output is being measured in sherd-worn. Installing rtree into the env would be a further Spartan change, and that decision is the conservator's.
+
+verified: Spartan, `envs/tora/lib/python3.10/site-packages` and `~/.local/lib/python3.10/site-packages` -> no rtree on 2026-10-30; a note of 2026-09-12 and the docstrings of `scripts/measure_wall_vs_sampling.py` and `scripts/diagnose_juglet_selection.py` say the same. The env's state at each past build is inferred from those, not checked build by build.
