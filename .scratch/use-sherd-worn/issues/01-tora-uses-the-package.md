@@ -47,3 +47,5 @@ rtree: neither compare script imports it, and it stays out of every arm. But the
 
 verified: `tail logs/tora-sw05equiv-34061924.out` -> ModuleNotFoundError numpy at sherd_worn/labelled.py:16, then "sw05: wrong package".
 verified: login-node import probe with the run's pydeps and no PYTHONNOUSERSITE -> sherd_worn 0.1.0, numpy 2.2.6 from ~/.local; master arm `_proud_height` from wear_ops, switched arm from sherd_worn.wear; rtree absent. Read, not run: trimesh proximity.py:52 `mesh.triangles_tree`, util.py:1742 `import rtree`.
+
+**Pin stays at v0.1.0 for now; moving to v0.1.1 is a follow-up (coordinator, relay of 2026-10-30, 13:04Z).** The sw05 run tests v0.1.0. sherd-worn v0.1.1 adds the rtree warning and declares rtree, and changes no output. Moving the pin is a separate change after this ticket; with `--no-deps` in `install.sh` it would still not bring rtree into TORA's env, and that install stays the conservator's decision.
