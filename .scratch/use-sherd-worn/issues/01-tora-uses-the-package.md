@@ -38,3 +38,12 @@ The accepted criterion, "neither" = 0, changed, and the coordinator accepted the
 
 verified: synthetic pair of 64800-vertex sheets, laptop, scratchpad tinytest.py and tinytest2.py -> no failures on the clean run; a planted stray vertex fails B-C and B-D with 1 in neither; a planted exposure change gives B-C 78 in neither with the divisor flagged and no failure, B-D 0 in neither. This tests the checks only and says nothing about pots.
 verified: compare_hdf5_arrays on small files -> reordered groups and NaNs pass; a 1e-7 value change, an attribute change, a missing group and a manifest change each fail.
+
+**Failed run, setup only, nothing tested (2026-10-30, Claude on Thinkbook16).** Job 34061924, run `TORA/runs/20261030-2319_3259d06_sw05equiv`, stopped in setup with exit 2:0. The job set `PYTHONNOUSERSITE=1`, which no other TORA job does, and TORA's numpy lives in `~/.local`, so the package could not import numpy and the job printed "sw05: wrong package". No arm built anything. My error. The line is gone; `--no-deps` stays, so both arms use the numpy master uses.
+
+Where the log lands: through `new_run.sh`, `$RUN_DIR/logs/tora-sw05equiv-<job>.out` (it overrides the script's `--output`); through a plain `sbatch`, `TORA/logs/sw05equiv_<job>.log`.
+
+rtree: neither compare script imports it, and it stays out of every arm. But the arms do reach it: `_chip_dish` and `_seal_once` call `trimesh.proximity.closest_point`, which needs rtree, inside `except Exception: pass`. rtree is not installed in this environment, so master and the package both skip those tests, as every existing TORA build has. The comparison is valid for that environment. The job prints which it found. Whether the package should declare rtree is a separate question, raised with the coordinator.
+
+verified: `tail logs/tora-sw05equiv-34061924.out` -> ModuleNotFoundError numpy at sherd_worn/labelled.py:16, then "sw05: wrong package".
+verified: login-node import probe with the run's pydeps and no PYTHONNOUSERSITE -> sherd_worn 0.1.0, numpy 2.2.6 from ~/.local; master arm `_proud_height` from wear_ops, switched arm from sherd_worn.wear; rtree absent. Read, not run: trimesh proximity.py:52 `mesh.triangles_tree`, util.py:1742 `import rtree`.

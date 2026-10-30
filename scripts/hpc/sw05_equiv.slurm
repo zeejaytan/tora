@@ -12,7 +12,8 @@
 #   git -C $ROOT/repo fetch origin master 01-tora-uses-the-package
 #   git -C $ROOT/repo show origin/01-tora-uses-the-package:scripts/hpc/sw05_equiv.slurm > /tmp/sw05.sbatch
 #   sbatch /tmp/sw05.sbatch
-# Also runs under scripts/new_run.sh, which exports RUN_DIR and SOURCE_COMMIT.
+# Also runs under scripts/new_run.sh, which exports RUN_DIR and SOURCE_COMMIT and sends the log
+# to $RUN_DIR/logs/tora-sw05equiv-<job>.out; the --output line above applies to a plain sbatch only.
 #
 #   worn, rough at dose 200, v3 smoke: master against the branch; any array that differs fails.
 #   fine-scan on 3 objects, before the rescale: scripts/compare_fine_scan_arms.py.
@@ -35,7 +36,6 @@ module load Anaconda3/2024.02-1
 eval "$(conda shell.bash hook)"
 conda activate $ROOT/envs/tora
 PY=$ROOT/envs/tora/bin/python
-export PYTHONNOUSERSITE=1
 
 SWITCHED=$(git -C "$REPO" rev-parse --verify --quiet "${SOURCE_COMMIT:-${SWITCHED:-origin/$BRANCH}}^{commit}") \
     || die "branch not in $REPO; git -C $REPO fetch origin master $BRANCH on the login node first"
@@ -67,6 +67,10 @@ PYTHONPATH=$RUN_DIR/pydeps "$PY" -c "
 import sherd_worn
 assert sherd_worn.__version__ == '0.1.0', sherd_worn.__version__
 print('package', sherd_worn.__version__, sherd_worn.__file__)" || die "wrong package"
+# Without rtree the chip code's nearest-surface tests fail into their except and are skipped, in both arms.
+"$PY" -c "
+import importlib.util as u
+print('rtree', 'present' if u.find_spec('rtree') else 'absent')"
 
 # run <arm> <args>: the master arm cannot see the package, the switched arm must import it
 run() {
