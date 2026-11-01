@@ -8,7 +8,6 @@ Slurm job show what the switch changes. Do not merge until that run has passed a
 **Answers:** none
 **Blocked by:** None - can start immediately
 **Status:** resolved
-**Working in:** nothing
 **Branch:** 01-tora-uses-the-package, in /c/PR/worktrees/tora/01
 
 **Why:** sherd-worn ticket 05 (`sherd-worn/.scratch/release/issues/05-tora-csc-use-the-package.md`) holds the
