@@ -7,6 +7,8 @@ cutoff, `cut_frac` x the object's diagonal. Do not change TORA code from this ti
 **Answers:** O7
 **Blocked by:** None - can start immediately
 **Status:** needs-triage
+**Worker:** unassigned
+**Budget:** small 3
 
 **Why (2026-10-30, found in sherd-worn ticket 07).** `scripts/wear_ops.py` at 1db3453: `_proud_height`
 (line 199) fits a plane in a frame whose up is the outward direction, and `blunt_asperities` (line 385)
