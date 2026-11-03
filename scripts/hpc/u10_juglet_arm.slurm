@@ -36,13 +36,22 @@ ARM="${ARM:?ARM=untouched|generic|ceiling}"
 DRAWS=${DRAWS:-20}
 # SET=fractura: the eight unworn Fractura pots (scripts/make_fractura_fresh.py), same
 # arms and draws, scored pot by pot. No --pot-mm: they have no measured height.
+# SET=csc_whole_{clean,worn,coarsev3}: wear-beyond-juglet ticket 06 (pr-workspace, U3), the
+# 21 broken CSC pots read from the CSC run that made them. No --pot-mm: it only changes the
+# printed text (own_place.py mm()), seating is 7% of each pot's own size; the mm come from
+# that run's copies.csv in ticket 07. --reconcile: the evaluator must agree with the scorer.
 SET="${SET:-juglet}"
+DATA_ROOT=$TORA_ROOT/dataset
+SETARGS=(); EXTRA=()
 case "$SET" in
   juglet)   DATA=zeroshot/juglet_gt;     FILE=juglet_gt.hdf5;      BATCH=1; POTMM=(--pot-mm 65) ;;
   fractura) DATA=zeroshot/fractura_fresh; FILE=fractura_fresh.hdf5; BATCH=4; POTMM=() ;;
-  *) echo "SET must be juglet or fractura"; exit 2 ;;
+  csc_whole_clean|csc_whole_worn|csc_whole_coarsev3)
+            DATA=zeroshot/csc_whole; FILE=$SET.hdf5; BATCH=4; POTMM=()
+            DATA_ROOT=/data/gpfs/projects/punim2657/CSC/runs/20261103-1446_e51a6a8_wear-copies/out
+            SETARGS=("data.dataset_names=[$SET]"); EXTRA=(--reconcile) ;;
+  *) echo "SET must be juglet, fractura or csc_whole_{clean,worn,coarsev3}"; exit 2 ;;
 esac
-DATA_ROOT=$TORA_ROOT/dataset
 LOG_ROOT=$TORA_ROOT/eval_runs
 CKPT=$TORA_ROOT/checkpoints/bbad_everyday_cka.ckpt
 LORA=(lora.enabled=true lora.r=128 lora.alpha=256 lora.dropout=0.1 lora.last_n_blocks=6 lora.train_head=false)
@@ -92,7 +101,7 @@ fi
 for S in $SEEDS; do
 OUT=$LOG_ROOT/u10_${SET}_${ARM}${LABEL:+_$LABEL}$([ "$S" = 42 ] || echo "_s$S")_${SLURM_JOB_ID}
 python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
-    data="$DATA" data.batch_size="$BATCH" \
+    data="$DATA" data.batch_size="$BATCH" "${SETARGS[@]}" \
     "${ARGS[@]}" \
     seed="$S" \
     log_dir="$OUT" \
@@ -107,7 +116,7 @@ python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
     "+visualizer.save_assembly_npz=true" \
     || { echo "sampling failed (seed $S)"; exit 1; }
 
-python scripts/own_place.py --run "$OUT" "${POTMM[@]}" --json "$OUT/own_place.json" \
+python scripts/own_place.py --run "$OUT" "${POTMM[@]}" "${EXTRA[@]}" --json "$OUT/own_place.json" \
     || { echo "own-place scoring failed (seed $S; the draws are kept; score on CPU)"; exit 1; }
 done
 echo "=== done $(date): seeds $SEEDS ==="

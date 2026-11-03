@@ -1,0 +1,20 @@
+_target_: tora.data.PointCloudDataModule
+num_points_to_sample: 5000
+min_parts: 2
+max_parts: 20
+min_points_per_part: 20
+anchor_free: true
+multi_anchor: false
+
+data_root: ${data_root}
+# wear-beyond-juglet ticket 06 (pr-workspace .scratch/wear-beyond-juglet/, Answers U3): the 21
+# broken CSC whole pots of CSC run 20261103-1446_e51a6a8_wear-copies, one set per condition.
+# The job picks the set with data.dataset_names=[csc_whole_<condition>]; the default below is
+# the clean set. Settings are juglet_gt's (anchor_free true: the largest sherd keeps its true
+# orientation), because the pre-registration runs these pots "as in every Juglet run"; batch 4
+# as fractura_fresh, since the set holds many pots.
+dataset_names: ["csc_whole_clean"]
+
+batch_size: 4
+num_workers: 4
+limit_val_samples: 0
