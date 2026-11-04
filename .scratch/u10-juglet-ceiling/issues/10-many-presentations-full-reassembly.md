@@ -129,3 +129,11 @@ first): give each sherd its own stream seeded from (seed, sample, sherd).
 
 **Weight:** one pot; four training runs of one recipe, two for
 the control; 26 presentations each.
+
+## Comments
+- 2026-11-04 (wear-beyond-juglet 06 worker, pr-workspace `.scratch/wear-beyond-juglet/issues/06-run-tora.md`):
+  the repeatability fault above, read from code here, was measured by run on the CSC pots: same
+  seed, same model, sampled points and inputs differed on 19 of 21 pots, and across models on 21
+  of 21 (TORA `f2dbd51` `scripts/compare_presentations.py`, jobs 34336337/34336345). Draws:
+  `tora/data/transform.py:30` (point sampling, no seed) and `:46` (`Rotation.random()`). No
+  conclusion drawn here about this ticket.
