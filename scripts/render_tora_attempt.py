@@ -64,6 +64,7 @@ def gather(runs, card):
 
 def per_sherd(d, k, mmu):
     ppp = d["points_per_part"]
+    ppp = ppp[ppp > 0]  # the loader pads to max_parts (20) with empty slots; drop them
     cuts = np.concatenate([[0], np.cumsum(ppp)])
     gt = d["pts_gt"].astype(float)
     inp = d["pts_input"].astype(float)
@@ -143,9 +144,9 @@ def main() -> int:
         m = meta[(card, cond)]
         mmu = float(d["scale"]) * float(m["mm_per_unit"])
         gt, pred, inp, cuts, rows = per_sherd(d, k, mmu)
-        anchor = int(np.argmax(d["points_per_part"]))
+        anchor = int(np.argmax(d["points_per_part"]))  # padding slots are 0, never the max
         side = float((gt.max(0) - gt.min(0)).max()) * mmu
-        print(f"== {card} ({cond}) {a.label}: best of {len(att)} attempts = seed {seed} draw {k}: "
+        print(f"== {card} ({cond}) {a.label}: best of {len(att)} attempts = seed {seed} draw {k + 1} (1-based): "
               f"{ori} of {n} right way round, {own} own place ({ties} attempts tie on both); "
               f"run {run.name}; pot_mm {m['pot_mm']} vs truth's longest side {side:.1f} mm (sampled, "
               f"any orientation)")
