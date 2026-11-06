@@ -18,6 +18,8 @@ Weight: one real pot; repeated training runs for rough against clean.
 Next: the refute check, then write the result into this question.
 Viewer: `u10_juglet_rough1x_t09` beside `u10_juglet_fresh_t08`
 
+Beyond the Juglet (pr-workspace U3, 2026-11-06): on 21 CSC catalogue pots at 6-10 sherds, the rough 1x adapter beat clean-break on 1-2 of 11 counted pots per condition (bar 8, chance about 2), and lost on p132_d00 and p149_d00 in all three conditions. The Juglet's rough gain does not carry to these pots. Read-out `pr-workspace/.scratch/wear-beyond-juglet/readout-round1.md`.
+
 ## Why it matters
 
 The wear model is currently calibrated against **a physical argument and one pot**. That is
