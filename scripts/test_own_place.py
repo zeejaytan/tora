@@ -19,7 +19,11 @@ so the right answer is known before the scorer runs:
  10. U10's decision rule reads the right way, including the +1 boundary;
  11. a sherd spun half a turn on its own face stays "own" (the blind spot) but is
      not right way round, and reads ~180 degrees; a 5 degree turn is right way
-     round; both unchanged on the 7.3 times bigger pot.
+     round; both unchanged on the 7.3 times bigger pot;
+ 12. a whole-pot size equal to the truth's box changes nothing;
+ 13. a 45 degree turn is right way round at 90 and not within the strict 30;
+ 14. with sherds missing, a sherd 5% of the whole pot off is own place on the
+     whole-pot ruler and off on the shrunk box, and swap_box keeps the box count.
 
 Run:  python scripts/test_own_place.py     (exits 1 on any failure)
 """
@@ -203,6 +207,43 @@ def main() -> int:
           and (d.oriented, d.oriented_point) == (1, 2),
           f"own {d.own}, point {d.point_pct[0]:.2f}%, turn {d.turn_deg[0]:.1f}, "
           f"oriented {d.oriented}, offset-only {d.oriented_point}")
+
+    # 12-14, wear-beyond-juglet 13: the whole-pot ruler and the strict 30-degree reading.
+    whole = unit_box_scale(gt)
+    d0, d1 = score_draw(gt, spun(gt, ppp, 7, 5), ppp), score_draw(gt, spun(gt, ppp, 7, 5), ppp, whole)
+    check("pot_size equal to the truth's box: every count unchanged, swap_box = swap",
+          (d0.own, d0.swap, d0.oriented, d0.oriented_strict) == (d1.own, d1.swap, d1.oriented,
+                                                               d1.oriented_strict)
+          and d1.swap_box == d1.swap == d0.swap_box and d0.oriented_strict == d0.oriented == 9,
+          f"{(d0.own, d0.swap, d0.oriented, d0.oriented_strict)} vs "
+          f"{(d1.own, d1.swap, d1.oriented, d1.oriented_strict)}, swap_box {d1.swap_box}")
+    # A small compact sherd (a ball of radius 0.02 beside a unit-sized one) turned 45 degrees
+    # about its own centre stays within the offset limit, so only the turn decides.
+    rng2 = np.random.default_rng(2)
+    big = rng2.uniform(-0.5, 0.5, (600, 3))
+    ball = rng2.normal(size=(200, 3)); ball = 0.02 * ball / np.linalg.norm(ball, axis=1)[:, None]
+    ball[:, 0] *= 1.8                                                  # not round: a turn shows
+    g4 = np.concatenate([big, ball + [0.7, 0.0, 0.0]])
+    t = np.radians(45); r = np.array([[np.cos(t), -np.sin(t), 0], [np.sin(t), np.cos(t), 0], [0, 0, 1]])
+    p4 = g4.copy(); p4[600:] = ball @ r.T + [0.7, 0.0, 0.0]
+    d = score_draw(g4, p4, np.array([600, 200]))
+    check("small sherd turned 45 degrees: right way round at 90, not within the strict 30",
+          d.own == 2 and d.oriented == 2 and d.oriented_strict == 1 and 44 < d.turn_deg[1] < 46,
+          f"own {d.own}, oriented {d.oriented}, strict {d.oriented_strict}, "
+          f"turn {d.turn_deg[1]:.1f}, point {d.point_pct[1]:.2f}%")
+    sl = part_slices(ppp)
+    keep = np.concatenate([np.arange(*sl[s]) for s in (0, 1, 2)])      # bottom band only
+    g3, p3 = gt[keep], gt[keep].copy()
+    ppp3 = np.array([500, 300, 300])
+    a, b = 500, 800                                                    # sherd 1
+    c = g3[a:b, :2].mean(0)
+    p3[a:b, :2] += 0.05 * whole * c / np.linalg.norm(c)               # 5% of the WHOLE pot out
+    box, wp = score_draw(g3, p3, ppp3), score_draw(g3, p3, ppp3, whole)
+    check("sherds missing, one moved 5% of the whole pot: off on the shrunk box, own on the whole pot",
+          unit_box_scale(g3) < 0.6 * whole and (box.own, wp.own) == (2, 3)
+          and wp.swap_box == box.swap == 2 and wp.whole_pot and not box.whole_pot,
+          f"box {unit_box_scale(g3):.2f} vs whole {whole:.2f}; own {box.own} / {wp.own}, "
+          f"swap_box {wp.swap_box}")
 
     print(f"\n{len(FAILS)} failure(s)" if FAILS else "\nall checks pass")
     return 1 if FAILS else 0

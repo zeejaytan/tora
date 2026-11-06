@@ -69,6 +69,17 @@ Attempts' turns have nothing between ~60 and ~120 deg (juglet-cause 14), so 90 s
 that gap. `oriented_point` keeps the old count (offset only) for comparison. Nothing
 above changes: `own` and `swap` are what they always were.
 
+WHOLE-POT RULER (wear-beyond-juglet 13, 2026-11-06). The unit box above is the box of
+the TRUE sherds handed in. With sherds missing (round 3 removes 20% of each pot) that box
+shrinks and the 7.1% tolerance silently tightens. `pot_size` (score_draw) and `--pot-size
+copies.csv` (the CLI) give the whole pot's longest side instead, in the cloud's own units
+(copies.csv `pot_mm / mm_per_unit`); own, swap, right way round and every % are then shares of
+the whole pot. The evaluator still uses the box of what it was given, so `swap_box` keeps the
+box-ruler count and `--reconcile` checks that one. Without a pot size nothing changes.
+`oriented_strict` is the strict reading beside `oriented`: the same, with the turn under
+STRICT_TURN_DEG (30) instead of 90. Printed as its own column and line; the primary count
+stays at 90.
+
 PER EPOCH. `score_draw` and `score_batch` take plain arrays (or tensors) and
 nothing else, so ticket 04's choosing loop can call them on each validation
 object.
@@ -100,6 +111,10 @@ SEAT_PCT = 100.0 * float(np.sqrt(TAU / 2.0))
 
 # A sherd turned this far or more from home is not the right way round, whatever its offset.
 TURN_LIMIT_DEG = 90.0
+
+# The strict reading (wear-beyond-juglet 13): right way round within this turn. Reported beside
+# the 90-degree count, never instead of it.
+STRICT_TURN_DEG = 30.0
 
 # A pinned anchor reads exactly 0; this only absorbs float noise in the solid cloud.
 PINNED_PCT = 0.05
@@ -151,6 +166,10 @@ class Draw:
     oriented_point: int = 0  # the same before 2026-10-12: offset only, no turn limit
     point_pct: list = field(default_factory=list)  # per sherd: median point-to-own-point, % of pot size
     turn_deg: list = field(default_factory=list)   # per sherd: rotation from home, degrees
+    oriented_strict: int = 0  # as oriented, turn < STRICT_TURN_DEG (30)
+    swap_box: int = -1  # swap-allowed on the evaluator's ruler (box of the given truth); = swap without pot_size
+    unit: float = 0.0   # the ruler used: pot_size if given, else the truth's box, cloud units
+    whole_pot: bool = False  # True when unit is a given whole-pot size
 
     @property
     def off_pct(self) -> list:
@@ -162,23 +181,32 @@ class Draw:
         return self.home_pct[self.anchor]
 
 
-def score_draw(gt, pred, points_per_part) -> Draw:
+def _swap(cd):
+    """The evaluator's assignment: on the BINARISED cost, so it maximises how many
+    pairs land within tolerance (tora/eval/metrics.py, compute_part_acc)."""
+    r, c = linear_sum_assignment((cd >= TAU).astype(float))
+    return r, c, cd[r, c] < TAU
+
+
+def score_draw(gt, pred, points_per_part, pot_size: float | None = None) -> Draw:
     """Own-place and swap-allowed counts for one draw.
 
     gt, pred (N, 3) in the same frame, any units: both are divided by the TRUE
     object's longest box side, so the answer does not depend on the object's size.
     points_per_part (P,): zero entries (padding) are skipped, as the evaluator does.
+    pot_size: the WHOLE pot's longest side in the same units, to use instead of the
+    given truth's box (sherds missing; wear-beyond-juglet 13). None = the box, as before.
     """
     gt, pred = np.asarray(gt, dtype=float), np.asarray(pred, dtype=float)
     slices = part_slices(points_per_part)
-    unit = unit_box_scale(gt)
+    box = unit_box_scale(gt)
+    unit = float(pot_size) if pot_size else box
     cd = cost_matrix(gt / unit, pred / unit, slices)
 
     own = np.diag(cd) < TAU
-    # The evaluator's assignment: on the BINARISED cost, so it maximises how many
-    # pairs land within tolerance (tora/eval/metrics.py, compute_part_acc).
-    r, c = linear_sum_assignment((cd >= TAU).astype(float))
-    hit = cd[r, c] < TAU
+    r, c, hit = _swap(cd)
+    # chamfer is a squared distance: on the box ruler it is cd * (unit / box)^2
+    swap_box = int(hit.sum()) if unit == box else int(_swap(cd * (unit / box) ** 2)[2].sum())
     seated = {int(j): int(i) for i, j, h in zip(r, c, hit) if h}
     k = len(slices)
     status = ["own" if own[j] else "swapped" if j in seated else "off" for j in range(k)]
@@ -192,7 +220,10 @@ def score_draw(gt, pred, points_per_part) -> Draw:
                 oriented=int(sum(own[j] and point[j] < SEAT_PCT and turn[j] < TURN_LIMIT_DEG
                                  for j in range(k))),
                 oriented_point=int(sum(own[j] and point[j] < SEAT_PCT for j in range(k))),
-                point_pct=point, turn_deg=turn)
+                point_pct=point, turn_deg=turn,
+                oriented_strict=int(sum(own[j] and point[j] < SEAT_PCT and turn[j] < STRICT_TURN_DEG
+                                        for j in range(k))),
+                swap_box=swap_box, unit=unit, whole_pot=bool(pot_size))
 
 
 def turn_deg(home: np.ndarray, placed: np.ndarray) -> float:
@@ -242,6 +273,8 @@ def summary(draws: list[Draw]) -> dict:
         "oriented": [d.oriented for d in draws],
         "oriented_median": median([d.oriented for d in draws]),
         "full": sum(d.oriented == d.n for d in draws),
+        "oriented_strict": [d.oriented_strict for d in draws],
+        "full_strict": sum(d.oriented_strict == d.n for d in draws),
         "own_median": median([d.own for d in draws]),
         "swap_median": median([d.swap for d in draws]),
         "off_pct_median": median(off),
@@ -290,8 +323,8 @@ def check_slices(ids: np.ndarray, points_per_part) -> None:
             raise SystemExit(f"slice {s} holds part ids {sorted(got)}; not one sherd")
 
 
-def score_object(npz: Path) -> tuple[str, dict[str, list[Draw]]]:
-    """{cloud: draws} for one saved object, both clouds."""
+def score_object(npz: Path, pot_sizes: dict | None = None) -> tuple[str, dict[str, list[Draw]]]:
+    """{cloud: draws} for one saved object, both clouds. pot_sizes: {card: whole-pot size}."""
     with np.load(npz, allow_pickle=True) as d:
         for key in ("pts_gt", "points_per_part", *CLOUDS.values()):
             if key not in d.files:
@@ -299,8 +332,32 @@ def score_object(npz: Path) -> tuple[str, dict[str, list[Draw]]]:
         if "part_ids" in d.files:
             check_slices(d["part_ids"], d["points_per_part"])
         gt, ppp, name = d["pts_gt"], d["points_per_part"], str(d["name"])
-        out = {c: [score_draw(gt, g, ppp) for g in d[key]] for c, key in CLOUDS.items()}
+        size = pot_size_for(pot_sizes, name)
+        out = {c: [score_draw(gt, g, ppp, size) for g in d[key]] for c, key in CLOUDS.items()}
     return name, out
+
+
+def read_pot_sizes(path: Path) -> dict:
+    """{card: whole pot's longest side in the HDF5's units} from a copies.csv
+    (`pot_mm / mm_per_unit`; CSC scripts/wear_test_copies.py). Every row of a card must agree."""
+    import csv
+    out = {}
+    for r in csv.DictReader(open(path)):
+        v = float(r["pot_mm"]) / float(r["mm_per_unit"])
+        if r["card"] in out and abs(out[r["card"]] - v) > 1e-6:
+            raise SystemExit(f"{path}: {r['card']} has two pot sizes, {out[r['card']]} and {v}")
+        out[r["card"]] = v
+    return out
+
+
+def pot_size_for(pot_sizes: dict | None, name: str) -> float | None:
+    """The object's whole-pot size by its card (the last part of `<set>/<card>`)."""
+    if not pot_sizes:
+        return None
+    card = name.split("/")[-1]
+    if card not in pot_sizes:
+        raise SystemExit(f"--pot-size has no row for {card} ({name})")
+    return pot_sizes[card]
 
 
 def reconcile(run_dir: Path, name: str, npz: Path, scored: dict) -> list[str]:
@@ -319,13 +376,13 @@ def reconcile(run_dir: Path, name: str, npz: Path, scored: dict) -> list[str]:
     if len(ev) != len(raw):
         bad.append(f"{name}: results/ holds {len(ev)} draws, clouds hold {len(raw)}")
     for k, d in enumerate(raw):
-        if k in ev and ev[k] != d.swap:
-            bad.append(f"{name} draw {k}: evaluator {ev[k]}, scorer {d.swap}")
+        if k in ev and ev[k] != d.swap_box:
+            bad.append(f"{name} draw {k}: evaluator {ev[k]}, scorer {d.swap_box}")
     for cloud, which in (("raw", "pred"), ("solid", "proposed")):
         ref = rescore_from_clouds(npz, which=which)["seated_per_draw"]
         for k, (a, d) in enumerate(zip(ref, scored[cloud])):
-            if a != d.swap:
-                bad.append(f"{name} {cloud} draw {k}: readout {a}, scorer {d.swap}")
+            if a != d.swap_box:
+                bad.append(f"{name} {cloud} draw {k}: readout {a}, scorer {d.swap_box}")
     return bad
 
 
@@ -337,14 +394,17 @@ def print_object(name: str, scored: dict, pot_mm: float | None) -> None:
     raw = scored["raw"]
     print(f"\n{name}: {raw[0].n} sherds, {len(raw)} draws. {anchor_note(raw)}.")
     print(f"  seated = within {SEAT_PCT:.1f}% of pot size of home{mm(SEAT_PCT, pot_mm)}")
+    if raw[0].whole_pot:
+        print(f"  pot size = the WHOLE pot ({raw[0].unit:.4f} units, --pot-size), not the box of the "
+              f"sherds given; swap-allowed on the evaluator's box ruler is checked by --reconcile")
     for cloud, draws in scored.items():
         s = summary(draws)
         print(f"  {CLOUD_LABEL[cloud]}")
-        print("    draw   own  swap  right-way-round   not-own sherds, median % of pot "
-              "size from home")
+        print("    draw   own  swap  right-way-round  within-30deg   not-own sherds, median % of "
+              "pot size from home")
         for k, d in enumerate(draws):
             off = median(d.off_pct)
-            print(f"    {k:>4}   {d.own:>3}   {d.swap:>3}   {d.oriented:>3}   "
+            print(f"    {k:>4}   {d.own:>3}   {d.swap:>3}   {d.oriented:>3}   {d.oriented_strict:>3}   "
                   + (f"{off:5.1f}{mm(off, pot_mm)}" if d.off_pct else "  -"))
         q1, q3 = s["off_pct_quartiles"]
         print(f"    own place     median {s['own_median']:g} of {s['n']}   "
@@ -355,6 +415,10 @@ def print_object(name: str, scored: dict, pot_mm: float | None) -> None:
               f"home points): best {max(s['oriented'])} of {s['n']} "
               f"({sum(o == max(s['oriented']) for o in s['oriented'])} of {s['draws']} "
               f"attempts); all {s['n']}: {s['full']} attempts")
+        print(f"    strict, right way round within {STRICT_TURN_DEG:g} deg: best "
+              f"{max(s['oriented_strict'])} of {s['n']} "
+              f"({sum(o == max(s['oriented_strict']) for o in s['oriented_strict'])} of "
+              f"{s['draws']} attempts); all {s['n']}: {s['full_strict']} attempts")
         print(f"    not in own place: median {s['off_pct_median']:.1f}% of pot size from "
               f"home{mm(s['off_pct_median'], pot_mm)}, middle half {q1:.1f}-{q3:.1f}%, "
               f"over {s['off_sherd_draws']} sherd-draws")
@@ -372,6 +436,9 @@ def main() -> int:
     ap.add_argument("--pot-mm", type=float, default=None,
                     help="pot size in mm, to print distances in mm too (Juglet: 65)")
     ap.add_argument("--json", type=Path, default=None, help="write per-draw scores here")
+    ap.add_argument("--pot-size", type=Path, default=None,
+                    help="copies.csv (card, pot_mm, mm_per_unit): measure against each WHOLE pot's "
+                         "size, not the box of the sherds given (sherds missing)")
     a = ap.parse_args()
 
     if bool(a.run) == bool(a.decide):
@@ -379,12 +446,13 @@ def main() -> int:
 
     dump = {}
     if a.run:
+        sizes = read_pot_sizes(a.pot_size) if a.pot_size else None
         table = clouds_by_object(a.run)
         names = ([str(np.load(cloud_for(a.run, a.pot), allow_pickle=True)["name"])]
                  if a.pot else sorted(table))
         bad = []
         for name in names:
-            name, scored = score_object(table[name])
+            name, scored = score_object(table[name], sizes)
             print_object(name, scored, a.pot_mm)
             dump[name] = {c: [asdict(d) for d in ds] for c, ds in scored.items()}
             if a.reconcile:
