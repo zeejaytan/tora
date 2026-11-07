@@ -1,5 +1,6 @@
 import os
 import glob
+import hashlib
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
@@ -59,6 +60,7 @@ class PointCloudDataset(Dataset):
         scale_multiplier: float = 1.0,
         omit_rank: int | None = None,
         anchor_part: int | list[int] | None = None,
+        presentation_seed: int | None = None,
     ):
         super().__init__()
         self.split = split
@@ -114,6 +116,18 @@ class PointCloudDataset(Dataset):
         self.anchor_part = anchor_part
         if anchor_part is not None and omit_rank is not None:
             raise ValueError("anchor_part and omit_rank together: omission renumbers parts")
+
+        # Paired presentations (pr-workspace wear-beyond-juglet 19, U3). None (default) = the
+        # original behaviour: points, input turns and point order come from the global numpy
+        # state, drawn in a thread pool, so a draw seed does not fix them and two models given
+        # the same seed see different inputs. An int = every random choice for one object (the
+        # points sampled, each sherd's input turn, the point order) is drawn from a numpy state
+        # seeded by (presentation_seed, object name) alone, in one thread and a fixed order, so
+        # every model and every run given that seed is handed byte-identical inputs. The global
+        # numpy state is not touched. Seeds are passed explicitly to trimesh and scipy, because neither
+        # is guaranteed to read numpy's global state (trimesh 5 keeps its own generator).
+        # Test/predict only (datamodule.py).
+        self.presentation_seed = presentation_seed
 
         self.use_folder = os.path.isdir(self.data_path)
         self._num_threads = num_threads
@@ -193,6 +207,35 @@ class PointCloudDataset(Dataset):
         """
 
         frag = self.fragments[index]
+        if self.presentation_seed is None:
+            return self._load_and_transform(frag, index)
+        self._rs = np.random.RandomState(self.object_seed(self.presentation_seed, frag))
+        try:
+            return self._load_and_transform(frag, index)
+        finally:
+            self._rs = None
+
+    @staticmethod
+    def object_seed(presentation_seed: int, name: str) -> int:
+        """The numpy seed for one object's presentation: stable across processes, runs and
+        models (sha256, not Python's salted hash), different for every object."""
+        h = hashlib.sha256(f"{int(presentation_seed)}|{name}".encode()).digest()
+        return int.from_bytes(h[:4], "little")
+
+    @property
+    def _rng(self):
+        """Where this object's random numbers come from: numpy's global state as before, or
+        the object's own seeded state when presentations are paired."""
+        return np.random if getattr(self, "_rs", None) is None else self._rs
+
+    def _map(self, fn, items):
+        """The thread pool, or a plain in-order loop when presentations are paired: threads
+        drawing from one numpy state take their numbers in whatever order they are scheduled."""
+        if self.presentation_seed is None:
+            return list(self.pool.map(fn, items))
+        return [fn(x) for x in items]
+
+    def _load_and_transform(self, frag, index):
         if self.use_folder:
             sample = self._load_from_folder(frag, index)
         else:
@@ -340,7 +383,7 @@ class PointCloudDataset(Dataset):
             n_parts = len(meshes)
             for m in meshes:
                 cnt = self.num_points_to_sample // n_parts
-                idx = np.random.choice(len(m.vertices), cnt, replace=True)
+                idx = self._rng.choice(len(m.vertices), cnt, replace=True)
                 pcs.append(m.vertices[idx])
                 pns.append(
                     m.vertex_normals[idx] if m.vertex_normals is not None else np.zeros((cnt, 3))
@@ -358,16 +401,24 @@ class PointCloudDataset(Dataset):
         diff = self.num_points_to_sample - sum(counts)
         counts[np.argmax(counts)] += diff
 
+        # Paired presentations: one sampling seed per sherd, drawn in part order before any
+        # sampling, so the threads' order cannot matter. Unpaired: None, as before.
+        if getattr(self, "_rs", None) is None:
+            seeds = [None] * len(meshes)
+        else:
+            seeds = [int(s) for s in self._rs.randint(0, 2**31 - 1, size=len(meshes))]
+
         def _proc_mesh(args):
-            mesh, cnt = args
-            pts, fidx = sample_points_poisson(mesh, cnt)
+            mesh, cnt, seed = args
+            pts, fidx = sample_points_poisson(mesh, cnt, seed=seed)
             if len(pts) < cnt:
-                extra, eidx = trimesh.sample.sample_surface(mesh, cnt - len(pts))
+                extra, eidx = (trimesh.sample.sample_surface(mesh, cnt - len(pts)) if seed is None
+                               else trimesh.sample.sample_surface(mesh, cnt - len(pts), seed=seed + 1))
                 pts = np.vstack((pts, extra))
                 fidx = np.concatenate((fidx, eidx))
             return pts[:cnt], mesh.face_normals[fidx[:cnt]]
 
-        sampled = list(self.pool.map(_proc_mesh, zip(meshes, counts)))
+        sampled = self._map(_proc_mesh, list(zip(meshes, counts, seeds)))
         pcs, pns = zip(*sampled)
         overlap_thr = np.sqrt(2 * total_area / self.num_points_to_sample + 1e-4)
         return list(pcs), list(pns), overlap_thr
@@ -450,12 +501,12 @@ class PointCloudDataset(Dataset):
         # Scale point clouds to [-1, 1] and apply random scaling
         scale = np.max(np.abs(pts_gt))
         if self.random_scale_range is not None and not self.disable_augmentation:
-            scale *= np.random.uniform(*self.random_scale_range)
+            scale *= self._rng.uniform(*self.random_scale_range)
         pts_gt /= scale
 
         # Initial global rotation to remove the pose prior (e.g., y-up) during training
         if self.split == "train" and not self.disable_augmentation:
-            pts_gt, normals_gt, init_rot = rotate_pcd(pts_gt, normals_gt)
+            pts_gt, normals_gt, init_rot = rotate_pcd(pts_gt, normals_gt, random_state=getattr(self, "_rs", None))
         else:
             init_rot = np.eye(3)
 
@@ -477,14 +528,14 @@ class PointCloudDataset(Dataset):
             if self.anchor_free:
                 part, trans = center_pcd(pts_gt[st:ed])
                 if not anchor[i]:
-                    part, norms, rot = rotate_pcd(part, normals_gt[st:ed])
+                    part, norms, rot = rotate_pcd(part, normals_gt[st:ed], random_state=getattr(self, "_rs", None))
                 else:
                     rot = np.eye(3)
                     norms = normals_gt[st:ed]
             else:
                 if not anchor[i]:
                     part, trans = center_pcd(pts_gt[st:ed])
-                    part, norms, rot = rotate_pcd(part, normals_gt[st:ed])
+                    part, norms, rot = rotate_pcd(part, normals_gt[st:ed], random_state=getattr(self, "_rs", None))
                 else:
                     part = pts_gt[st:ed]
                     trans = np.zeros(3)
@@ -492,14 +543,14 @@ class PointCloudDataset(Dataset):
                     norms = normals_gt[st:ed]
 
             # Random shuffle point order
-            _order = np.random.permutation(len(part))
+            _order = self._rng.permutation(len(part))
             pts[st: ed] = part[_order]
             normals[st: ed] = norms[_order]
             pts_gt[st:ed] = pts_gt[st:ed][_order]
             normals_gt[st:ed] = normals_gt[st:ed][_order]
             return rot, trans
 
-        results = list(self.pool.map(_proc_part, range(n_parts)))
+        results = self._map(_proc_part, range(n_parts))
         rots, trans = zip(*results)
 
         # Padding to max_parts
@@ -513,14 +564,14 @@ class PointCloudDataset(Dataset):
             assert np.allclose(trans[anchor_idx], np.zeros(3)), f"trans[anchor_idx] is not the zero vector: {trans[anchor_idx]}"
 
             # Select extra parts if multi_anchor is enabled
-            if self.multi_anchor and n_parts > 2 and np.random.rand() > 1 / n_parts:
+            if self.multi_anchor and n_parts > 2 and self._rng.rand() > 1 / n_parts:
                 candidates = counts[:n_parts] > self.num_points_to_sample * 0.05
                 candidates[anchor_idx] = False
                 if candidates.any():
-                    extra_n = np.random.randint(
+                    extra_n = self._rng.randint(
                         1, min(candidates.sum() + 1, n_parts - 1)
                     )
-                    extra_idx = np.random.choice(
+                    extra_idx = self._rng.choice(
                         np.where(candidates)[0], extra_n, replace=False
                     )
                     anchor[extra_idx] = True

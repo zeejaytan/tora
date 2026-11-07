@@ -60,6 +60,10 @@ if [ -n "${ANCHOR_FREE:-}" ]; then
     case "$ANCHOR_FREE" in true|false) SETARGS+=("data.anchor_free=$ANCHOR_FREE") ;;
         *) echo "ANCHOR_FREE must be true or false"; exit 2 ;; esac
 fi
+# PAIRED=1 seeds each object's presentation (points, input turns, point order) from (draw seed,
+# object name) alone (data.presentation_seed, wear-beyond-juglet 19), so every model given the
+# same seed sees byte-identical inputs. Unset = as before. Pair it with LABEL=.
+PAIRED="${PAIRED:-}"
 LOG_ROOT=$TORA_ROOT/eval_runs
 CKPT=$TORA_ROOT/checkpoints/bbad_everyday_cka.ckpt
 LORA=(lora.enabled=true lora.r=128 lora.alpha=256 lora.dropout=0.1 lora.last_n_blocks=6 lora.train_head=false)
@@ -94,7 +98,7 @@ export WANDB_MODE=offline
 cd "$TORA_ROOT/repo"
 echo "=== u10 $SET $ARM on $(hostname) at $(date), repo $(git rev-parse --short HEAD) ==="
 echo "checkpoint: $C"
-echo "anchor_free override: ${ANCHOR_FREE:-none (config)}"
+echo "anchor_free override: ${ANCHOR_FREE:-none (config)}; paired presentations: ${PAIRED:-no}"
 
 for f in "$DATA_ROOT/$FILE" "$C"; do
     [ -f "$f" ] || { echo "missing: $f"; exit 1; }
@@ -112,6 +116,7 @@ OUT=$LOG_ROOT/u10_${SET}_${ARM}${LABEL:+_$LABEL}$([ "$S" = 42 ] || echo "_s$S")_
 python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
     data="$DATA" data.batch_size="$BATCH" "${SETARGS[@]}" \
     "${ARGS[@]}" \
+    ${PAIRED:+"++data.presentation_seed=$S"} \
     seed="$S" \
     log_dir="$OUT" \
     model.n_generations="$DRAWS" \

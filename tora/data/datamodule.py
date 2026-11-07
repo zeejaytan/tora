@@ -48,6 +48,7 @@ class PointCloudDataModule(L.LightningDataModule):
         scale_multiplier: float = 1.0,
         omit_rank: int | None = None,
         anchor_part: int | list[int] | None = None,
+        presentation_seed: int | None = None,
     ):
         """Data module for point cloud data.
 
@@ -103,6 +104,10 @@ class PointCloudDataModule(L.LightningDataModule):
         # Which fragment is held at its true pose. Test/predict only, like
         # omit_rank: see dataset.py. None keeps the largest, as trained.
         self.anchor_part = anchor_part
+        # Paired presentations (wear-beyond-juglet 19): an int seeds each object's points,
+        # input turns and point order from (seed, object name) alone, so every model given the
+        # same seed sees byte-identical inputs. Test/predict only; None = as before.
+        self.presentation_seed = presentation_seed
         self.multi_anchor = multi_anchor
         self.persistent_workers = persistent_workers and num_workers > 0
 
@@ -227,6 +232,7 @@ class PointCloudDataModule(L.LightningDataModule):
                     scale_multiplier=self.scale_multiplier,
                     omit_rank=self.omit_rank,
                     anchor_part=self.anchor_part,
+                    presentation_seed=self.presentation_seed,
                 )
                 for dataset_name in self.dataset_names
             ]

@@ -22,15 +22,22 @@ else:
     use_pcu = False
 
 
-def sample_points_poisson(mesh: trimesh.Trimesh, count: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Sample points using Poisson disk sampling."""
+def sample_points_poisson(mesh: trimesh.Trimesh, count: int, seed: int | None = None) -> Tuple[np.ndarray, np.ndarray]:
+    """Sample points using Poisson disk sampling. seed=None draws as before; an int fixes the
+    points (paired presentations, dataset.py presentation_seed). point_cloud_utils is unseeded,
+    so a seed with USE_PCU=1 is refused rather than silently ignored."""
     if use_pcu:
+        if seed is not None:
+            raise ValueError("presentation_seed with USE_PCU=1: point_cloud_utils cannot be seeded here")
         v = mesh.vertices
         f = mesh.faces
         idx, bc = pcu.sample_mesh_poisson_disk(v, f, num_samples=count)
         pts = pcu.interpolate_barycentric_coords(f, idx, bc, v)
     else:
-        pts, idx = trimesh.sample.sample_surface_even(mesh, count=count)
+        if seed is None:
+            pts, idx = trimesh.sample.sample_surface_even(mesh, count=count)
+        else:
+            pts, idx = trimesh.sample.sample_surface_even(mesh, count=count, seed=seed)
     return pts, idx
 
 
@@ -41,9 +48,10 @@ def center_pcd(pcd: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return pcd, center
 
 
-def rotate_pcd(pcd: np.ndarray, normals: np.ndarray = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Randomly rotate point cloud and normals."""
-    rot = Rotation.random()
+def rotate_pcd(pcd: np.ndarray, normals: np.ndarray = None, random_state=None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Randomly rotate point cloud and normals. random_state=None draws as before; a
+    numpy RandomState fixes the turn (paired presentations, dataset.py presentation_seed)."""
+    rot = Rotation.random() if random_state is None else Rotation.random(random_state=random_state)
     pcd = rot.apply(pcd)
 
     if normals is not None:
