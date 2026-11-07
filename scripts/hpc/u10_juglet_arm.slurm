@@ -52,6 +52,14 @@ case "$SET" in
             SETARGS=("data.dataset_names=[$SET]"); EXTRA=(--reconcile) ;;
   *) echo "SET must be juglet, fractura or csc_whole_{clean,worn,coarsev3}"; exit 2 ;;
 esac
+# ANCHOR_FREE=true|false overrides the data config's anchor_free (pr-workspace wear-beyond-juglet
+# 18b): false = the largest sherd handed over at its true pose and held there (GARF's
+# random_anchor=false); true = centred, true turn kept (juglet_gt / csc_whole's setting). Unset =
+# the config's own value, so no earlier run changes. Pair it with LABEL= so folders do not collide.
+if [ -n "${ANCHOR_FREE:-}" ]; then
+    case "$ANCHOR_FREE" in true|false) SETARGS+=("data.anchor_free=$ANCHOR_FREE") ;;
+        *) echo "ANCHOR_FREE must be true or false"; exit 2 ;; esac
+fi
 LOG_ROOT=$TORA_ROOT/eval_runs
 CKPT=$TORA_ROOT/checkpoints/bbad_everyday_cka.ckpt
 LORA=(lora.enabled=true lora.r=128 lora.alpha=256 lora.dropout=0.1 lora.last_n_blocks=6 lora.train_head=false)
@@ -86,6 +94,7 @@ export WANDB_MODE=offline
 cd "$TORA_ROOT/repo"
 echo "=== u10 $SET $ARM on $(hostname) at $(date), repo $(git rev-parse --short HEAD) ==="
 echo "checkpoint: $C"
+echo "anchor_free override: ${ANCHOR_FREE:-none (config)}"
 
 for f in "$DATA_ROOT/$FILE" "$C"; do
     [ -f "$f" ] || { echo "missing: $f"; exit 1; }
