@@ -50,7 +50,28 @@ case "$SET" in
             DATA=zeroshot/csc_whole; FILE=$SET.hdf5; BATCH=4; POTMM=()
             DATA_ROOT=/data/gpfs/projects/punim2657/CSC/runs/20261103-1446_e51a6a8_wear-copies/out
             SETARGS=("data.dataset_names=[$SET]"); EXTRA=(--reconcile) ;;
-  *) echo "SET must be juglet, fractura or csc_whole_{clean,worn,coarsev3}"; exit 2 ;;
+  # wear-beyond-juglet 21-23 (TORA mirrors GARF): round 2 (10-20 sherds) and round 3 (sherds
+  # missing), the same files GARF read. Round 3 is scored against the whole pot's size
+  # (own_place --pot-size copies.csv) and centred and scaled by the whole pot of the SAME
+  # condition (WHOLEPOT, set here so the pairing cannot be got wrong), which needs PAIRED=1.
+  csc_whole20_clean|csc_whole20_worn4)
+            DATA=zeroshot/csc_whole; FILE=$SET.hdf5; BATCH=4; POTMM=()
+            DATA_ROOT=/data/gpfs/projects/punim2657/CSC/runs/20261104-1554_cd2549b_wear-copies20/out
+            SETARGS=("data.dataset_names=[$SET]"); EXTRA=(--reconcile) ;;
+  csc_whole20_coarsev3_1)
+            DATA=zeroshot/csc_whole; FILE=$SET.hdf5; BATCH=4; POTMM=()
+            DATA_ROOT=/data/gpfs/projects/punim2657/CSC/runs/20261104-2009_551759c_wear-copies20-cv1/out
+            SETARGS=("data.dataset_names=[$SET]"); EXTRA=(--reconcile) ;;
+  csc_whole20miss_clean|csc_whole20miss_worn4)
+            DATA=zeroshot/csc_whole; FILE=$SET.hdf5; BATCH=4; POTMM=()
+            DATA_ROOT=/data/gpfs/projects/punim2657/CSC/runs/20261106-1423_46dfd26_wear-miss20/out
+            SETARGS=("data.dataset_names=[$SET]")
+            EXTRA=(--reconcile --pot-size "$DATA_ROOT/copies.csv")
+            [ -n "${PAIRED:-}" ] || { echo "$SET needs PAIRED=1 (whole-pot frame)"; exit 2; }
+            W=/data/gpfs/projects/punim2657/CSC/runs/20261104-1554_cd2549b_wear-copies20/out/csc_whole20_${SET#csc_whole20miss_}.hdf5
+            [ -z "${WHOLEPOT:-}" ] || [ "$WHOLEPOT" = "$W" ] || { echo "WHOLEPOT must be $W for $SET"; exit 2; }
+            WHOLEPOT=$W ;;
+  *) echo "SET must be juglet, fractura, csc_whole_{clean,worn,coarsev3}, csc_whole20_{clean,worn4,coarsev3_1} or csc_whole20miss_{clean,worn4}"; exit 2 ;;
 esac
 # ANCHOR_FREE=true|false overrides the data config's anchor_free (pr-workspace wear-beyond-juglet
 # 18b): false = the largest sherd handed over at its true pose and held there (GARF's
