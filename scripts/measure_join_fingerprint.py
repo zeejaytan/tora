@@ -32,12 +32,14 @@ faces back at it (dot of the two face normals below `TWIN_DOT`): a break face ag
 twin, not the skin beside the join, whose neighbour skin points the same way.
 
 OVERLAP IS EXCLUDED, NOT MEASURED (conservator, 2026-11-07: the Juglet's overlap is most likely
-manual error in the hand-set pose). A dot is inside when it lies behind the neighbour's
-closest face (signed by that face's outward normal); inside dots and every dot within one
-spacing of one are dropped. The share of join left is printed; under a third, the fingerprint
-is called weak. The sign is checked against a generalised winding number on a sample of join
-dots (closed meshes; `diagnose_juglet_selection.winding`), and nothing is read if they agree
-on under 95%. Since the same pose error that pushes sherds into each other opens gaps beside
+manual error in the hand-set pose). A dot is inside when the neighbour's generalised
+winding number there is over one half (closed meshes; the closest face's sign was wrong on
+30-40% of the CSC copies' join dots in job 34481077, at rim edges of their large break-face
+triangles), unless it lies within 1% of a scan spacing of the surface (touching: the clean
+copies' twin faces coincide). Inside dots and every dot within one scan spacing of one are
+dropped. The share of join left is printed; under a third, the fingerprint is called weak.
+The inside test has its own control: join dots pushed a quarter spacing into their own sherd
+must read inside, pushed out must read outside, at 95% or better, else nothing is read. Since the same pose error that pushes sherds into each other opens gaps beside
 the overlap, the Juglet's spread is an UPPER bound.
 
 The Juglet is also reported without the joins of sherds 2 and 7 (`--drop-sherds`), which
@@ -69,7 +71,7 @@ SPACING_FRAC = 0.295 / 65.0   # the Juglet's scan spacing, as a fraction of its 
 TWIN_DOT = -0.5               # neighbour's face normal must point back at the dot
 CUT_FRAC = 0.02               # write_u10_worn.py --gap-cut
 WEAK_SHARE = 1.0 / 3.0
-MIN_JOIN = 200                # kept dots for a join to get its own row
+MIN_JOIN = 100                # kept dots for a join (or a sherd) to get its own row
 
 
 # ---------------------------------------------------------------- geometry
@@ -259,9 +261,10 @@ def measure(obj, cut_frac=CUT_FRAC, seed=0, drop=(), n_control=3000):
     walls = [2.0 * s.volume / s.area for s in S]
     dots = []
     for i, s in enumerate(S):
-        # uniform random dots have a median nearest-dot distance of about 0.5 / sqrt(density),
-        # so a quarter of area / spacing^2 puts the measured spacing at the target
-        n = int(np.ceil(0.25 * s.area / sp_t ** 2))
+        # area / spacing^2 random dots: about four per scan-spacing square (median nearest dot
+        # about half the scan spacing), so short joins still carry enough dots to read. Denser
+        # than the scan only interpolates its triangles; every threshold stays the scan spacing.
+        n = int(np.ceil(s.area / sp_t ** 2))
         p, nrm = s.sample(n, rng)
         best = np.full(len(p), np.inf)
         sgn, own = np.full(len(p), np.nan), np.full(len(p), -1)
@@ -287,40 +290,50 @@ def measure(obj, cut_frac=CUT_FRAC, seed=0, drop=(), n_control=3000):
         cKDTree(x["p"]).query(x["p"][rng.choice(len(x["p"]), min(4000, len(x["p"])),
                                                    replace=False)], k=2)[0][:, 1]
         for x in dots])))
-    eps = 0.01 * sp
-    # exclusion: inside the neighbour, and every dot within one spacing of an inside dot
-    for x in dots:
-        inside = x["join"] & (x["s"] < -eps)
-        near_in = np.zeros(len(x["p"]), bool)
-        if inside.any():
-            near_in = cKDTree(x["p"][inside]).query(x["p"], distance_upper_bound=sp)[0] < np.inf
+    # INSIDE is decided by the generalised winding number of the neighbour, not by the sign of
+    # its closest face: job 34481077 found that sign wrong on 30-40% of the CSC copies' join dots
+    # (their break faces are a few large triangles, so the closest feature is often a rim edge
+    # whose skin face points sideways). A dot within EPS of the surface is touching, not inside:
+    # the clean copies' twin faces coincide exactly, where the winding number is 0.5 either way.
+    eps = 0.01 * sp_t
+    agree = tot = 0
+    for i, x in enumerate(dots):
+        inside = np.zeros(len(x["p"]), bool)
+        for j in np.unique(x["own"][x["join"]]):
+            k = np.where(x["join"] & (x["own"] == j) & (x["d"] > eps))[0]
+            if len(k):
+                w = winding(x["p"][k], S[int(j)].tri) > 0.5
+                inside[k] = w
+                agree += int(np.sum(w == (x["s"][k] < 0)))
+                tot += len(k)
         x["inside"] = inside
-        x["kept"] = x["join"] & ~inside & ~near_in
+        x["s"] = np.where(inside, -x["d"], x["d"])
+    # exclusion: inside the neighbour, and every dot within one scan spacing of an inside dot
+    for x in dots:
+        near_in = np.zeros(len(x["p"]), bool)
+        if x["inside"].any():
+            near_in = cKDTree(x["p"][x["inside"]]).query(
+                x["p"], distance_upper_bound=sp_t)[0] < np.inf
+        x["kept"] = x["join"] & ~x["inside"] & ~near_in
 
-    # the sign, checked against the winding number on a sample of join dots
-    jp = [(i, k) for i, x in enumerate(dots) for k in np.where(x["join"])[0]]
+    # CONTROL on the winding number itself: each sherd's own join dots pushed a quarter scan
+    # spacing in along its own normal must read inside it, pushed out must read outside, >= 95%
+    ins_ok, out_ok = [], []
+    for i, x in enumerate(dots):
+        k = np.where(x["join"])[0]
+        if not len(k):
+            continue
+        k = rng.choice(k, min(len(k), max(1, n_control // len(S))), replace=False)
+        ins_ok.append(winding(x["p"][k] - 0.25 * sp_t * x["n"][k], S[i].tri) > 0.5)
+        out_ok.append(winding(x["p"][k] + 0.25 * sp_t * x["n"][k], S[i].tri) < 0.5)
     control = None
-    if jp:
-        pick = rng.choice(len(jp), min(n_control, len(jp)), replace=False)
-        by_pair = {}
-        for t in pick:
-            i, k = jp[t]
-            by_pair.setdefault((i, int(dots[i]["own"][k])), []).append(k)
-        agree = tot = 0
-        far = 0
-        for (i, j), ks in by_pair.items():
-            ks = np.array(ks)
-            sd = dots[i]["s"][ks]
-            clear = np.abs(sd) > 0.25 * sp    # within a quarter spacing either answer is touching
-            if not clear.any():
-                continue
-            w = winding(dots[i]["p"][ks[clear]], S[j].tri) > 0.5
-            agree += int(np.sum(w == (sd[clear] < 0)))
-            tot += int(clear.sum())
-            far += int(np.sum(~clear))
-        control = dict(checked=tot, agree_pct=100.0 * agree / max(tot, 1),
-                       too_close_to_call=far,
-                       trusted=bool(tot == 0 or agree / tot >= 0.95))
+    if ins_ok:
+        pin = 100.0 * float(np.mean(np.concatenate(ins_ok)))
+        pout = 100.0 * float(np.mean(np.concatenate(out_ok)))
+        control = dict(pushed_in_reads_inside_pct=pin, pushed_out_reads_outside_pct=pout,
+                       checked=int(sum(len(a) for a in ins_ok)),
+                       face_sign_agrees_pct=100.0 * agree / max(tot, 1),
+                       trusted=bool(pin >= 95.0 and pout >= 95.0))
 
     def summarise(sel_pairs):
         rows, pool = [], []
@@ -351,7 +364,7 @@ def measure(obj, cut_frac=CUT_FRAC, seed=0, drop=(), n_control=3000):
                      kept=kn, kept_pct=100.0 * kn / jn, length_mm=ext)
             if kn >= MIN_JOIN:
                 r.update(gap_mm=pct(g), gap_pct_diag=[v / D * 100 for v in pct(g)],
-                         touching_pct=100.0 * float(np.mean(g <= sp)),
+                         touching_pct=100.0 * float(np.mean(g <= sp_t)),
                          corr=corr_length(P, g, sp, rng))
             rows.append(r)
         g = np.concatenate(pool) if pool else np.zeros(0)
@@ -362,7 +375,7 @@ def measure(obj, cut_frac=CUT_FRAC, seed=0, drop=(), n_control=3000):
             if len(x) >= MIN_JOIN:
                 sh.append(dict(sherd=a, name=obj["names"][a], kept=int(len(x)),
                                median_mm=float(np.median(x)),
-                               touching_pct=100.0 * float(np.mean(x <= sp))))
+                               touching_pct=100.0 * float(np.mean(x <= sp_t))))
         med = np.array([r["median_mm"] for r in sh])
         corr_all = [r["corr"]["mm"] for r in rows if r.get("corr") and r["corr"]["mm"]]
         pooled = dict(
@@ -371,12 +384,12 @@ def measure(obj, cut_frac=CUT_FRAC, seed=0, drop=(), n_control=3000):
             gap_mm=pct(g), gap_pct_diag=[v / D * 100 if v is not None else None
                                          for v in pct(g)],
             p90_over_p10=(float(np.percentile(g, 90) / np.percentile(g, 10))
-                          if len(g) and np.percentile(g, 10) > 0.1 * sp else None),
-            touching_pct=100.0 * float(np.mean(g <= sp)) if len(g) else None,
+                          if len(g) and np.percentile(g, 10) > 0.1 * sp_t else None),
+            touching_pct=100.0 * float(np.mean(g <= sp_t)) if len(g) else None,
             corr_mm_median_over_joins=float(np.median(corr_all)) if corr_all else None,
             joins_with_corr=f"{len(corr_all)} of {sum(1 for r in rows if 'corr' in r)}",
             sherd_median_p90_over_p10=(float(np.percentile(med, 90) / np.percentile(med, 10))
-                                       if len(med) >= 3 and np.percentile(med, 10) > 0.1 * sp
+                                       if len(med) >= 3 and np.percentile(med, 10) > 0.1 * sp_t
                                        else None),
             sherd_median_cv=float(med.std() / med.mean()) if len(med) >= 3 else None)
         pooled["weak"] = bool(pooled["kept_pct"] < 100 * WEAK_SHARE)
@@ -433,7 +446,7 @@ def render(obj, res, S, dots, out_png, n_rows=2):
         if np.mean(N[near] @ n0) < 0:
             n0 = -n0
         Fr = np.column_stack([e_al, np.cross(n0, e_al), n0])
-        X = max(1.5, 1.5 * r["gap_mm"][2] + 0.5)
+        X = max(1.5, 1.2 * r["gap_mm"][2] + 0.3)
         H = wall / 2.0 + 0.8
         for col, a in enumerate((-wall, 0.0, wall)):
             ax = axes[row, col]
@@ -480,7 +493,10 @@ def render(obj, res, S, dots, out_png, n_rows=2):
     ppm = float(np.median([axes[k, c].get_window_extent().width /
                            (2 * axes[k, c].get_xlim()[1])
                            for k in range(len(pick)) for c in range(3)]))
-    fig.savefig(out_png, dpi=fig.dpi, facecolor="white")
+    # a wide window (an open worn join) is saved at a higher dpi so 0.1 mm still spans 10 px
+    dpi = fig.dpi * max(1.0, 110.0 / ppm)
+    ppm *= dpi / fig.dpi
+    fig.savefig(out_png, dpi=dpi, facecolor="white")
     plt.close(fig)
     ok = 0.1 * ppm >= 10
     print(f"  render {out_png}: {ppm:.0f} px per mm in the cuts, 0.1 mm = {0.1 * ppm:.0f} px -> "
@@ -540,6 +556,14 @@ def selftest():
     check("into: >= 95% of join dots inside", p["inside_pct"] >= 95)
     check("into: under 5% kept", p["kept_pct"] < 5)
     check("into: sign control trusted", r["control"]["trusted"])
+
+    # 2b. coincident faces (a clean CSC copy): touching, never inside
+    b3 = _subdivided_box([0.0, -5, -1], [20.0, 5, 1])
+    r, _, _ = measure(obj([a, b3], "coincident"))
+    p = r["all"]["pooled"]
+    print("  coincident:", json.dumps(dict(inside=p["inside_pct"], touching=p["touching_pct"])))
+    check("coincident: under 5% inside, over 95% touching",
+          p["inside_pct"] < 5 and p["touching_pct"] > 95)
 
     # 3. tilted: b turned about z so the gap runs 0.05 -> 0.45 mm along y (10 mm)
     v, f = _subdivided_box([0.0, -5, -1], [20.0, 5, 1])
@@ -632,10 +656,11 @@ def main():
               f"{res['spacing_target_mm']:.3f}), cut {res['cut_mm']:.2f} mm, {res['dots']} dots")
         c = res["control"]
         if c:
-            print(f"  sign control: {c['checked']} join dots, winding agrees on "
-                  f"{c['agree_pct']:.1f}% ({c['too_close_to_call']} within a quarter spacing "
-                  f"not checked) -> " + ("TRUSTED" if c["trusted"] else
-                                         "NOT TRUSTED -- do not read the overlap split"))
+            print(f"  inside-test control on {c['checked']} join dots: pushed in reads inside "
+                  f"{c['pushed_in_reads_inside_pct']:.1f}%, pushed out reads outside "
+                  f"{c['pushed_out_reads_outside_pct']:.1f}% -> " +
+                  ("TRUSTED" if c["trusted"] else "NOT TRUSTED -- do not read the overlap split")
+                  + f"  (closest-face sign would agree on {c['face_sign_agrees_pct']:.1f}%)")
         table(res)
         if "without" in res:
             print(f"  --- without the joins of sherds {res['without']['drop_sherds']}")
