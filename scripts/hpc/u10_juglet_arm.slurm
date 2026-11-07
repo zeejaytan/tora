@@ -64,6 +64,13 @@ fi
 # object name) alone (data.presentation_seed, wear-beyond-juglet 19), so every model given the
 # same seed sees byte-identical inputs. Unset = as before. Pair it with LABEL=.
 PAIRED="${PAIRED:-}"
+# WHOLEPOT=<complete-pot HDF5> centres and scales a set with sherds missing by the WHOLE pot
+# (data.whole_pot_path, wear-beyond-juglet 20); needs PAIRED=1. Unset = as before.
+WHOLEPOT="${WHOLEPOT:-}"
+if [ -n "$WHOLEPOT" ]; then
+    [ -n "$PAIRED" ] || { echo "WHOLEPOT needs PAIRED=1"; exit 2; }
+    [ -f "$WHOLEPOT" ] || { echo "missing: $WHOLEPOT"; exit 1; }
+fi
 LOG_ROOT=$TORA_ROOT/eval_runs
 CKPT=$TORA_ROOT/checkpoints/bbad_everyday_cka.ckpt
 LORA=(lora.enabled=true lora.r=128 lora.alpha=256 lora.dropout=0.1 lora.last_n_blocks=6 lora.train_head=false)
@@ -98,7 +105,7 @@ export WANDB_MODE=offline
 cd "$TORA_ROOT/repo"
 echo "=== u10 $SET $ARM on $(hostname) at $(date), repo $(git rev-parse --short HEAD) ==="
 echo "checkpoint: $C"
-echo "anchor_free override: ${ANCHOR_FREE:-none (config)}; paired presentations: ${PAIRED:-no}"
+echo "anchor_free override: ${ANCHOR_FREE:-none (config)}; paired presentations: ${PAIRED:-no}; whole pot: ${WHOLEPOT:-no}"
 
 for f in "$DATA_ROOT/$FILE" "$C"; do
     [ -f "$f" ] || { echo "missing: $f"; exit 1; }
@@ -117,6 +124,7 @@ python sample.py ckpt_path="$C" data_root="$DATA_ROOT" \
     data="$DATA" data.batch_size="$BATCH" "${SETARGS[@]}" \
     "${ARGS[@]}" \
     ${PAIRED:+"++data.presentation_seed=$S"} \
+    ${WHOLEPOT:+"++data.whole_pot_path=$WHOLEPOT"} \
     seed="$S" \
     log_dir="$OUT" \
     model.n_generations="$DRAWS" \

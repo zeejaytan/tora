@@ -61,6 +61,7 @@ class PointCloudDataset(Dataset):
         omit_rank: int | None = None,
         anchor_part: int | list[int] | None = None,
         presentation_seed: int | None = None,
+        whole_pot_path: str | None = None,
     ):
         super().__init__()
         self.split = split
@@ -128,6 +129,31 @@ class PointCloudDataset(Dataset):
         # is guaranteed to read numpy's global state (trimesh 5 keeps its own generator).
         # Test/predict only (datamodule.py).
         self.presentation_seed = presentation_seed
+
+        # The whole pot's frame (pr-workspace wear-beyond-juglet 20, U3, bears on U4). None
+        # (default) = as before: the object is centred on the mean of the points sampled on the
+        # sherds it is GIVEN and divided by their half-span, so a pot with sherds missing is
+        # stretched to fill a whole pot's box and `scales` (a network input) says so. A path to
+        # the HDF5 of the COMPLETE pots (round 2's csc_whole20_<set>.hdf5: same cards, same frame,
+        # every sherd) = the given sherds are centred and scaled by the WHOLE pot instead: the
+        # whole pot is sampled exactly as a complete object would be (same budget, same seeds),
+        # its mean and half-span are taken, and the kept sherds' own points (sampled as usual) are
+        # placed in that frame. Kept sherds keep their true size; `scales` is the whole pot's.
+        # On a complete pot (whole file = the given file) both samplings are the same draw, so
+        # inputs and `scales` are byte-identical to the option off. Needs presentation_seed (an
+        # unseeded draw cannot be repeated), refuses omit_rank and the unit knobs, and fails
+        # loudly on a pot the whole file does not hold.
+        self.whole_pot_path = whole_pot_path
+        self._whole_h5 = None
+        self._whole_h5_pid = None
+        self._h5_file, self._pool = None, None   # set again below; here so __del__ works if we refuse
+        if whole_pot_path is not None:
+            if presentation_seed is None:
+                raise ValueError("whole_pot_path needs presentation_seed: the whole pot is resampled with the same seeds")
+            if omit_rank is not None or normalize_object_scale or scale_multiplier != 1.0:
+                raise ValueError("whole_pot_path with omit_rank / normalize_object_scale / scale_multiplier is not defined")
+            if not os.path.isfile(whole_pot_path):
+                raise FileNotFoundError(f"whole_pot_path {whole_pot_path} does not exist")
 
         self.use_folder = os.path.isdir(self.data_path)
         self._num_threads = num_threads
@@ -209,11 +235,37 @@ class PointCloudDataset(Dataset):
         frag = self.fragments[index]
         if self.presentation_seed is None:
             return self._load_and_transform(frag, index)
-        self._rs = np.random.RandomState(self.object_seed(self.presentation_seed, frag))
+        seed = self.object_seed(self.presentation_seed, frag)
         try:
-            return self._load_and_transform(frag, index)
+            frame = None
+            if self.whole_pot_path is not None:
+                self._rs = np.random.RandomState(seed)
+                frame = self._whole_pot_frame(frag)
+            self._rs = np.random.RandomState(seed)   # the given sherds: the same seeds again
+            return self._load_and_transform(frag, index, frame)
         finally:
             self._rs = None
+
+    def _whole_pot_frame(self, frag: str) -> tuple[np.ndarray, float]:
+        """Centre and half-span of the whole pot `frag` belongs to, measured exactly as
+        _transform measures a complete object: the mean of the sampled points, then the largest
+        |coordinate| after the y-up turn."""
+        if self._whole_h5 is None or self._whole_h5_pid != os.getpid():   # one handle per process
+            self._whole_h5 = h5py.File(self.whole_pot_path, "r", libver='latest', swmr=True)
+            self._whole_h5_pid = os.getpid()
+        card = frag.split("/")[-1]
+        hits = [k for k in self._whole_h5.keys() if k != "data_split" and card in self._whole_h5[k]]
+        if len(hits) != 1:
+            raise KeyError(f"whole_pot_path {self.whole_pot_path}: pot {card} found {len(hits)} times, need 1")
+        group = self._whole_h5[hits[0]][card]
+        if "pieces" in group:
+            group = group["pieces"]
+        meshes = [_load_mesh_from_h5(group, p) for p in sorted(group.keys())]
+        pcs, pns, _ = self._sample_points(meshes)
+        pts = np.concatenate(pcs)
+        centre = np.mean(pts, axis=0)
+        up, _ = self._make_y_up(pts - centre, np.concatenate(pns))
+        return centre, float(np.max(np.abs(up)))
 
     @staticmethod
     def object_seed(presentation_seed: int, name: str) -> int:
@@ -235,11 +287,12 @@ class PointCloudDataset(Dataset):
             return list(self.pool.map(fn, items))
         return [fn(x) for x in items]
 
-    def _load_and_transform(self, frag, index):
+    def _load_and_transform(self, frag, index, frame=None):
         if self.use_folder:
             sample = self._load_from_folder(frag, index)
         else:
             sample = self._load_from_h5(frag, index)
+        sample["whole_pot_frame"] = frame
         return self._transform(sample)
 
     def _get_h5_file(self):
@@ -471,8 +524,12 @@ class PointCloudDataset(Dataset):
             anchor_idx = named[0]
             anchor[named] = True
 
-        # Global centering
-        pts_gt, _ = center_pcd(pts_gt)
+        # Global centering: on the given sherds' own mean, or on the whole pot's (whole_pot_path)
+        frame = data.get("whole_pot_frame")
+        if frame is None:
+            pts_gt, _ = center_pcd(pts_gt)
+        else:
+            pts_gt = pts_gt - frame[0]
 
         # Rotate point clouds to y-up
         pts_gt, normals_gt = self._make_y_up(pts_gt, normals_gt)
@@ -499,7 +556,7 @@ class PointCloudDataset(Dataset):
             pts_gt = pts_gt * self.scale_multiplier
 
         # Scale point clouds to [-1, 1] and apply random scaling
-        scale = np.max(np.abs(pts_gt))
+        scale = np.max(np.abs(pts_gt)) if frame is None else frame[1]
         if self.random_scale_range is not None and not self.disable_augmentation:
             scale *= self._rng.uniform(*self.random_scale_range)
         pts_gt /= scale

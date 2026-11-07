@@ -49,6 +49,7 @@ class PointCloudDataModule(L.LightningDataModule):
         omit_rank: int | None = None,
         anchor_part: int | list[int] | None = None,
         presentation_seed: int | None = None,
+        whole_pot_path: str | None = None,
     ):
         """Data module for point cloud data.
 
@@ -108,6 +109,9 @@ class PointCloudDataModule(L.LightningDataModule):
         # input turns and point order from (seed, object name) alone, so every model given the
         # same seed sees byte-identical inputs. Test/predict only; None = as before.
         self.presentation_seed = presentation_seed
+        # The whole pot's frame for sets with sherds missing (wear-beyond-juglet 20): the HDF5 of
+        # the complete pots. Test/predict only; None = as before. See dataset.py.
+        self.whole_pot_path = whole_pot_path
         self.multi_anchor = multi_anchor
         self.persistent_workers = persistent_workers and num_workers > 0
 
@@ -233,6 +237,7 @@ class PointCloudDataModule(L.LightningDataModule):
                     omit_rank=self.omit_rank,
                     anchor_part=self.anchor_part,
                     presentation_seed=self.presentation_seed,
+                    whole_pot_path=self.whole_pot_path,
                 )
                 for dataset_name in self.dataset_names
             ]
