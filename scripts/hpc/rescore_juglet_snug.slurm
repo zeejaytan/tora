@@ -7,7 +7,7 @@
 #   git -C $T/repo fetch origin
 #   git -C $T/repo show $SHA:scripts/hpc/rescore_juglet_snug.slurm > $TMPDIR/rjs.slurm
 #   $P/agent/pr-workspace/scripts/new_run.sh $T $T/repo $SHA rescore-juglet-snug $TMPDIR/rjs.slurm
-# RUNS overrides the glob of GARF eval run dirs.
+# RUNS (space separated) overrides the glob of GARF eval run dirs (version_0 dirs holding clouds/).
 #SBATCH --output=/data/gpfs/projects/punim2657/TORA/tora_%x_%j.log
 #SBATCH --job-name=tora-rescore-snug
 #SBATCH --partition=sapphire,cascade
@@ -28,7 +28,7 @@ md5sum "$OLD" "$NEW" | tee -a "$RUN_DIR/source.txt"
 if [ -z "${RUNS:-}" ]; then
   RUNS=$(ls -d $P/GARF/logs/rwlora/rwlora_eval_*juglet*/version_0 2>/dev/null || true)
 fi
-[ -n "$RUNS" ] || { echo "no GARF Juglet eval runs found"; ls $P/GARF/logs/rwlora | head -50; exit 1; }
+[ -n "$RUNS" ] || { echo "no GARF Juglet eval runs found"; ls $P/GARF/logs/rwlora > "$RUN_DIR/out/rwlora_listing.txt" || true; exit 1; }
 echo "$RUNS" | tee "$RUN_DIR/out/runs.txt"
 echo "$RUNS" | wc -l
 $PY -u scripts/rescore_on_new_reference.py --old "$OLD" --new "$NEW" --group juglet_gt \

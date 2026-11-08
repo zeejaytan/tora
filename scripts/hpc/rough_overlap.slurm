@@ -29,27 +29,36 @@ N=${N:-3}
 source $P/agent/pr-workspace/scripts/run_from_commit.sh "$CANONICAL" "$SOURCE_COMMIT" "$RUN_DIR"
 cd "$SRC"
 md5sum "$CLEAN" "$ROUGH" "$WORN" | tee -a "$RUN_DIR/source.txt"
+# The copies are named <source group>__<clean tag>__<level> (write_u10_worn.py), so a clean
+# tag T in u10_generic is u10_generic__T__d100 in the rough file and u10_generic__T__d400 in worn.
 PICK=$($PY - "$CLEAN" "$ROUGH" "$WORN" "$N" <<'EOF'
 import sys, h5py
-files, n = sys.argv[1:4], int(sys.argv[4])
-sets = []
-for f in files:
+(clean, rough, worn), n = sys.argv[1:4], int(sys.argv[4])
+def tags(f):
     with h5py.File(f, "r") as h:
-        print(f, "groups:", list(h), file=sys.stderr)
-        g = "u10_generic" if "u10_generic" in h else [k for k in h if k != "data_split"][0]
-        sets.append((g, {t for t in h[g] if "pieces" in h[g][t]}))
-common = sorted(set.intersection(*[s for _, s in sets]))
-print(f"{len(common)} objects in all three", file=sys.stderr)
-if not common:
-    sys.exit("no object common to all three files")
-print(" ".join(f"{sets[0][0]},{sets[1][0]},{sets[2][0]},{t}" for t in common[:n]))
+        g = [k for k in h if k != "data_split"][0]
+        return g, {t for t in h[g] if "pieces" in h[g][t]}
+gc, tc = tags(clean); gr, tr = tags(rough); gw, tw = tags(worn)
+print(f"{len(tc)} clean, {len(tr)} rough, {len(tw)} worn; e.g. {sorted(tr)[:2]}", file=sys.stderr)
+out = []
+for t in sorted(tc):
+    r = sorted(x for x in tr if x.startswith(f"{gc}__{t}__"))
+    w = sorted(x for x in tw if x.startswith(f"{gc}__{t}__"))
+    if r and w:
+        out.append(f"{gc},{t},{gr},{r[0]},{gw},{w[0]}")
+    if len(out) == n:
+        break
+print(f"{len(out)} picked", file=sys.stderr)
+if not out:
+    sys.exit("no clean object has both a rough and a worn copy")
+print(" ".join(out))
 EOF
 )
 echo "picked: $PICK" | tee -a "$RUN_DIR/source.txt"
 ARGS=()
 for p in $PICK; do
-  IFS=, read -r gc gr gw t <<< "$p"
-  ARGS+=(--object "clean_$t=$CLEAN:$gc:$t:100" --object "rough_$t=$ROUGH:$gr:$t:100" --object "worn4_$t=$WORN:$gw:$t:100")
+  IFS=, read -r gc t gr tr gw tw <<< "$p"
+  ARGS+=(--object "clean_$t=$CLEAN:$gc:$t:100" --object "rough_$t=$ROUGH:$gr:$tr:100" --object "worn4_$t=$WORN:$gw:$tw:100")
 done
 $PY -u scripts/measure_join_fingerprint.py --out "$RUN_DIR/out" "${ARGS[@]}"
 ls -la "$RUN_DIR/out"
