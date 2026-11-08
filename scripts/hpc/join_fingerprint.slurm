@@ -8,6 +8,7 @@
 #   git -C $T/repo show $SHA:scripts/hpc/join_fingerprint.slurm > $TMPDIR/jfp.slurm
 #   $P/agent/pr-workspace/scripts/new_run.sh $T $T/repo $SHA join-fingerprint $TMPDIR/jfp.slurm
 # CARDS overrides the three pots (space separated); a card not in round 3 stops the job.
+#SBATCH --output=/data/gpfs/projects/punim2657/TORA/tora_%x_%j.log
 #SBATCH --job-name=tora-join-fp
 #SBATCH --partition=sapphire,cascade
 #SBATCH --ntasks=1

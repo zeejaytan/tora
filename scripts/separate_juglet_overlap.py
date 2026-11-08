@@ -164,7 +164,7 @@ def posed(V0, Rm, tr):
     return [v @ R.T + t for v, R, t in zip(V0, Rm, tr)]
 
 
-def separate(V0, F, movable, tau_mm, jf, workers, label, max_iter=40):
+def separate(V0, F, movable, tau_mm, jf, workers, label, max_iter=40, aside=()):
     """Smallest rigid moves of the movable sherds that clear the target.
 
     Unknowns per movable sherd: a turn w (rotation vector) and a shift t about
@@ -187,11 +187,19 @@ def separate(V0, F, movable, tau_mm, jf, workers, label, max_iter=40):
     allv = np.concatenate(V0)
     eps = 1e-7 * float(np.linalg.norm(allv.max(0) - allv.min(0)))
     log, converged, deepest = [], False, float("nan")
+    cap, best_deep, stall = MAX_STEP_MM, float("inf"), 0
     t0 = time.time()
     for it in range(max_iter + 1):
         V = posed(V0, Rm, tr)
         TRI = [v[f] for v, f in zip(V, F)]
-        meas = measure(V, TRI, candidates(V, R_MM / jf, col), workers, eps)
+        pairs = candidates(V, R_MM / jf, col)
+        for a_, b_, c_, r_ in aside:      # spots the conservator set aside, in a_'s frame
+            cn = Rm[a_] @ c_ + tr[a_]
+            for k_ in ((a_, b_), (b_, a_)):
+                if k_ in pairs:
+                    pairs[k_] = pairs[k_][np.linalg.norm(V[k_[0]][pairs[k_]] - cn,
+                                                         axis=1) > r_ / jf]
+        meas = measure(V, TRI, pairs, workers, eps)
         A, b = [], []
         for (i, j), (idx, s, cp, gv) in meas.items():
             a = np.zeros((len(idx), m))
@@ -234,17 +242,26 @@ def separate(V0, F, movable, tau_mm, jf, workers, label, max_iter=40):
                    for cc in col.values())
         below = int((b > tol).sum())
         log.append(dict(it=it, below=below, deepest_mm=deepest,
-                        step_mm=float(step * jf)))
+                        step_mm=float(step * jf), cap_mm=cap))
         print("  " + label + " it " + format(it, "2d") + ": " +
               format(below, "6d") + " dots below target, deepest " +
               format(deepest, "+.3f") + " mm, next step " +
               format(step * jf, ".4f") + " mm, " +
               format(time.time() - t0, ".0f") + " s", flush=True)
-        if step * jf < MOVE_TOL_MM or it == max_iter:
-            converged = step * jf < MOVE_TOL_MM
+        # A few dots whose way out conflicts with their neighbours' make the step swing back
+        # and forth at the cap (job 30422501 and the 2026-11-08 trials). When the deepest
+        # has not improved by 1% of a spacing for three steps, halve the cap.
+        if deepest < best_deep - 0.0015:
+            best_deep, stall = deepest, 0
+        else:
+            stall += 1
+        if stall >= 3:
+            cap, stall = cap / 2.0, 0
+        if step * jf < MOVE_TOL_MM or cap < MOVE_TOL_MM or it == max_iter:
+            converged = step * jf < MOVE_TOL_MM or cap < MOVE_TOL_MM
             break
-        if step > MAX_STEP_MM / jf:
-            x *= (MAX_STEP_MM / jf) / step
+        if step > cap / jf:
+            x *= (cap / jf) / step
         for k, cc in col.items():
             o = 6 * cc
             Rs = Rotation.from_rotvec(x[o:o + 3]).as_matrix()
@@ -455,6 +472,57 @@ def render(meshes, V0, poses, J, S, normals, jf, wall_mm, sp_mm, mv,
     return dict(px_per_mm=ppm, rows=frames)
 
 
+def render_all_joins(meshes, V0, poses, J, S, normals, jf, wall_mm, out_png):
+    """Every join with 200+ dots, one row each: hand / tolerant / strict, cut across the join
+    in the left sherd's own frame (ticket 08: every join to the conservator's eye)."""
+    from matplotlib.collections import LineCollection
+    keys = sorted({tuple(sorted(k)) for k in J if len(J[k][0]) >= 200})
+    keys = [(a, b) if (a, b) in J else (b, a) for a, b in keys]
+    states = [("before", "as reassembled by hand"), ("tolerant", "snug (new truth)"),
+              ("strict", "strict")]
+    X, H = 1.5, wall_mm / 2.0 + 0.8
+    fig, axs = plt.subplots(len(keys), 3, figsize=(15, 3.6 * len(keys)), squeeze=False)
+    rows = []
+    for r, (i, j) in enumerate(keys):
+        idx, tw = J[(i, j)]
+        Dm = np.zeros(len(V0[i]), dtype=bool)
+        Dm[idx[tw] if tw.any() else idx] = True
+        c, Fr, chk = join_frame(V0[i], normals[i], Dm, jf, wall_mm)
+        rows.append(dict(join=[i, j], frame_ok=bool(chk["ok"])))
+        for col, (st, name) in enumerate(states):
+            ax = axs[r, col]
+            Rm, tr = poses[st]
+            Vj = ((V0[j] @ Rm[j].T + tr[j]) - tr[i]) @ Rm[i]
+            for mesh, colour in ((meshes[i], "k"),
+                                 (trimesh.Trimesh(Vj, meshes[j].faces, process=False),
+                                  "#2e6fd1")):
+                seg = trimesh.intersections.mesh_plane(mesh, Fr[:, 0], c)
+                if len(seg) == 0:
+                    continue
+                s2 = (np.asarray(seg) - c) @ Fr * jf
+                ax.add_collection(LineCollection(s2[:, :, [2, 1]], colors=colour, lw=1.2))
+            ax.set_xlim(-X, X)
+            ax.set_ylim(-H, H)
+            ax.set_aspect("equal")
+            ax.axvline(0, color="0.85", lw=0.6)
+            sv = S[st][(i, j)]
+            ax.set_title(name + ": " + str(i) + " (black) / " + str(j) + " (blue); " +
+                         format(100 * np.mean(sv < -TOL_MM), ".0f") + "% in, median " +
+                         format(np.median(sv), "+.3f") + " mm" +
+                         ("" if chk["ok"] else "  FRAME FAILED"), fontsize=8.5)
+            ax.tick_params(labelsize=7)
+    fig.tight_layout()
+    fig.canvas.draw()
+    ppm = float(np.median([ax.get_window_extent().width / (2 * X) for ax in axs.ravel()]))
+    k = max(1.0, 110.0 / ppm)            # 0.1 mm at least 11 px
+    fig.savefig(out_png, dpi=fig.dpi * k, facecolor="white")
+    ppm *= k
+    print("every-join render: " + format(ppm, ".0f") + " px per mm -> " +
+          ("RESOLVES 0.1 mm" if 0.1 * ppm >= 10 else "DOES NOT RESOLVE 0.1 mm") +
+          "; wrote " + out_png)
+    return dict(px_per_mm=ppm, joins=rows)
+
+
 def write_copy(src, dst, group, tag, keys, V, attrs):
     if Path(dst).resolve() == Path(src).resolve():
         raise SystemExit("refusing to overwrite the reference " + src)
@@ -474,6 +542,14 @@ def main():
     p.add_argument("--group", default="juglet_gt")
     p.add_argument("--juglet-mm", type=float, default=65.0)
     p.add_argument("--out-dir", required=True)
+    p.add_argument("--tolerance-mm", type=float, default=0.295,
+                   help="tolerant target: overlap allowed, mm (the Juglet's scan spacing, "
+                        "uneven-wear ticket 08)")
+    p.add_argument("--set-aside", action="append", default=[],
+                   help="A:B:x,y,z:R -- leave out the A-B join dots within R mm of x,y,z "
+                        "(file units, A's frame); recorded and reported, never hidden")
+    p.add_argument("--prefix", default="juglet_gt_snug")
+    p.add_argument("--max-iter", type=int, default=60)
     p.add_argument("--workers", type=int,
                    default=int(os.environ.get("SLURM_CPUS_PER_TASK", "1")))
     a = p.parse_args()
@@ -507,6 +583,11 @@ def main():
         for j in np.unique(t["owner"][mm["tight"]]):
             idx = np.flatnonzero(mm["tight"] & (t["owner"] == j))
             J[(i, int(j))] = (idx, t["partner"][idx] < ANTI_DOT)
+    aside = []
+    for spec in a.set_aside:
+        A_, B_, xyz, R_ = spec.split(":")
+        aside.append((int(A_), int(B_), np.array([float(t) for t in xyz.split(",")]),
+                      float(R_)))
     anchor = int(np.argmax([len(v) for v in V0]))
     movable = [k for k in range(len(V0)) if k != anchor]
     sp_mm = sp * jf
@@ -528,11 +609,14 @@ def main():
     poses = {"before": ([np.eye(3)] * len(V0),
                         [np.zeros(3)] * len(V0))}
     mv = {}
-    for name, tau in (("strict", 0.0), ("tolerant", -sp_mm)):
+    res["set_aside"] = [dict(join=[A_, B_], centre=c_.tolist(), radius_mm=R_)
+                        for A_, B_, c_, R_ in aside]
+    for name, tau in (("strict", 0.0), ("tolerant", -a.tolerance_mm)):
         print("")
         print(name.upper() + ": every dot at least " + format(tau, "+.3f") +
               " mm from the neighbour's surface")
-        r = separate(V0, F, movable, tau, jf, a.workers, name)
+        r = separate(V0, F, movable, tau, jf, a.workers, name, aside=aside,
+                     max_iter=a.max_iter)
         poses[name] = (r["Rm"], r["tr"])
         S[name] = join_state(posed(V0, r["Rm"], r["tr"]), F, J, jf,
                              a.workers)
@@ -556,10 +640,16 @@ def main():
         res["summary"][name] = summarise(S[name], J, name)
 
     print("")
-    print("GATE G1 -- run again from the strict result; nothing may move "
+    # The gates run on the pose that becomes the new truth: tolerant (ticket 08).
+    tau_t = -a.tolerance_mm
+    print("GATE G1 -- run again from the tolerant result; nothing may move "
           "more than 0.01 mm")
-    Vs = posed(V0, *poses["strict"])
-    r1 = separate(Vs, F, movable, 0.0, jf, a.workers, "G1")
+    Vs = posed(V0, *poses["tolerant"])
+    # G1 starts from the tolerant pose, so the set-aside centres move with their sherd
+    aside_s = [(A_, B_, poses["tolerant"][0][A_] @ c_ + poses["tolerant"][1][A_], R_)
+               for A_, B_, c_, R_ in aside]
+    r1 = separate(Vs, F, movable, tau_t, jf, a.workers, "G1", aside=aside_s,
+                  max_iter=a.max_iter)
     g1 = max(row["max_mm"] for row in moves(Vs, r1["Rm"], r1["tr"], jf))
     g1_ok = bool(g1 <= 0.01 and r1["met"])
     print("  G1: furthest move " + format(g1, ".4f") + " mm -> " +
@@ -570,20 +660,23 @@ def main():
     Dm = np.zeros(len(V0[k]), dtype=bool)
     Dm[J[kj][0][J[kj][1]]] = True
     _c, Fr, _chk = join_frame(V0[k], sherds[k][1], Dm, jf, wall_mm)
-    dirn = poses["strict"][0][k] @ Fr[:, 2]
+    dirn = poses["tolerant"][0][k] @ Fr[:, 2]
     print("")
-    print("GATE G2 -- sherd " + str(k) + " pushed " + format(PUSH_MM, ".2f") +
+    print("GATE G2 -- sherd " + str(k) + " pushed " +
+          format(a.tolerance_mm + PUSH_MM, ".3f") +
           " mm into sherd " + str(j) + ", the rest held; it must come back "
-          "to within 0.05 mm")
+          "to within 0.05 mm of its tolerant place")
     Vp = list(Vs)
-    Vp[k] = Vs[k] + (PUSH_MM / jf) * dirn
-    r2 = separate(Vp, F, [k], 0.0, jf, a.workers, "G2")
+    push = a.tolerance_mm + PUSH_MM      # past the allowance, or the solver need not act
+    Vp[k] = Vs[k] + (push / jf) * dirn
+    r2 = separate(Vp, F, [k], tau_t, jf, a.workers, "G2", aside=aside_s,
+                  max_iter=a.max_iter)
     Vk = posed(Vp, r2["Rm"], r2["tr"])[k]
     off = float(np.sqrt(np.mean(np.sum((Vk - Vs[k]) ** 2, axis=1))) * jf)
     back = float(np.mean((Vk - Vp[k]) @ dirn) * jf)
     g2_ok = bool(off <= 0.05 and r2["met"])
     print("  G2: came back " + format(-back, ".3f") + " mm along the push; "
-          "left " + format(off, ".3f") + " mm (rms) from its strict place -> "
+          "left " + format(off, ".3f") + " mm (rms) from its tolerant place -> "
           + ("PASS" if g2_ok else "FAIL"))
     res["gates"] = dict(G1_max_move_mm=g1, G1_pass=g1_ok, G2_sherd=k,
                         G2_neighbour=j, G2_back_mm=-back, G2_off_mm=off,
@@ -592,26 +685,30 @@ def main():
     res["joins"] = join_table(S, J, ["before", "strict", "tolerant"])
     res["render"] = render(meshes, V0, poses, J, S,
                            [n for _v, n in sherds], jf, wall_mm, sp_mm, mv,
-                           anchor, str(out / "juglet_separation.png"))
+                           anchor, str(out / (a.prefix + "_worst_typical.png")))
+    res["render_all"] = render_all_joins(meshes, V0, poses, J, S,
+                                         [n for _v, n in sherds], jf, wall_mm,
+                                         str(out / (a.prefix + "_every_join.png")))
 
-    ok = g1_ok and g2_ok and all(res["targets"][t]["met"]
-                                 for t in ("strict", "tolerant"))
+    ok = g1_ok and g2_ok and res["targets"]["tolerant"]["met"]
     if ok:
-        for name in ("strict", "tolerant"):
-            write_copy(a.juglet, str(out / ("juglet_gt_separated_" + name +
-                                            ".hdf5")),
+        # strict is written beside it only where it met its own target; reported either way
+        for name in [n for n in ("strict", "tolerant") if res["targets"][n]["met"]]:
+            write_copy(a.juglet, str(out / (a.prefix + ("" if name == "tolerant" else
+                                                        "_strict") + ".hdf5")),
                        a.group, tag, keys, posed(V0, *poses[name]),
                        dict(separated_from=str(a.juglet),
                             separation_target_mm=float(
                                 res["targets"][name]["target_mm"]),
                             separation_script="scripts/"
-                            "separate_juglet_overlap.py"))
+                            "separate_juglet_overlap.py",
+                            set_aside=json.dumps(res["set_aside"])))
     else:
         print("")
         print("A GATE OR A TARGET FAILED -- no separated file written")
-    (out / "juglet_separation.json").write_text(
+    (out / (a.prefix + ".json")).write_text(
         json.dumps(res, indent=2, default=float))
-    print("wrote " + str(out / "juglet_separation.json"))
+    print("wrote " + str(out / (a.prefix + ".json")))
     return 0 if ok else 1
 
 
