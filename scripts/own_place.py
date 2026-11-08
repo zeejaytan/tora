@@ -73,8 +73,9 @@ WHOLE-POT RULER (wear-beyond-juglet 13, 2026-11-06). The unit box above is the b
 the TRUE sherds handed in. With sherds missing (round 3 removes 20% of each pot) that box
 shrinks and the 7.1% tolerance silently tightens. `pot_size` (score_draw) and `--pot-size
 copies.csv` (the CLI) give the whole pot's longest side instead, in the cloud's own units
-(copies.csv `pot_mm / mm_per_unit`); own, swap, right way round and every % are then shares of
-the whole pot. The evaluator still uses the box of what it was given, so `swap_box` keeps the
+(copies.csv `pot_mm / mm_per_unit`, divided by a TORA cloud's saved `scale`, since TORA's
+clouds are in loader units; that division was missing until wear-beyond-juglet 21, 2026-11-08);
+own, swap, right way round and every % are then shares of the whole pot. The evaluator still uses the box of what it was given, so `swap_box` keeps the
 box-ruler count and `--reconcile` checks that one. Without a pot size nothing changes.
 `oriented_strict` is the strict reading beside `oriented`: the same, with the turn under
 STRICT_TURN_DEG (30) instead of 90. Printed as its own column and line; the primary count
@@ -333,6 +334,12 @@ def score_object(npz: Path, pot_sizes: dict | None = None) -> tuple[str, dict[st
             check_slices(d["part_ids"], d["points_per_part"])
         gt, ppp, name = d["pts_gt"], d["points_per_part"], str(d["name"])
         size = pot_size_for(pot_sizes, name)
+        if size and "scale" in d.files:
+            # copies.csv sizes are in the HDF5's units; a TORA cloud is in loader units
+            # (HDF5 / scale, tora/data/dataset.py). GARF clouds carry no scale and stay as they
+            # were. Without this the whole-pot ruler was `scale` times too short on TORA
+            # (wear-beyond-juglet 21: p148 tolerance 4.6 mm instead of 10.7).
+            size = size / float(np.asarray(d["scale"]).reshape(-1)[0])
         out = {c: [score_draw(gt, g, ppp, size) for g in d[key]] for c, key in CLOUDS.items()}
     return name, out
 
