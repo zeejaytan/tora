@@ -140,7 +140,7 @@ def main() -> int:
         ties = sum((t[2], t[3]) == (best[2], best[3]) for t in att)
         seed, k, ori, own, n, run, npzf = best
         d = np.load(npzf, allow_pickle=True)
-        cond = re.sub(r"^csc_whole\d*_", "", str(d["name"]).split("/")[0])
+        cond = re.sub(r"^csc_whole\d*(miss)?_", "", str(d["name"]).split("/")[0])
         m = meta[(card, cond)]
         mmu = float(d["scale"]) * float(m["mm_per_unit"])
         gt, pred, inp, cuts, rows = per_sherd(d, k, mmu)
