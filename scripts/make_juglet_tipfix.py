@@ -49,6 +49,48 @@ JUGLET_MM = 65.0
 TOL_MM = 0.295      # one scan spacing: what the snug re-seat (ticket 08) also allows
 
 
+def _pt_tri(p, a, b, c):
+    """Distance from points p (n,3) to triangles a,b,c (n,k,3) -> (n,k). Ericson's closest point."""
+    p = p[:, None, :]
+    ab, ac, ap = b - a, c - a, p - a
+    d1, d2 = (ab * ap).sum(-1), (ac * ap).sum(-1)
+    bp = p - b
+    d3, d4 = (ab * bp).sum(-1), (ac * bp).sum(-1)
+    cp = p - c
+    d5, d6 = (ab * cp).sum(-1), (ac * cp).sum(-1)
+    va, vb, vc = d3 * d6 - d5 * d4, d5 * d2 - d1 * d6, d1 * d4 - d3 * d2
+    den = np.where(va + vb + vc == 0, 1e-30, va + vb + vc)
+    v, w = vb / den, vc / den
+    q = a + ab * v[..., None] + ac * w[..., None]                    # inside the face
+    sab = d1 / np.where(d1 - d3 == 0, 1e-30, d1 - d3)
+    sac = d2 / np.where(d2 - d6 == 0, 1e-30, d2 - d6)
+    sbc = (d4 - d3) / np.where((d4 - d3) + (d5 - d6) == 0, 1e-30, (d4 - d3) + (d5 - d6))
+    cand = [(d1 <= 0) & (d2 <= 0), a, (d3 >= 0) & (d4 <= d3), b, (d6 >= 0) & (d5 <= d6), c,
+            (vc <= 0) & (d1 >= 0) & (d3 <= 0), a + ab * sab[..., None],
+            (vb <= 0) & (d2 >= 0) & (d6 <= 0), a + ac * sac[..., None],
+            (va <= 0) & ((d4 - d3) >= 0) & ((d5 - d6) >= 0), b + (c - b) * sbc[..., None]]
+    done = np.zeros(q.shape[:-1], bool)
+    out = q.copy()
+    for m, x in zip(cand[0::2], cand[1::2]):
+        x = np.broadcast_to(x, q.shape)
+        take = m & ~done
+        out[take] = x[take]
+        done |= m
+    return np.linalg.norm(out - p, axis=-1)
+
+
+def surface_distance(points, mesh, k=24):
+    """Distance from each point to the mesh surface: exact over the k faces whose centroids are
+    nearest (no rtree needed; trimesh's closest_point wants it and the TORA env lacks it)."""
+    from scipy.spatial import cKDTree
+    if not len(points):
+        return np.zeros(0)
+    tri = mesh.vertices[mesh.faces]
+    _, idx = cKDTree(tri.mean(1)).query(points, k=min(k, len(tri)))
+    t = tri[idx]
+    return _pt_tri(points, t[:, :, 0], t[:, :, 1], t[:, :, 2]).min(1)
+
+
 def pieces(h, group):
     tag = sorted(t for t in h[group] if "pieces" in h[group][t])[0]
     g = h[group][tag]["pieces"]
@@ -83,7 +125,7 @@ def main():
 
     near = np.where(np.linalg.norm(va - CENTRE, axis=1) < r)[0]
     bad_v = near[inside(va[near], B)]
-    depth = B.nearest.on_surface(va[bad_v])[1] * jf if len(bad_v) else np.zeros(0)
+    depth = surface_distance(va[bad_v], B) * jf if len(bad_v) else np.zeros(0)
     drop = np.isin(fa, bad_v).any(axis=1)
     # faces left hanging: share no edge with any kept face
     for _ in range(3):
@@ -115,7 +157,7 @@ def main():
     def left_in(radius):
         nn = np.where(np.linalg.norm(va2 - CENTRE, axis=1) < radius)[0]
         lf = nn[inside(va2[nn], B)]
-        return len(lf), (float(B.nearest.on_surface(va2[lf])[1].max() * jf) if len(lf) else 0.0)
+        return len(lf), (float(surface_distance(va2[lf], B).max() * jf) if len(lf) else 0.0)
     n_left, left_mm = left_in(r)          # the spot itself: must be clear
     n_ring, ring_mm = left_in(2 * r)      # the join around it, untouched: for scale
     rec = {"src": a.src, "dst": a.dst, "sherds": [keys[a.a], keys[a.b]], "mm_per_unit": jf,
