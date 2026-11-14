@@ -13,6 +13,7 @@
 #     sbatch scripts/hpc/render_tora_attempt.slurm
 # Other sets (ticket 21): SET=csc_whole20miss_clean COPIES=<that set's copies.csv> picks runs
 # u10_${SET}_${ARM}_*_${JOBID} instead of round 1's u10_csc_whole_${COND}_${ARM}_s*_${JOBID}.
+# COMPLETE=3 renders the first 3 complete attempts in seed/attempt order (the (b) rule) instead of the best.
 # MODELS: entries ARM:JOBID,JOBID:LABEL separated by ";" (labels may contain spaces).
 set -uo pipefail
 TORA_ROOT=/data/gpfs/projects/punim2657/TORA
@@ -37,6 +38,6 @@ for E in "${ENTRIES[@]}"; do
     echo "--- $LABEL ($ARM): ${#RUNS[@]} runs"
     [ ${#RUNS[@]} -gt 0 ] || { echo "no runs for $ARM $IDS"; exit 1; }
     python scripts/render_tora_attempt.py --runs "${RUNS[@]}" --copies "$COPIES" --cards $CARDS \
-        --label "$LABEL" --out "$OUT" || exit 1
+        --label "$LABEL" --out "$OUT" ${COMPLETE:+--complete "$COMPLETE"} || exit 1
 done
 echo "=== done $(date) ==="

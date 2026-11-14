@@ -121,6 +121,29 @@ def draw(gt, pred, inp, cuts, anchor, rows, path, title):
     plt.close(fig)
 
 
+def render(t, card, a, meta, tag, kind, note):
+    seed, k, ori, own, n, run, npzf = t
+    d = np.load(npzf, allow_pickle=True)
+    cond = re.sub(r"^csc_whole\d*(miss)?_", "", str(d["name"]).split("/")[0])
+    m = meta[(card, cond)]
+    mmu = float(d["scale"]) * float(m["mm_per_unit"])
+    gt, pred, inp, cuts, rows = per_sherd(d, k, mmu)
+    anchor = int(np.argmax(d["points_per_part"]))  # padding slots are 0, never the max
+    side = float((gt.max(0) - gt.min(0)).max()) * mmu
+    print(f"== {card} ({cond}) {a.label} [{kind}]: seed {seed} draw {k + 1} (1-based): {ori} of {n} right way "
+          f"round, {own} own place ({note}); run {run.name}; pot_mm {m['pot_mm']} vs truth's longest side "
+          f"{side:.1f} mm; worst centre {max(x['centre_mm'] for x in rows):.2f} mm, worst turn "
+          f"{max(x['turn_deg'] for x in rows):.1f} deg")
+    for x in rows:
+        print(f"   sherd {x['sherd']}{'*' if x['sherd'] == anchor else ' '} centre {x['centre_mm']:.2f} mm, "
+              f"turn {x['turn_deg']:.2f} deg; input {x['input_from_true_mm']:.1f} mm from true place")
+    p = a.out / f"tora_{kind}_{cond}_{tag}_{card}.png"
+    draw(gt, pred, inp, cuts, anchor, rows, p,
+         f"{card} {cond}, TORA {a.label}: seed {seed}, draw {k + 1}; {ori}/{n} right way round, {own}/{n} own "
+         f"place ({note}), pot {m['pot_mm']} mm")
+    print(f"   picture {p}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", nargs="+", type=Path, required=True)
@@ -128,6 +151,8 @@ def main() -> int:
     ap.add_argument("--cards", nargs="+", required=True)
     ap.add_argument("--label", required=True, help="model label for titles and file names")
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--complete", type=int, default=0,
+                    help="render the first K complete attempts in seed/attempt order instead of the best")
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     meta = {(r["card"], r["condition"]): r for r in csv.DictReader(open(a.copies))}
@@ -136,28 +161,19 @@ def main() -> int:
         att = gather(a.runs, card)
         if not att:
             print(f"{card}: not in these runs"); return 1
-        best = max(att, key=lambda t: (t[2], t[3], -t[0], -t[1]))
-        ties = sum((t[2], t[3]) == (best[2], best[3]) for t in att)
-        seed, k, ori, own, n, run, npzf = best
-        d = np.load(npzf, allow_pickle=True)
-        cond = re.sub(r"^csc_whole\d*(miss)?_", "", str(d["name"]).split("/")[0])
-        m = meta[(card, cond)]
-        mmu = float(d["scale"]) * float(m["mm_per_unit"])
-        gt, pred, inp, cuts, rows = per_sherd(d, k, mmu)
-        anchor = int(np.argmax(d["points_per_part"]))  # padding slots are 0, never the max
-        side = float((gt.max(0) - gt.min(0)).max()) * mmu
-        print(f"== {card} ({cond}) {a.label}: best of {len(att)} attempts = seed {seed} draw {k + 1} (1-based): "
-              f"{ori} of {n} right way round, {own} own place ({ties} attempts tie on both); "
-              f"run {run.name}; pot_mm {m['pot_mm']} vs truth's longest side {side:.1f} mm (sampled, "
-              f"any orientation)")
-        for x in rows:
-            print(f"   sherd {x['sherd']}{'*' if x['sherd'] == anchor else ' '} centre {x['centre_mm']:.2f} mm, "
-                  f"turn {x['turn_deg']:.2f} deg; input {x['input_from_true_mm']:.1f} mm from true place")
-        p = a.out / f"tora_best_{cond}_{tag}_{card}.png"
-        draw(gt, pred, inp, cuts, anchor, rows, p,
-             f"{card} {cond}, TORA {a.label}: best attempt (seed {seed}, draw {k + 1}; {ori}/{n} right way "
-             f"round, {own}/{n} own place; {ties} of {len(att)} attempts tie), pot {m['pot_mm']} mm")
-        print(f"   picture {p}")
+        if a.complete:
+            # pre-registered (b) rule: the first K complete attempts in seed, then attempt order,
+            # read from the per-draw rows (never a sorted best-first list)
+            done = sorted((t for t in att if t[2] == t[4]), key=lambda t: (t[0], t[1]))
+            print(f"== {card} {a.label}: {len(done)} complete attempts of {len(att)}; rendering the first "
+                  f"{min(a.complete, len(done))} in seed/attempt order")
+            for i, t in enumerate(done[:a.complete]):
+                render(t, card, a, meta, tag, f"complete{i + 1}", f"complete attempt {i + 1} of {len(done)} "
+                       f"in seed/attempt order")
+        else:
+            best = max(att, key=lambda t: (t[2], t[3], -t[0], -t[1]))
+            ties = sum((t[2], t[3]) == (best[2], best[3]) for t in att)
+            render(best, card, a, meta, tag, "best", f"best attempt; {ties} of {len(att)} attempts tie")
     return 0
 
 
