@@ -20,6 +20,8 @@ Viewer: `u10_juglet_rough1x_t09` beside `u10_juglet_fresh_t08`
 
 Beyond the Juglet (pr-workspace U3, 2026-11-06): on 21 CSC catalogue pots at 6-10 sherds, the rough 1x adapter beat clean-break on 1-2 of 11 counted pots per condition (bar 8, chance about 2), and lost on p132_d00 and p149_d00 in all three conditions. The Juglet's rough gain does not carry to these pots. Read-out `pr-workspace/.scratch/wear-beyond-juglet/readout-round1.md`.
 
+Mirror of GARF's test (pr-workspace U3, 2026-11-14; same models, pots, seeds and rule as GARF): on round 2's worn pots (10-20 sherds) worn 4x beats clean-break on 9 of 9 counted pots and rough 1x on 7 of 9, both holding; GARF reached 4 of 9. It is the tool's own even wear only, it costs TORA on clean breaks (worn 4x loses 4 of 9, about a fifth of full reassemblies), and it does not hold with sherds missing (5 of 9). Round 1 passes nothing (round 1's rough figures above used an older rough model, unpaired). Read-out `pr-workspace/.scratch/wear-beyond-juglet/readout-tora-mirror.md`.
+
 ## Why it matters
 
 The wear model is currently calibrated against **a physical argument and one pot**. That is
